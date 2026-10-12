@@ -1,5 +1,7 @@
 from django.db import models
 from rooms.models import Room, Contract
+from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 
 class UtilityRate(models.Model):
     electric_price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -23,15 +25,24 @@ class UtilityReading(models.Model):
     room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='utility_readings')
     month = models.PositiveSmallIntegerField()
     year = models.PositiveSmallIntegerField()
-    old_electric = models.PositiveIntegerField()
-    new_electric = models.PositiveIntegerField()
-    old_water = models.PositiveIntegerField()
-    new_water = models.PositiveIntegerField()
+    old_electric = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
+    new_electric = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
+    old_water = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
+    new_water = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
 
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=['room', 'month', 'year'], name='unique_room_month_year_reading'),
         ]
+
+    def clean(self):
+        # Đúng theo đặc tả UC-06: chỉ số mới phải lớn hơn hoặc bằng chỉ số cũ
+        if self.new_electric is not None and self.old_electric is not None \
+                and self.new_electric < self.old_electric:
+            raise ValidationError('Chỉ số điện mới không được nhỏ hơn chỉ số cũ.')
+        if self.new_water is not None and self.old_water is not None \
+                and self.new_water < self.old_water:
+            raise ValidationError('Chỉ số nước mới không được nhỏ hơn chỉ số cũ.')
 
     def electric_usage(self):
         return self.new_electric - self.old_electric
