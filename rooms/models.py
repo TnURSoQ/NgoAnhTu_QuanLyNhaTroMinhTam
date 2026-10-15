@@ -1,5 +1,6 @@
 from django.db import models
 from accounts.models import Tenant
+from django.core.exceptions import ValidationError
 
 class Room(models.Model):
     class Status(models.TextChoices):
@@ -27,7 +28,29 @@ class Contract(models.Model):
     end_date = models.DateField()
     deposit = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.HIEU_LUC)
+    
+    def clean(self):
+        if self.start_date and self.end_date and self.end_date < self.start_date:
+            raise ValidationError('Ngày kết thúc không được trước ngày bắt đầu.')
 
+        # Lập hợp đồng mới: phòng phải đang trống
+        if self.status == self.Status.HIEU_LUC and self.room_id:
+            if Contract.objects.filter(
+                room_id=self.room_id, status=self.Status.HIEU_LUC
+            ).exclude(pk=self.pk).exists():
+                raise ValidationError('Phòng này đang có hợp đồng còn hiệu lực.')
+            if self._state.adding and self.room.status != Room.Status.TRONG:
+                raise ValidationError(
+                    f'Phòng đang ở trạng thái "{self.room.get_status_display()}", '
+                    'chỉ lập hợp đồng được cho phòng trống.'
+                )
+
+        # Kết thúc hợp đồng: không còn hóa đơn chưa thanh toán
+        if self.pk and self.status == self.Status.KET_THUC:
+            if self.invoices.exclude(status='da_thanh_toan').exists():
+                raise ValidationError(
+                    'Không thể kết thúc hợp đồng khi còn hóa đơn chưa thanh toán hoặc quá hạn.'
+                )
     def __str__(self):
         return f'HĐ #{self.id} - {self.room}'
 
