@@ -90,6 +90,13 @@ class Invoice(models.Model):
     def total_paid(self):
         return self.payments.aggregate(total=models.Sum('amount'))['total'] or 0
 
+    def recalculate_total(self):
+        services_total = self.invoice_services.aggregate(
+            total=models.Sum('subtotal')
+        )['total'] or 0
+        self.total_amount = self.room_fee + self.electric_fee + self.water_fee + services_total
+        self.save(update_fields=['total_amount'])
+
     def __str__(self):
         return f'Hóa đơn T{self.month}/{self.year} - {self.contract}'
 
@@ -105,6 +112,9 @@ class InvoiceService(models.Model):
             models.UniqueConstraint(fields=['invoice', 'service'], name='unique_invoice_service'),
         ]
 
+    def save(self, *args, **kwargs):
+        self.subtotal = self.quantity * self.service.unit_price
+        super().save(*args, **kwargs)
 
 class Payment(models.Model):
     class Method(models.TextChoices):
