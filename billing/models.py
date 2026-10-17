@@ -82,6 +82,7 @@ class Invoice(models.Model):
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.CHUA_THANH_TOAN)
     due_date = models.DateField()
     created_at = models.DateTimeField(auto_now_add=True)
+    reminded_at = models.DateField(null=True, blank=True)  # ngày đã gửi email nhắc nợ
 
     class Meta:
         constraints = [
