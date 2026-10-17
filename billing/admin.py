@@ -45,15 +45,25 @@ class InvoiceServiceInline(admin.TabularInline):
 
 class PaymentInline(admin.TabularInline):
     model = Payment
-    extra = 0
+    extra = 1
 
 
 @admin.register(Invoice)
 class InvoiceAdmin(admin.ModelAdmin):
-    list_display = ('id', 'contract', 'month', 'year', 'total_amount', 'status', 'due_date')
+    list_display = ('id', 'contract', 'month', 'year', 'total_amount',
+                    'paid_amount', 'remaining', 'status', 'due_date')
     list_filter = ('status', 'year', 'month')
-    readonly_fields = ('contract', 'utility_reading', 'month', 'year', 'total_amount', 'created_at')
+    readonly_fields = ('contract', 'utility_reading', 'month', 'year',
+                       'total_amount', 'status', 'created_at')
     inlines = [InvoiceServiceInline, PaymentInline]
+
+    @admin.display(description='Đã thu')
+    def paid_amount(self, obj):
+        return obj.total_paid()
+
+    @admin.display(description='Còn nợ')
+    def remaining(self, obj):
+        return obj.total_amount - obj.total_paid()
 
     def has_add_permission(self, request):
         # Hóa đơn chỉ được lập từ chỉ số điện nước, không nhập tay

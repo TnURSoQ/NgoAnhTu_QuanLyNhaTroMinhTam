@@ -2,6 +2,7 @@ from django.db import models
 from rooms.models import Room, Contract
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
+from django.utils import timezone
 
 class UtilityRate(models.Model):
     electric_price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -90,12 +91,24 @@ class Invoice(models.Model):
     def total_paid(self):
         return self.payments.aggregate(total=models.Sum('amount'))['total'] or 0
 
+    def update_status(self):
+        """Tính lại trạng thái từ số tiền đã thu và hạn thanh toán."""
+        if self.total_paid() >= self.total_amount:
+            new_status = self.Status.DA_THANH_TOAN
+        elif self.due_date < timezone.localdate():
+            new_status = self.Status.QUA_HAN
+        else:
+            new_status = self.Status.CHUA_THANH_TOAN
+        self.status = new_status
+        Invoice.objects.filter(pk=self.pk).update(status=new_status)
+
     def recalculate_total(self):
         services_total = self.invoice_services.aggregate(
             total=models.Sum('subtotal')
         )['total'] or 0
         self.total_amount = self.room_fee + self.electric_fee + self.water_fee + services_total
         self.save(update_fields=['total_amount'])
+        self.update_status()
 
     def __str__(self):
         return f'Hóa đơn T{self.month}/{self.year} - {self.contract}'
@@ -123,8 +136,23 @@ class Payment(models.Model):
 
     invoice = models.ForeignKey(Invoice, on_delete=models.PROTECT, related_name='payments')
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    paid_date = models.DateField(auto_now_add=True)
+    paid_date = models.DateField(default=timezone.localdate)
     method = models.CharField(max_length=20, choices=Method.choices, default=Method.TIEN_MAT)
+
+    def clean(self):
+        if self.amount is None:
+            return
+        if self.amount <= 0:
+            raise ValidationError('Số tiền thanh toán phải lớn hơn 0.')
+        if self.invoice_id:
+            paid_before = self.invoice.payments.exclude(pk=self.pk).aggregate(
+                total=models.Sum('amount')
+            )['total'] or 0
+            remaining = self.invoice.total_amount - paid_before
+            if self.amount > remaining:
+                raise ValidationError(
+                    f'Số tiền vượt quá số còn nợ ({remaining:,.0f}đ).'
+                )
 
     def __str__(self):
         return f'{self.amount}đ - {self.invoice}'
