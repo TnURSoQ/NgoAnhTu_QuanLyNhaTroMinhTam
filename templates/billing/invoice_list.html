@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block title %}Hóa đơn của tôi{% endblock %}
+{% block content %}
+{% if default_password %}
+<div class="alert alert-warning">
+  Bạn đang dùng mật khẩu mặc định. Vui lòng <a href="{% url 'password_change' %}">đổi mật khẩu</a> để bảo mật tài khoản.
+</div>
+{% endif %}
+<h4 class="mb-3">Hóa đơn của tôi</h4>
+<div class="alert {% if total_debt > 0 %}alert-danger{% else %}alert-success{% endif %}">
+  Tổng còn nợ: <strong>{{ total_debt|floatformat:"0g" }}đ</strong>
+</div>
+{% for invoice in invoices %}
+<div class="card shadow-sm mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start">
+      <div>
+        <h5 class="card-title mb-1">Tháng {{ invoice.month }}/{{ invoice.year }}</h5>
+        <div class="text-muted small">{{ invoice.contract.room }} · Hạn thanh toán {{ invoice.due_date|date:"d/m/Y" }}</div>
+      </div>
+      {% include 'billing/_status_badge.html' %}
+    </div>
+    <div class="row mt-3 text-center">
+      <div class="col-4"><div class="small text-muted">Tổng tiền</div><strong>{{ invoice.total_amount|floatformat:"0g" }}đ</strong></div>
+      <div class="col-4"><div class="small text-muted">Đã thu</div><strong>{{ invoice.paid|floatformat:"0g" }}đ</strong></div>
+      <div class="col-4"><div class="small text-muted">Còn nợ</div><strong>{{ invoice.remaining|floatformat:"0g" }}đ</strong></div>
+    </div>
+    <a href="{% url 'my_invoice_detail' invoice.pk %}" class="btn btn-outline-primary btn-sm mt-3">Xem chi tiết</a>
+  </div>
+</div>
+{% empty %}
+<div class="alert alert-info">Chưa có hóa đơn nào.</div>
+{% endfor %}
+{% endblock %}

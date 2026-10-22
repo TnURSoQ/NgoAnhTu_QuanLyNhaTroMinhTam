@@ -58,7 +58,7 @@ ROOT_URLCONF = 'nhatro_minhtam.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -130,3 +130,8 @@ AUTH_USER_MODEL = 'accounts.User'
 # Email: khi phát triển, in nội dung email ra terminal thay vì gửi thật
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 DEFAULT_FROM_EMAIL = 'Nhà trọ Minh Tâm <no-reply@minhtam.local>'
+
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'home'
+LOGOUT_REDIRECT_URL = 'login'
+NUMBER_GROUPING = 3  # hiện 2.392.500 thay vì 2392500

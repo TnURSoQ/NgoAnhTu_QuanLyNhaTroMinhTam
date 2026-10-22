@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block title %}Lịch sử thanh toán{% endblock %}
+{% block content %}
+<h4 class="mb-3">Lịch sử thanh toán</h4>
+{% if payments %}
+<div class="table-responsive">
+  <table class="table table-striped">
+    <thead><tr><th>Ngày</th><th>Hóa đơn</th><th>Hình thức</th><th class="text-end">Số tiền</th></tr></thead>
+    <tbody>
+      {% for p in payments %}
+      <tr>
+        <td>{{ p.paid_date|date:"d/m/Y" }}</td>
+        <td><a href="{% url 'my_invoice_detail' p.invoice.pk %}">T{{ p.invoice.month }}/{{ p.invoice.year }} · {{ p.invoice.contract.room }}</a></td>
+        <td>{{ p.get_method_display }}</td>
+        <td class="text-end">{{ p.amount|floatformat:"0g" }}đ</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="alert alert-info">Chưa có khoản thanh toán nào.</div>
+{% endif %}
+{% endblock %}

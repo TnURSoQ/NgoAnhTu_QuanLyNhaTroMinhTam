@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block title %}Hóa đơn tháng {{ invoice.month }}/{{ invoice.year }}{% endblock %}
+{% block content %}
+<a href="{% url 'my_invoices' %}" class="btn btn-link px-0">&larr; Danh sách hóa đơn</a>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0">Hóa đơn tháng {{ invoice.month }}/{{ invoice.year }} · {{ invoice.contract.room }}</h4>
+  {% include 'billing/_status_badge.html' %}
+</div>
+<p class="text-muted">Hạn thanh toán: {{ invoice.due_date|date:"d/m/Y" }}</p>
+
+<div class="card shadow-sm mb-3"><div class="card-body">
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead><tr><th>Khoản</th><th class="text-end">Thành tiền</th></tr></thead>
+      <tbody>
+        <tr><td>Tiền phòng</td><td class="text-end">{{ invoice.room_fee|floatformat:"0g" }}đ</td></tr>
+        <tr>
+          <td>Tiền điện{% if reading %} <span class="text-muted small">({{ reading.old_electric|floatformat:"-2" }} → {{ reading.new_electric|floatformat:"-2" }})</span>{% endif %}</td>
+          <td class="text-end">{{ invoice.electric_fee|floatformat:"0g" }}đ</td>
+        </tr>
+        <tr>
+          <td>Tiền nước{% if reading %} <span class="text-muted small">({{ reading.old_water|floatformat:"-2" }} → {{ reading.new_water|floatformat:"-2" }})</span>{% endif %}</td>
+          <td class="text-end">{{ invoice.water_fee|floatformat:"0g" }}đ</td>
+        </tr>
+        {% for item in invoice_services %}
+        <tr><td>{{ item.service.name }} × {{ item.quantity }}</td><td class="text-end">{{ item.subtotal|floatformat:"0g" }}đ</td></tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="table-light"><th>Tổng cộng</th><th class="text-end">{{ invoice.total_amount|floatformat:"0g" }}đ</th></tr>
+        <tr><td>Đã thanh toán</td><td class="text-end">{{ paid|floatformat:"0g" }}đ</td></tr>
+        <tr><td><strong>Còn nợ</strong></td><td class="text-end"><strong>{{ remaining|floatformat:"0g" }}đ</strong></td></tr>
+      </tfoot>
+    </table>
+  </div>
+</div></div>
+
+<h5>Các lần thanh toán</h5>
+{% if payments %}
+<div class="table-responsive">
+  <table class="table table-sm">
+    <thead><tr><th>Ngày</th><th>Hình thức</th><th class="text-end">Số tiền</th></tr></thead>
+    <tbody>
+      {% for p in payments %}
+      <tr><td>{{ p.paid_date|date:"d/m/Y" }}</td><td>{{ p.get_method_display }}</td><td class="text-end">{{ p.amount|floatformat:"0g" }}đ</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="text-muted">Chưa có khoản thanh toán nào.</p>
+{% endif %}
+{% endblock %}

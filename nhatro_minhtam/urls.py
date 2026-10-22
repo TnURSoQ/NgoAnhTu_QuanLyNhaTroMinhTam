@@ -1,22 +1,20 @@
-"""
-URL configuration for nhatro_minhtam project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/5.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
 from django.contrib import admin
-from django.urls import path
+from django.contrib.auth import views as auth_views
+from django.urls import include, path
+
+from accounts import views as accounts_views
+from accounts.forms import ChangePasswordForm, LoginForm
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('', accounts_views.home, name='home'),
+    path('dang-nhap/', auth_views.LoginView.as_view(
+        authentication_form=LoginForm, redirect_authenticated_user=True), name='login'),
+    path('dang-xuat/', auth_views.LogoutView.as_view(), name='logout'),
+    path('doi-mat-khau/', auth_views.PasswordChangeView.as_view(
+        form_class=ChangePasswordForm), name='password_change'),
+    path('doi-mat-khau/xong/', auth_views.PasswordChangeDoneView.as_view(),
+         name='password_change_done'),
+    path('hoa-don/', include('billing.urls')),
+    path('hop-dong/', include('rooms.urls')),
 ]

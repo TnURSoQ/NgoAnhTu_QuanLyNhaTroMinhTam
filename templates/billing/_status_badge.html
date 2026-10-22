@@ -1,0 +1,1 @@
+<span class="badge {% if invoice.status == 'da_thanh_toan' %}bg-success{% elif invoice.status == 'qua_han' %}bg-danger{% else %}bg-warning text-dark{% endif %}">{{ invoice.get_status_display }}</span>

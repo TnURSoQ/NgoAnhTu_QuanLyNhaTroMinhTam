@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title %}Hợp đồng của tôi{% endblock %}
+{% block content %}
+<h4 class="mb-3">Hợp đồng của tôi</h4>
+{% for c in contracts %}
+<div class="card shadow-sm mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between">
+      <h5 class="card-title">{{ c.room }}</h5>
+      <span class="badge {% if c.status == 'hieu_luc' %}bg-success{% else %}bg-secondary{% endif %}">{{ c.get_status_display }}</span>
+    </div>
+    <ul class="list-unstyled mb-2">
+      <li>Thời hạn: {{ c.start_date|date:"d/m/Y" }} – {{ c.end_date|date:"d/m/Y" }}</li>
+      <li>Tiền thuê: {{ c.room.price|floatformat:"0g" }}đ/tháng</li>
+      <li>Tiền cọc: {{ c.deposit|floatformat:"0g" }}đ</li>
+    </ul>
+    <div class="small text-muted">Người thuê:
+      {% for ct in c.contract_tenants.all %}{{ ct.tenant.full_name }}{% if ct.is_representative %} (đại diện){% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}
+    </div>
+  </div>
+</div>
+{% empty %}
+<div class="alert alert-info">Chưa có hợp đồng nào.</div>
+{% endfor %}
+{% endblock %}

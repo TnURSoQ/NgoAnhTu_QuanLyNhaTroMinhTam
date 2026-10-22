@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="alert alert-warning">
+  Tài khoản này chưa được cấp quyền sử dụng hệ thống. Vui lòng liên hệ chủ trọ.
+</div>
+<form method="post" action="{% url 'logout' %}">
+  {% csrf_token %}
+  <button type="submit" class="btn btn-secondary">Đăng xuất</button>
+</form>
+{% endblock %}
