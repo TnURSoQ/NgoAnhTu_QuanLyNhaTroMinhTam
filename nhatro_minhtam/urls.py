@@ -17,4 +17,5 @@ urlpatterns = [
          name='password_change_done'),
     path('hoa-don/', include('billing.urls')),
     path('hop-dong/', include('rooms.urls')),
+    path('bao-cao/', include('reports.urls')),
 ]

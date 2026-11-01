@@ -17,3 +17,13 @@ def tenant_required(view_func):
         request.tenant = tenant
         return view_func(request, *args, **kwargs)
     return wrapper
+
+def owner_required(view_func):
+    """Chỉ cho chủ trọ (tài khoản quản trị) vào."""
+    @login_required
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_staff:
+            return redirect('home')
+        return view_func(request, *args, **kwargs)
+    return wrapper

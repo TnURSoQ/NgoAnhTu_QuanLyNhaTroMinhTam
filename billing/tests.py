@@ -54,9 +54,9 @@ class TenantPortalTests(TestCase):
             self.assertEqual(r.status_code, 302)
             self.assertIn('/dang-nhap/', r['Location'])
 
-    def test_owner_goes_to_admin_not_portal(self):
+    def test_owner_goes_to_report_not_portal(self):
         self.client.login(username='chutro', password='pw12345!')
-        self.assertRedirects(self.client.get('/'), '/admin/', fetch_redirect_response=False)
+        self.assertRedirects(self.client.get('/'), reverse('report_dashboard'), fetch_redirect_response=False)
         r = self.client.get(reverse('my_invoices'))
         self.assertRedirects(r, reverse('home'), fetch_redirect_response=False)
 

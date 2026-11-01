@@ -7,7 +7,7 @@ from .models import User
 def home(request):
     user = request.user
     if user.is_staff:
-        return redirect('admin:index')
+        return redirect('report_dashboard')
     if user.role == User.Role.TENANT and hasattr(user, 'tenant_profile'):
         return redirect('my_invoices')
     # Không thuộc nhóm nào: hiện thông báo thay vì chuyển hướng (tránh vòng lặp)
