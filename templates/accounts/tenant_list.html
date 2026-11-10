@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% block title %}Người thuê · Nhà trọ Minh Tâm{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Người thuê</h1>
+    <p class="text-muted mb-0">Quản lý thông tin người thuê tại nhà trọ.</p>
+  </div>
+  <a class="btn btn-primary" href="{% url 'tenant_create' %}"><i class="bi bi-plus-lg"></i> Thêm người thuê</a>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-12 col-md-4">
+    <div class="stat-card tone-peach"><span class="stat-icon"><i class="bi bi-people"></i></span>
+      <span><small>Tổng người thuê</small><strong>{{ total }}</strong><em>{{ counts.dang_thue }} đang thuê · {{ counts.da_tra }} đã trả phòng</em></span></div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="stat-card tone-mint"><span class="stat-icon"><i class="bi bi-person-check"></i></span>
+      <span><small>Đang thuê</small><strong>{{ counts.dang_thue }}</strong><em>{{ pct_dang|floatformat:"-1" }}% tổng số</em></span></div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="stat-card tone-lavender"><span class="stat-icon"><i class="bi bi-box-arrow-right"></i></span>
+      <span><small>Đã trả phòng</small><strong>{{ counts.da_tra }}</strong><em>{{ pct_tra|floatformat:"-1" }}% tổng số</em></span></div>
+  </div>
+</div>
+
+<form method="get" class="toolbar">
+  <div class="input-icon flex-grow-1">
+    <i class="bi bi-search"></i>
+    <input type="search" name="q" value="{{ q }}" class="form-control" placeholder="Tìm tên hoặc số điện thoại...">
+  </div>
+  <select name="status" class="form-select w-auto" onchange="this.form.submit()" aria-label="Lọc theo trạng thái">
+    <option value="">Tất cả trạng thái</option>
+    {% for key, ui in state_ui.items %}<option value="{{ key }}" {% if key == status %}selected{% endif %}>{{ ui.0 }}</option>{% endfor %}
+  </select>
+  <button type="submit" class="btn btn-outline-brand">Tìm</button>
+</form>
+
+{% if rows %}
+<div class="soft-card p-2 d-none d-md-block">
+  <div class="table-responsive">
+    <table class="table table-modern align-middle mb-0">
+      <thead><tr><th>#</th><th>Người thuê</th><th>Số điện thoại</th><th>Phòng</th><th>Ngày vào ở</th><th>Hợp đồng</th><th>Trạng thái</th><th></th></tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td class="text-muted">{{ forloop.counter }}</td>
+          <td><a class="person-link" href="{% url 'tenant_detail' r.tenant.pk %}"><span class="avatar avatar-sm">{{ r.tenant.full_name|slice:":1"|upper }}</span><strong>{{ r.tenant.full_name }}</strong></a></td>
+          <td>{{ r.tenant.phone }}</td>
+          <td>{% if r.room %}<span class="pill pill-mint">P.{{ r.room.room_number }}</span>{% else %}-{% endif %}</td>
+          <td>{% if r.contract %}{{ r.contract.start_date|date:"d/m/Y" }}{% else %}-{% endif %}</td>
+          <td>{% if r.contract %}HĐ #{{ r.contract.pk }}{% else %}-{% endif %}</td>
+          <td><span class="pill pill-{{ r.tone }}">{{ r.label }}</span></td>
+          <td class="text-end"><a class="btn btn-sm btn-outline-brand" href="{% url 'tenant_detail' r.tenant.pk %}">Xem</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<div class="d-md-none">
+  {% for r in rows %}
+  <a class="soft-card person-card d-block text-decoration-none mb-3" href="{% url 'tenant_detail' r.tenant.pk %}">
+    <div class="d-flex align-items-center gap-3">
+      <span class="avatar">{{ r.tenant.full_name|slice:":1"|upper }}</span>
+      <span class="flex-grow-1">
+        <strong class="d-block">{{ r.tenant.full_name }}</strong>
+        <small class="text-muted"><i class="bi bi-telephone"></i> {{ r.tenant.phone }}</small>
+      </span>
+      <span class="pill pill-{{ r.tone }}">{{ r.label }}</span>
+    </div>
+    <div class="d-flex justify-content-between mt-3 small text-muted fw-semibold">
+      <span>{% if r.room %}P.{{ r.room.room_number }}{% else %}Chưa có phòng{% endif %}</span>
+      <span>{% if r.contract %}Vào ở {{ r.contract.start_date|date:"d/m/Y" }}{% endif %}</span>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="soft-card p-5 text-center text-muted">
+  <div class="fs-1">🔍</div>
+  <p class="mb-3">{% if total %}Không tìm thấy người thuê phù hợp.{% else %}Chưa có người thuê nào.{% endif %}</p>
+  <a class="btn btn-outline-brand" href="{% if total %}{% url 'tenant_list' %}{% else %}{% url 'tenant_create' %}{% endif %}">{% if total %}Xem tất cả{% else %}Thêm người thuê đầu tiên{% endif %}</a>
+</div>
+{% endif %}
+{% endblock %}

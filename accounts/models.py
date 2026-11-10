@@ -23,6 +23,8 @@ class Tenant(models.Model):
     email = models.EmailField(blank=True, null=True)
     date_of_birth = models.DateField(blank=True, null=True)
     hometown = models.CharField(max_length=255, blank=True, null=True)
+    occupation = models.CharField(max_length=100, blank=True, default='')
+    note = models.TextField(blank=True, default='')
 
     def __str__(self):
         return self.full_name

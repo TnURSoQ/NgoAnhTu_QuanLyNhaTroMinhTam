@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}Phòng · Nhà trọ Minh Tâm{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Phòng</h1>
+    <p class="text-muted mb-0">Quản lý danh sách phòng, tình trạng thuê và thông tin chi tiết.</p>
+  </div>
+  <a class="btn btn-primary" href="{% url 'room_create' %}"><i class="bi bi-plus-lg"></i> Thêm phòng</a>
+</div>
+
+<form method="get" class="toolbar">
+  <input type="hidden" name="status" value="{{ status }}">
+  <div class="input-icon flex-grow-1">
+    <i class="bi bi-search"></i>
+    <input type="search" name="q" value="{{ q }}" class="form-control" placeholder="Tìm theo số phòng hoặc tên người thuê...">
+  </div>
+  <select name="floor" class="form-select w-auto" onchange="this.form.submit()" aria-label="Lọc theo tầng">
+    <option value="">Tất cả tầng</option>
+    {% for f in floors %}<option value="{{ f }}" {% if f == floor %}selected{% endif %}>Tầng {{ f }}</option>{% endfor %}
+  </select>
+  <button type="submit" class="btn btn-outline-brand">Tìm</button>
+</form>
+
+<div class="filter-tabs">
+  <a class="filter-tab {% if not status %}active{% endif %}" href="{% querystring status=None %}">Tất cả <span>{{ counts.all }}</span></a>
+  <a class="filter-tab {% if status == 'trong' %}active{% endif %}" href="{% querystring status='trong' %}">Còn trống <span>{{ counts.trong }}</span></a>
+  <a class="filter-tab {% if status == 'dang_thue' %}active{% endif %}" href="{% querystring status='dang_thue' %}">Đang thuê <span>{{ counts.dang_thue }}</span></a>
+  <a class="filter-tab {% if status == 'bao_tri' %}active{% endif %}" href="{% querystring status='bao_tri' %}">Đang sửa <span>{{ counts.bao_tri }}</span></a>
+</div>
+
+{% if items %}
+<div class="row g-3">
+  {% for i in items %}
+  <div class="col-12 col-md-6 col-xl-4">
+    <a class="room-card tone-{{ i.tone }} d-block text-decoration-none" href="{% url 'room_detail' i.room.pk %}">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h3 class="room-no">P.{{ i.room.room_number }}</h3>
+          <div class="room-meta">{% if i.room.area %}{{ i.room.area|floatformat:"-2" }} m² · {% endif %}Tối đa {{ i.room.max_occupants }} người · Tầng {{ i.room.floor }}</div>
+        </div>
+        <span class="pill pill-{{ i.tone }}">{{ i.label }}</span>
+      </div>
+      <div class="room-price">{{ i.room.price|floatformat:"0g" }} đ<small>/tháng</small></div>
+      {% if i.tenant %}
+        <div class="room-line"><i class="bi bi-person"></i> {{ i.tenant.full_name }}</div>
+        <div class="room-line muted"><i class="bi bi-calendar3"></i> Thuê từ {{ i.contract.start_date|date:"d/m/Y" }}</div>
+      {% elif i.room.status == 'bao_tri' %}
+        <div class="room-line muted"><i class="bi bi-wrench"></i> Đang sửa chữa</div>
+      {% else %}
+        <div class="room-line muted"><i class="bi bi-person"></i> Chưa có người thuê</div>
+        <div class="room-line muted"><i class="bi bi-check2-circle"></i> Sẵn sàng cho thuê</div>
+      {% endif %}
+      <div class="room-more">Xem chi tiết <i class="bi bi-arrow-right"></i></div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="soft-card p-5 text-center text-muted">
+  <div class="fs-1">🔍</div>
+  <p class="mb-3">Không tìm thấy phòng nào phù hợp.</p>
+  <a class="btn btn-outline-brand" href="{% url 'room_list' %}">Xem tất cả phòng</a>
+</div>
+{% endif %}
+{% endblock %}

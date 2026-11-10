@@ -1,46 +1,84 @@
 <!doctype html>
 <html lang="vi">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Nhà trọ Minh Tâm{% endblock %}</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  {% include '_head.html' %}
 </head>
-<body class="bg-light">
-<nav class="navbar navbar-expand-md navbar-dark bg-primary">
-  <div class="container">
-    <a class="navbar-brand" href="{% url 'home' %}">Nhà trọ Minh Tâm</a>
-    {% if user.is_authenticated %}
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
-      <span class="navbar-toggler-icon"></span>
-    </button>
-    <div class="collapse navbar-collapse" id="mainNav">
-      <ul class="navbar-nav me-auto">
-        {% if user.is_staff %}
-        <li class="nav-item"><a class="nav-link" href="{% url 'report_dashboard' %}">Báo cáo</a></li>
-        <li class="nav-item"><a class="nav-link" href="{% url 'admin:index' %}">Quản trị</a></li>
-        {% else %}
-        <li class="nav-item"><a class="nav-link" href="{% url 'my_invoices' %}">Hóa đơn</a></li>
-        <li class="nav-item"><a class="nav-link" href="{% url 'my_payments' %}">Lịch sử thanh toán</a></li>
-        <li class="nav-item"><a class="nav-link" href="{% url 'my_contracts' %}">Hợp đồng</a></li>
+<body>
+<div class="app-shell">
+  <aside class="app-sidebar" id="appSidebar" aria-label="Menu chính">
+    <div class="sidebar-panel">
+      <a class="brand" href="{% url 'home' %}">
+        <span class="brand-logo">{% include '_logo.html' %}</span>
+        <span><span class="brand-name">Minh Tâm</span><small class="brand-tag">Nhà trọ ấm áp</small></span>
+      </a>
+      <nav class="sidebar-nav">
+        {% with current=request.resolver_match.url_name %}
+        {% if user.role == 'owner' %}
+          <a class="nav-item-link {% if current == 'owner_dashboard' %}active{% endif %}" href="{% url 'owner_dashboard' %}"><i class="bi bi-grid-1x2"></i> Tổng quan</a>
+          <a class="nav-item-link {% if current|slice:':5' == 'room_' %}active{% endif %}" href="{% url 'room_list' %}"><i class="bi bi-door-open"></i> Phòng</a>
+          <a class="nav-item-link {% if current|slice:':7' == 'tenant_' %}active{% endif %}" href="{% url 'tenant_list' %}"><i class="bi bi-people"></i> Người thuê</a>
+          <span class="nav-item-link disabled" title="Đang phát triển"><i class="bi bi-file-earmark-text"></i> Hợp đồng <em class="soon">Sắp có</em></span>
+          <span class="nav-item-link disabled" title="Đang phát triển"><i class="bi bi-receipt"></i> Hóa đơn <em class="soon">Sắp có</em></span>
+          <a class="nav-item-link {% if current == 'report_dashboard' %}active{% endif %}" href="{% url 'report_dashboard' %}"><i class="bi bi-bar-chart-line"></i> Báo cáo</a>
+        {% elif user.role == 'tenant' %}
+          <a class="nav-item-link {% if current == 'my_invoices' or current == 'my_invoice_detail' %}active{% endif %}" href="{% url 'my_invoices' %}"><i class="bi bi-receipt"></i> Hóa đơn</a>
+          <a class="nav-item-link {% if current == 'my_payments' %}active{% endif %}" href="{% url 'my_payments' %}"><i class="bi bi-wallet2"></i> Thanh toán</a>
+          <a class="nav-item-link {% if current == 'my_contracts' %}active{% endif %}" href="{% url 'my_contracts' %}"><i class="bi bi-file-earmark-text"></i> Hợp đồng</a>
+          <a class="nav-item-link {% if current == 'password_change' %}active{% endif %}" href="{% url 'password_change' %}"><i class="bi bi-key"></i> Đổi mật khẩu</a>
         {% endif %}
-      </ul>
-      <ul class="navbar-nav">
-        <li class="nav-item"><a class="nav-link" href="{% url 'password_change' %}">Đổi mật khẩu</a></li>
-        <li class="nav-item">
-          <form method="post" action="{% url 'logout' %}">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-link nav-link">Đăng xuất ({{ user.first_name|default:user.username }})</button>
-          </form>
-        </li>
-      </ul>
+        {% if user.is_staff %}
+          <a class="nav-item-link nav-dev" href="{% url 'admin:index' %}"><i class="bi bi-gear"></i> Quản trị hệ thống</a>
+        {% endif %}
+        {% endwith %}
+      </nav>
+      <div class="sidebar-foot"><span class="plant" aria-hidden="true">🪴</span><span>Nhà tốt,<br>người vui</span></div>
     </div>
-    {% endif %}
+  </aside>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+  <div class="app-main">
+    <header class="app-topbar">
+      <button class="btn-icon d-lg-none" type="button" id="sidebarToggle" aria-label="Mở menu"><i class="bi bi-list"></i></button>
+      <div class="dropdown ms-auto">
+        <button class="user-chip dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <span class="avatar">{{ user.first_name|default:user.username|slice:":1"|upper }}</span>
+          <span class="d-none d-sm-block text-start lh-sm">
+            <strong>{{ user.first_name|default:user.username }}</strong>
+            <small>{% if user.role == 'owner' %}Chủ trọ{% elif user.role == 'tenant' %}Người thuê{% else %}Quản trị hệ thống{% endif %}</small>
+          </span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><a class="dropdown-item" href="{% url 'password_change' %}"><i class="bi bi-key me-2"></i>Đổi mật khẩu</a></li>
+          <li><hr class="dropdown-divider"></li>
+          <li>
+            <form method="post" action="{% url 'logout' %}">
+              {% csrf_token %}
+              <button type="submit" class="dropdown-item"><i class="bi bi-box-arrow-right me-2"></i>Đăng xuất</button>
+            </form>
+          </li>
+        </ul>
+      </div>
+    </header>
+    <main class="app-content">
+      {% for message in messages %}
+        <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags|default:'info' }}{% endif %} alert-dismissible fade show">
+          {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng"></button>
+        </div>
+      {% endfor %}
+      {% block content %}{% endblock %}
+    </main>
   </div>
-</nav>
-<main class="container py-4">
-  {% block content %}{% endblock %}
-</main>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</div>
+{% include '_scripts.html' %}
+<script>
+  (function () {
+    var sb = document.getElementById('appSidebar'), bd = document.getElementById('sidebarBackdrop');
+    function toggle(open) { sb.classList.toggle('open', open); bd.classList.toggle('show', open); }
+    document.getElementById('sidebarToggle').addEventListener('click', function () { toggle(!sb.classList.contains('open')); });
+    bd.addEventListener('click', function () { toggle(false); });
+  })();
+</script>
+{% block scripts %}{% endblock %}
 </body>
 </html>

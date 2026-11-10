@@ -1,14 +1,105 @@
+from datetime import timedelta
 from decimal import Decimal
 
-from django.db.models import Count, Sum
+from django.db.models import Count, Prefetch, Sum
 from django.db.models.functions import ExtractMonth, ExtractYear
 from django.shortcuts import render
+from django.urls import reverse
 from django.utils import timezone
 
 from accounts.decorators import owner_required
 from billing.models import Invoice, Payment
-from rooms.models import Room
+from rooms.display import representative_of, room_status_ui
+from rooms.models import Contract, Room
 
+@owner_required
+def overview(request):
+    """Trang Tổng quan của chủ trọ."""
+    today = timezone.localdate()
+
+    rooms_total = Room.objects.count()
+    rooms_empty = Room.objects.filter(status=Room.Status.TRONG).count()
+
+    # Hóa đơn chưa thu đủ: tổng nợ tháng này và danh sách quá hạn
+    unpaid = (
+        Invoice.objects.exclude(status=Invoice.Status.DA_THANH_TOAN)
+        .select_related('contract__room')
+        .prefetch_related('payments', 'contract__contract_tenants__tenant')
+    )
+    month_unpaid = Decimal('0')
+    overdue = []
+    for inv in unpaid:
+        paid = sum((p.amount for p in inv.payments.all()), Decimal('0'))
+        remaining = inv.total_amount - paid
+        if remaining <= 0:
+            continue
+        if (inv.year, inv.month) == (today.year, today.month):
+            month_unpaid += remaining
+        days = (today - inv.due_date).days
+        if days > 0:
+            overdue.append((days, inv))
+    overdue.sort(key=lambda x: -x[0])
+
+    # Công việc cần xử lý
+    tasks = []
+    for days, inv in overdue[:5]:
+        tenant = representative_of(inv.contract)
+        who = tenant.full_name if tenant else 'chưa có người đại diện'
+        tasks.append({
+            'icon': 'bi-receipt', 'tone': 'rose',
+            'title': 'Hóa đơn quá hạn',
+            'subtitle': f'P.{inv.contract.room.room_number} - {who}',
+            'badge': f'{days} ngày', 'badge_tone': 'danger',
+            'url': reverse('report_dashboard'),
+        })
+
+    expiring = (
+        Contract.objects.filter(
+            status=Contract.Status.HIEU_LUC,
+            end_date__lte=today + timedelta(days=30),
+        )
+        .select_related('room')
+        .prefetch_related('contract_tenants__tenant')
+        .order_by('end_date')[:5]
+    )
+    for c in expiring:
+        days = (c.end_date - today).days
+        tenant = representative_of(c)
+        who = tenant.full_name if tenant else 'chưa có người đại diện'
+        tasks.append({
+            'icon': 'bi-file-earmark-text', 'tone': 'sky',
+            'title': 'Hợp đồng sắp hết hạn' if days >= 0 else 'Hợp đồng đã hết hạn',
+            'subtitle': f'P.{c.room.room_number} - {who}',
+            'badge': f'Còn {days} ngày' if days >= 0 else f'Quá {-days} ngày',
+            'badge_tone': 'warning' if days >= 0 else 'danger',
+            'url': reverse('room_detail', args=[c.room_id]),
+        })
+
+    # Một số phòng tiêu biểu
+    active = Contract.objects.filter(
+        status=Contract.Status.HIEU_LUC
+    ).prefetch_related('contract_tenants__tenant')
+    room_qs = Room.objects.order_by('room_number').prefetch_related(
+        Prefetch('contracts', queryset=active, to_attr='active_contracts')
+    )[:6]
+    preview = []
+    for room in room_qs:
+        contract = room.active_contracts[0] if room.active_contracts else None
+        label, tone = room_status_ui(room)
+        preview.append({
+            'room': room, 'label': label, 'tone': tone, 'contract': contract,
+            'tenant': representative_of(contract) if contract else None,
+        })
+
+    return render(request, 'reports/overview.html', {
+        'today': today,
+        'rooms_total': rooms_total,
+        'rooms_empty': rooms_empty,
+        'month_unpaid': month_unpaid,
+        'overdue_count': len(overdue),
+        'tasks': tasks,
+        'preview': preview,
+    })
 
 @owner_required
 def dashboard(request):

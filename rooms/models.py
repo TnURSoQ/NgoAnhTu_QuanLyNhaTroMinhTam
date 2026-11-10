@@ -6,9 +6,10 @@ class Room(models.Model):
     class Status(models.TextChoices):
         TRONG = 'trong', 'Trống'
         DANG_THUE = 'dang_thue', 'Đang thuê'
-        BAO_TRI = 'bao_tri', 'Bảo trì'
+        BAO_TRI = 'bao_tri', 'Đang sửa chữa'
 
     room_number = models.CharField(max_length=10, unique=True)
+    floor = models.PositiveSmallIntegerField(default=1)
     area = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     max_occupants = models.PositiveIntegerField(default=1)

@@ -52,7 +52,7 @@
 {% if debts %}
 <div class="table-responsive">
   <table class="table table-striped align-middle">
-    <thead><tr><th>Phòng</th><th>Kỳ</th><th>Người đại diện</th><th class="text-end">Còn nợ</th><th>Hạn</th><th>Tình trạng</th><th></th></tr></thead>
+    <thead><tr><th>Phòng</th><th>Kỳ</th><th>Người đại diện</th><th class="text-end">Còn nợ</th><th>Hạn</th><th>Tình trạng</th></tr></thead>
     <tbody>
       {% for d in debts %}
       <tr>
@@ -62,7 +62,6 @@
         <td class="text-end">{{ d.remaining|floatformat:"0g" }}đ</td>
         <td>{{ d.invoice.due_date|date:"d/m/Y" }}</td>
         <td>{% if d.overdue_days > 0 %}<span class="badge bg-danger">Quá hạn {{ d.overdue_days }} ngày</span>{% else %}<span class="badge bg-warning text-dark">Chưa đến hạn</span>{% endif %}</td>
-        <td><a class="btn btn-sm btn-outline-primary" href="{% url 'admin:billing_invoice_change' d.invoice.pk %}">Thu tiền</a></td>
       </tr>
       {% endfor %}
     </tbody>

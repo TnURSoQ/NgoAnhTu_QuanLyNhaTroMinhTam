@@ -31,7 +31,7 @@ class TenantPortalTests(TestCase):
         self.tenant_a, self.inv_a = make_tenant_with_invoice('001', 'Nguyen A', '101')
         self.tenant_b, self.inv_b = make_tenant_with_invoice('002', 'Tran B', '102')
         Payment.objects.create(invoice=self.inv_a, amount=Decimal('1000000'), paid_date=date(2026, 10, 5))
-        self.owner = User.objects.create_user('chutro', password='pw12345!', role=User.Role.OWNER, is_staff=True)
+        self.owner = User.objects.create_user('chutro', password='pw12345!', role=User.Role.OWNER)
 
     def login_a(self):
         self.assertTrue(self.client.login(username='001', password='001'))
@@ -54,9 +54,9 @@ class TenantPortalTests(TestCase):
             self.assertEqual(r.status_code, 302)
             self.assertIn('/dang-nhap/', r['Location'])
 
-    def test_owner_goes_to_report_not_portal(self):
+    def test_owner_goes_to_overview_not_portal(self):
         self.client.login(username='chutro', password='pw12345!')
-        self.assertRedirects(self.client.get('/'), reverse('report_dashboard'), fetch_redirect_response=False)
+        self.assertRedirects(self.client.get('/'), reverse('owner_dashboard'), fetch_redirect_response=False)
         r = self.client.get(reverse('my_invoices'))
         self.assertRedirects(r, reverse('home'), fetch_redirect_response=False)
 

@@ -4,10 +4,10 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect
 
 from .models import User
+from .permissions import is_owner
 
 
 def tenant_required(view_func):
-    """Chỉ cho người thuê (có hồ sơ Tenant) vào. Gắn request.tenant cho view dùng."""
     @login_required
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
@@ -18,12 +18,12 @@ def tenant_required(view_func):
         return view_func(request, *args, **kwargs)
     return wrapper
 
+
 def owner_required(view_func):
-    """Chỉ cho chủ trọ (tài khoản quản trị) vào."""
     @login_required
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
-        if not request.user.is_staff:
+        if not is_owner(request.user):
             return redirect('home')
         return view_func(request, *args, **kwargs)
     return wrapper

@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% block title %}{{ tenant.full_name }} · Nhà trọ Minh Tâm{% endblock %}
+{% block content %}
+<a class="back-link" href="{% url 'tenant_list' %}"><i class="bi bi-arrow-left"></i> Quay lại danh sách</a>
+<div class="page-head"><h1>Hồ sơ người thuê</h1></div>
+
+<div class="row g-4">
+  <div class="col-12 col-xl-8">
+    <section class="soft-card p-4 mb-4">
+      <div class="d-flex flex-wrap align-items-center gap-3">
+        <span class="avatar avatar-lg">{{ tenant.full_name|slice:":1"|upper }}</span>
+        <div class="flex-grow-1">
+          <h2 class="profile-name">{{ tenant.full_name }} <span class="pill pill-{{ tone }}">{{ label }}</span></h2>
+          <div class="text-muted fw-semibold"><i class="bi bi-telephone"></i> {{ tenant.phone }}</div>
+          {% if tenant.email %}<div class="text-muted fw-semibold"><i class="bi bi-envelope"></i> {{ tenant.email }}</div>{% endif %}
+          {% if tenant.occupation %}<div class="text-muted fw-semibold"><i class="bi bi-briefcase"></i> {{ tenant.occupation }}</div>{% endif %}
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+          <a class="btn btn-outline-brand" href="{% url 'tenant_update' tenant.pk %}"><i class="bi bi-pencil"></i> Chỉnh sửa</a>
+          <a class="btn btn-outline-brand text-danger" href="{% url 'tenant_delete' tenant.pk %}"><i class="bi bi-trash3"></i> Xóa</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="soft-card p-4">
+      <ul class="nav tab-pills mb-3" role="tablist">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-info" type="button"><i class="bi bi-person-lines-fill"></i> Thông tin</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-history" type="button"><i class="bi bi-clock-history"></i> Lịch sử thuê</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-pay" type="button"><i class="bi bi-wallet2"></i> Thanh toán</button></li>
+      </ul>
+      <div class="tab-content">
+        <div class="tab-pane fade show active" id="tab-info">
+          <div class="info-row"><span>Họ và tên</span><strong>{{ tenant.full_name }}</strong></div>
+          <div class="info-row"><span>Số điện thoại</span><strong>{{ tenant.phone }}</strong></div>
+          <div class="info-row"><span>Số CCCD</span><strong>{{ tenant.id_card_number }}</strong></div>
+          <div class="info-row"><span>Email</span><strong>{{ tenant.email|default:"-" }}</strong></div>
+          <div class="info-row"><span>Ngày sinh</span><strong>{% if tenant.date_of_birth %}{{ tenant.date_of_birth|date:"d/m/Y" }}{% else %}-{% endif %}</strong></div>
+          <div class="info-row"><span>Quê quán</span><strong>{{ tenant.hometown|default:"-" }}</strong></div>
+          <div class="info-row"><span>Nghề nghiệp</span><strong>{{ tenant.occupation|default:"-" }}</strong></div>
+          <div class="info-row"><span>Ghi chú</span><strong>{{ tenant.note|default:"-" }}</strong></div>
+        </div>
+        <div class="tab-pane fade" id="tab-history">
+          {% for ct in history %}
+          <div class="history-row">
+            <span class="dot {% if ct.contract.status == 'hieu_luc' %}dot-green{% endif %}"></span>
+            <span><strong>P.{{ ct.contract.room.room_number }} · HĐ #{{ ct.contract.pk }}</strong>
+              <small class="d-block text-muted">{{ ct.contract.start_date|date:"d/m/Y" }} – {{ ct.contract.end_date|date:"d/m/Y" }}{% if ct.is_representative %} · Người đại diện{% endif %}</small></span>
+            <span class="ms-auto small fw-bold">{{ ct.contract.get_status_display }}</span>
+          </div>
+          {% empty %}<p class="text-muted mb-0">Chưa có lịch sử thuê.</p>{% endfor %}
+        </div>
+        <div class="tab-pane fade" id="tab-pay">
+          {% if payments %}
+          <div class="table-responsive"><table class="table table-modern align-middle mb-0">
+            <thead><tr><th>Ngày</th><th>Hóa đơn</th><th>Hình thức</th><th class="text-end">Số tiền</th></tr></thead>
+            <tbody>{% for p in payments %}<tr>
+              <td>{{ p.paid_date|date:"d/m/Y" }}</td>
+              <td>T{{ p.invoice.month }}/{{ p.invoice.year }} · P.{{ p.invoice.contract.room.room_number }}</td>
+              <td>{{ p.get_method_display }}</td><td class="text-end fw-bold">{{ p.amount|floatformat:"0g" }} đ</td></tr>{% endfor %}</tbody>
+          </table></div>
+          {% else %}<p class="text-muted mb-0">Chưa có khoản thanh toán nào.</p>{% endif %}
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="col-12 col-xl-4">
+    <section class="soft-card p-4 mb-4">
+      <div class="section-head"><h2>Phòng và hợp đồng hiện tại</h2></div>
+      {% if state == 'dang_thue' %}
+        <div class="info-row"><span>Phòng</span><strong><a href="{% url 'room_detail' current.contract.room.pk %}">P.{{ current.contract.room.room_number }}</a></strong></div>
+        <div class="info-row"><span>Hợp đồng</span><strong>HĐ #{{ current.contract.pk }}</strong></div>
+        <div class="info-row"><span>Thời hạn</span><strong>{{ current.contract.start_date|date:"d/m/Y" }} – {{ current.contract.end_date|date:"d/m/Y" }}</strong></div>
+      {% else %}
+        <p class="text-muted mb-0">Hiện không có hợp đồng đang hiệu lực.</p>
+      {% endif %}
+    </section>
+
+    <section class="soft-card p-4 mb-4">
+      <div class="section-head"><h2>Công nợ</h2></div>
+      {% if debt %}
+        <div class="alert alert-danger mb-0">Còn nợ <strong>{{ debt|floatformat:"0g" }} đ</strong> ({{ unpaid_count }} hóa đơn)</div>
+      {% else %}
+        <div class="alert alert-success mb-0">Không còn công nợ.</div>
+      {% endif %}
+    </section>
+
+    <section class="soft-card p-4">
+      <div class="section-head"><h2>Tài khoản đăng nhập</h2></div>
+      {% if tenant.user %}
+        <div class="info-row"><span>Tên đăng nhập</span><strong>{{ tenant.user.username }}</strong></div>
+        <div class="info-row"><span>Trạng thái</span><strong><span class="pill {% if tenant.user.is_active %}pill-mint{% else %}pill-rose{% endif %}">{% if tenant.user.is_active %}Đang hoạt động{% else %}Đã khóa{% endif %}</span></strong></div>
+        <div class="d-grid gap-2 mt-3">
+          <form method="post" action="{% url 'tenant_reset_password' tenant.pk %}" onsubmit="return confirm('Đặt lại mật khẩu của {{ tenant.full_name|escapejs }} về số CCCD?');">
+            {% csrf_token %}<button type="submit" class="btn btn-outline-brand w-100"><i class="bi bi-key"></i> Đặt lại mật khẩu về số CCCD</button>
+          </form>
+          <form method="post" action="{% url 'tenant_toggle_active' tenant.pk %}" onsubmit="return confirm('{% if tenant.user.is_active %}Khóa{% else %}Mở khóa{% endif %} tài khoản của {{ tenant.full_name|escapejs }}?');">
+            {% csrf_token %}<button type="submit" class="btn btn-outline-brand w-100"><i class="bi bi-{% if tenant.user.is_active %}lock{% else %}unlock{% endif %}"></i> {% if tenant.user.is_active %}Khóa tài khoản{% else %}Mở khóa tài khoản{% endif %}</button>
+          </form>
+        </div>
+      {% else %}
+        <p class="text-muted mb-0">Chưa có tài khoản. Tài khoản chỉ được cấp cho người đại diện của hợp đồng, và tự tạo khi lập hợp đồng.</p>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}

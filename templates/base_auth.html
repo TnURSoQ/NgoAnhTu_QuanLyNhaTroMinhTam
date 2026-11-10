@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <title>{% block title %}Nhà trọ Minh Tâm{% endblock %}</title>
+  {% include '_head.html' %}
+</head>
+<body class="auth-body">
+<div class="auth-wrap">{% block content %}{% endblock %}</div>
+{% include '_scripts.html' %}
+{% block scripts %}{% endblock %}
+</body>
+</html>

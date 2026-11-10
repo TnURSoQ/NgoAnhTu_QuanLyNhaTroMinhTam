@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% block title %}Phòng {{ room.room_number }} · Nhà trọ Minh Tâm{% endblock %}
+{% block content %}
+<a class="back-link" href="{% url 'room_list' %}"><i class="bi bi-arrow-left"></i> Quay lại danh sách phòng</a>
+<div class="page-head">
+  <div class="d-flex align-items-center gap-3 flex-wrap">
+    <h1>Phòng P.{{ room.room_number }}</h1>
+    <span class="pill pill-{{ tone }}">{{ label }}</span>
+    <span class="text-muted fw-semibold">Tầng {{ room.floor }}</span>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a class="btn btn-outline-brand" href="{% url 'room_update' room.pk %}"><i class="bi bi-pencil"></i> Sửa thông tin</a>
+    <a class="btn btn-outline-brand text-danger" href="{% url 'room_delete' room.pk %}"><i class="bi bi-trash3"></i> Xóa phòng</a>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-12 col-xl-8">
+    <section class="soft-card p-4 mb-4">
+      <div class="section-head"><h2>Thông tin cơ bản</h2></div>
+      <div class="info-row"><span>Diện tích</span><strong>{% if room.area %}{{ room.area|floatformat:"-2" }} m²{% else %}-{% endif %}</strong></div>
+      <div class="info-row"><span>Sức chứa tối đa</span><strong>{{ room.max_occupants }} người</strong></div>
+      <div class="info-row"><span>Giá thuê (niêm yết)</span><strong>{{ room.price|floatformat:"0g" }} đ/tháng</strong></div>
+      <div class="info-row"><span>Tình trạng</span><strong>{{ label }}</strong></div>
+      <div class="info-row"><span>Vị trí</span><strong>Tầng {{ room.floor }}</strong></div>
+    </section>
+
+    <section class="soft-card p-4 mb-4">
+      <div class="section-head"><h2>Người thuê hiện tại</h2></div>
+      {% for ct in people %}
+      <a class="person-row" href="{% url 'tenant_detail' ct.tenant.pk %}">
+        <span class="avatar">{{ ct.tenant.full_name|slice:":1"|upper }}</span>
+        <span class="flex-grow-1">
+          <strong>{{ ct.tenant.full_name }}</strong>{% if ct.is_representative %} <span class="pill pill-sky ms-1">Đại diện</span>{% endif %}
+          <small class="d-block text-muted"><i class="bi bi-telephone"></i> {{ ct.tenant.phone }}</small>
+        </span>
+        <i class="bi bi-chevron-right text-muted"></i>
+      </a>
+      {% empty %}
+      <p class="text-muted mb-0">Phòng chưa có người thuê.</p>
+      {% endfor %}
+      {% if people %}<p class="text-muted small mt-3 mb-0">Số người đang ở: {{ people|length }}/{{ room.max_occupants }}</p>{% endif %}
+    </section>
+
+    <section class="soft-card p-4">
+      <div class="section-head"><h2>Hợp đồng đang hiệu lực</h2></div>
+      {% if contract %}
+      <div class="info-row"><span>Mã hợp đồng</span><strong>HĐ #{{ contract.pk }}</strong></div>
+      <div class="info-row"><span>Thời gian thuê</span><strong>{{ contract.start_date|date:"d/m/Y" }} – {{ contract.end_date|date:"d/m/Y" }}</strong></div>
+      <div class="info-row"><span>Tiền thuê</span><strong>{{ room.price|floatformat:"0g" }} đ/tháng</strong></div>
+      <div class="info-row"><span>Đặt cọc</span><strong>{{ contract.deposit|floatformat:"0g" }} đ</strong></div>
+      <div class="info-row"><span>Trạng thái</span><strong><span class="pill pill-mint">Đang hiệu lực</span></strong></div>
+      {% else %}
+      <p class="text-muted mb-0">Chưa có hợp đồng đang hiệu lực.</p>
+      {% endif %}
+    </section>
+  </div>
+
+  <div class="col-12 col-xl-4">
+    <section class="soft-card p-4 mb-4">
+      <div class="section-head"><h2>Hóa đơn gần nhất</h2></div>
+      {% if invoice_info %}
+      <div class="info-row"><span>Kỳ thanh toán</span><strong>{{ invoice_info.invoice.month }}/{{ invoice_info.invoice.year }}</strong></div>
+      <div class="info-row"><span>Tổng tiền</span><strong>{{ invoice_info.invoice.total_amount|floatformat:"0g" }} đ</strong></div>
+      <div class="info-row"><span>Đã thu</span><strong>{{ invoice_info.paid|floatformat:"0g" }} đ</strong></div>
+      <div class="info-row"><span>Còn nợ</span><strong>{{ invoice_info.remaining|floatformat:"0g" }} đ</strong></div>
+      <div class="info-row"><span>Ngày đến hạn</span><strong>{{ invoice_info.invoice.due_date|date:"d/m/Y" }}</strong></div>
+      <div class="info-row"><span>Trạng thái</span>
+        <strong>{% with st=invoice_info.invoice.status %}<span class="pill {% if st == 'da_thanh_toan' %}pill-mint{% elif st == 'qua_han' %}pill-rose{% else %}pill-amber{% endif %}">{{ invoice_info.invoice.get_status_display }}</span>{% endwith %}</strong></div>
+      {% if invoice_info.paid_date %}<div class="info-row"><span>Ngày thanh toán</span><strong>{{ invoice_info.paid_date|date:"d/m/Y" }}</strong></div>{% endif %}
+      {% else %}
+      <p class="text-muted mb-0">Chưa có hóa đơn nào.</p>
+      {% endif %}
+    </section>
+
+    <section class="soft-card p-4">
+      <div class="section-head"><h2>Lịch sử hợp đồng</h2></div>
+      {% for c in history %}
+      <div class="history-row">
+        <span class="dot {% if c.status == 'hieu_luc' %}dot-green{% endif %}"></span>
+        <span><strong>HĐ #{{ c.pk }}</strong><small class="d-block text-muted">{{ c.start_date|date:"d/m/Y" }} – {{ c.end_date|date:"d/m/Y" }}</small></span>
+        <span class="ms-auto small fw-bold">{{ c.get_status_display }}</span>
+      </div>
+      {% empty %}
+      <p class="text-muted mb-0">Chưa có hợp đồng nào.</p>
+      {% endfor %}
+    </section>
+  </div>
+</div>
+{% endblock %}

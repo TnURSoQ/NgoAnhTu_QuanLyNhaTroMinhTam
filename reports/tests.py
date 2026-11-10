@@ -119,3 +119,108 @@ class ReportDashboardTests(TestCase):
     def test_no_debts_message(self):
         self.login_owner()
         self.assertContains(self.client.get(reverse('report_dashboard')), 'Không có công nợ')
+
+def build(room_number, cccd, name, end_date, total=None, due=None, month=None, year=None):
+    """Tạo phòng + người thuê đại diện + hợp đồng (+ hóa đơn nếu có total)."""
+    room = Room.objects.create(room_number=room_number, price=Decimal('2000000'))
+    tenant = Tenant.objects.create(full_name=name, id_card_number=cccd, phone='09' + cccd)
+    contract = Contract.objects.create(room=room, start_date=date(2020, 1, 1), end_date=end_date)
+    ContractTenant.objects.create(contract=contract, tenant=tenant, is_representative=True)
+    invoice = None
+    if total is not None:
+        invoice = Invoice.objects.create(
+            contract=contract, month=month, year=year, room_fee=Decimal(total),
+            total_amount=Decimal(total), due_date=due)
+    return room, contract, invoice
+
+
+class OverviewTests(TestCase):
+    def setUp(self):
+        self.today = timezone.localdate()
+        User.objects.create_user('chutro', password='pw12345!', role=User.Role.OWNER)
+        self.far = self.today + timedelta(days=400)
+
+    def login_owner(self):
+        self.client.login(username='chutro', password='pw12345!')
+
+    def test_permissions(self):
+        r = self.client.get(reverse('owner_dashboard'))
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('/dang-nhap/', r['Location'])
+        build('101', '001', 'Nguyen A', self.far)
+        self.client.login(username='001', password='001')
+        self.assertRedirects(self.client.get(reverse('owner_dashboard')), reverse('home'),
+                             fetch_redirect_response=False)
+        self.client.logout()
+        self.login_owner()
+        r = self.client.get(reverse('owner_dashboard'))
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Tổng quan')
+        self.assertContains(r, 'Công việc cần xử lý')
+
+    def test_kpis(self):
+        Room.objects.create(room_number='1', price=1, status='trong')
+        Room.objects.create(room_number='2', price=1, status='trong')
+        Room.objects.create(room_number='3', price=1, status='dang_thue')
+        _, _, inv = build('101', '001', 'A', self.far, total='2000000',
+                          due=self.today + timedelta(days=5), month=self.today.month, year=self.today.year)
+        Payment.objects.create(invoice=inv, amount=Decimal('500000'))
+        other_month = 1 if self.today.month != 1 else 2
+        build('102', '002', 'B', self.far, total='3000000',
+              due=self.today + timedelta(days=5), month=other_month, year=self.today.year)
+        self.login_owner()
+        r = self.client.get(reverse('owner_dashboard'))
+        ctx = r.context
+        self.assertEqual(ctx['rooms_total'], 5)     # 1, 2, 3, 101, 102
+        self.assertEqual(ctx['rooms_empty'], 2)     # 1 và 2; 101 và 102 đã có hợp đồng
+        self.assertEqual(ctx['month_unpaid'], Decimal('1500000'))  # chỉ tính tháng này, trừ phần đã thu
+        self.assertContains(r, '1.500.000 đ')
+
+    def test_tasks_overdue_invoices_and_expiring_contracts(self):
+        past = self.today - timedelta(days=5)
+        build('101', '001', 'Nguyen A', self.far, total='2000000', due=past, month=1, year=2020)
+        build('201', '002', 'Tran B', self.today + timedelta(days=21))      # sắp hết hạn
+        build('202', '003', 'Le C', self.today - timedelta(days=3))         # đã hết hạn nhưng chưa kết thúc
+        build('404', '004', 'Pham D', self.today + timedelta(days=60))      # còn xa, không hiện
+        self.login_owner()
+        r = self.client.get(reverse('owner_dashboard'))
+        titles = [t['title'] for t in r.context['tasks']]
+        self.assertEqual(titles, ['Hóa đơn quá hạn', 'Hợp đồng đã hết hạn', 'Hợp đồng sắp hết hạn'])
+        badges = [t['badge'] for t in r.context['tasks']]
+        self.assertEqual(badges, ['5 ngày', 'Quá 3 ngày', 'Còn 21 ngày'])
+        self.assertContains(r, 'P.101 - Nguyen A')
+        # P.404 vẫn có thể hiện ở danh sách phòng, nhưng không được nằm trong công việc cần xử lý
+        self.assertFalse(any('P.404' in t['subtitle'] for t in r.context['tasks']))
+        self.assertEqual(r.context['overdue_count'], 1)
+
+    def test_no_tasks_message(self):
+        self.login_owner()
+        self.assertContains(self.client.get(reverse('owner_dashboard')), 'Không có việc cần xử lý')
+
+    def test_room_cards_show_tenant_or_empty(self):
+        build('101', '001', 'Nguyen A', self.far)
+        Room.objects.create(room_number='102', price=1)
+        Room.objects.create(room_number='103', price=1, status='bao_tri')
+        self.login_owner()
+        r = self.client.get(reverse('owner_dashboard'))
+        self.assertContains(r, 'Nguyen A')
+        self.assertContains(r, '09001')
+        self.assertContains(r, 'Đang thuê')
+        self.assertContains(r, 'Chưa có người thuê')
+        self.assertContains(r, 'Còn trống')
+        self.assertContains(r, 'Đang sửa')
+
+    def test_room_cards_limit_to_six(self):
+        for i in range(10):
+            Room.objects.create(room_number=f'{100 + i}', price=1)
+        self.login_owner()
+        self.assertEqual(len(self.client.get(reverse('owner_dashboard')).context['preview']), 6)
+
+    def test_overview_has_no_admin_links_for_owner(self):
+        build('101', '001', 'Nguyen A', self.today + timedelta(days=10),
+              total='1000000', due=self.today - timedelta(days=2), month=1, year=2020)
+        self.login_owner()
+        r = self.client.get(reverse('owner_dashboard'))
+        self.assertNotContains(r, 'href="/admin/')
+        r = self.client.get(reverse('report_dashboard'))
+        self.assertNotContains(r, 'href="/admin/')
