@@ -190,7 +190,7 @@ class RoomDetailTests(RoomOwnerBase):
         self.assertContains(r, 'Phòng P.101')
         self.assertContains(r, 'Nguyễn Minh An')
         self.assertContains(r, 'Đại diện')
-        self.assertContains(r, f'HĐ #{contract.pk}')
+        self.assertContains(r, contract.display_code)
         self.assertContains(r, '2.835.000 đ')   # tổng hóa đơn
         self.assertContains(r, '1.835.000 đ')   # còn nợ
         self.assertContains(r, '1/2')           # số người đang ở
