@@ -9,6 +9,8 @@
     <span class="text-muted fw-semibold">Tầng {{ room.floor }}</span>
   </div>
   <div class="d-flex gap-2 flex-wrap">
+    {% if room.status == 'trong' %}<a class="btn btn-primary" href="{% url 'contract_create' %}?room={{ room.pk }}"><i class="bi bi-file-earmark-plus"></i> Lập hợp đồng</a>{% endif %}
+    {% if contract %}<a class="btn btn-outline-brand" href="{% url 'contract_detail' contract.pk %}"><i class="bi bi-file-earmark-text"></i> Xem hợp đồng</a>{% endif %}
     <a class="btn btn-outline-brand" href="{% url 'room_update' room.pk %}"><i class="bi bi-pencil"></i> Sửa thông tin</a>
     <a class="btn btn-outline-brand text-danger" href="{% url 'room_delete' room.pk %}"><i class="bi bi-trash3"></i> Xóa phòng</a>
   </div>
@@ -45,7 +47,7 @@
     <section class="soft-card p-4">
       <div class="section-head"><h2>Hợp đồng đang hiệu lực</h2></div>
       {% if contract %}
-      <div class="info-row"><span>Mã hợp đồng</span><strong>HĐ #{{ contract.pk }}</strong></div>
+      <div class="info-row"><span>Mã hợp đồng</span><strong><a href="{% url 'contract_detail' contract.pk %}">{{ contract.display_code }}</a></strong></div>
       <div class="info-row"><span>Thời gian thuê</span><strong>{{ contract.start_date|date:"d/m/Y" }} – {{ contract.end_date|date:"d/m/Y" }}</strong></div>
       <div class="info-row"><span>Tiền thuê</span><strong>{{ room.price|floatformat:"0g" }} đ/tháng</strong></div>
       <div class="info-row"><span>Đặt cọc</span><strong>{{ contract.deposit|floatformat:"0g" }} đ</strong></div>
@@ -78,7 +80,7 @@
       {% for c in history %}
       <div class="history-row">
         <span class="dot {% if c.status == 'hieu_luc' %}dot-green{% endif %}"></span>
-        <span><strong>HĐ #{{ c.pk }}</strong><small class="d-block text-muted">{{ c.start_date|date:"d/m/Y" }} – {{ c.end_date|date:"d/m/Y" }}</small></span>
+        <span><strong><a href="{% url 'contract_detail' c.pk %}">{{ c.display_code }}</a></strong><small class="d-block text-muted">{{ c.start_date|date:"d/m/Y" }} – {{ c.end_date|date:"d/m/Y" }}</small></span>
         <span class="ms-auto small fw-bold">{{ c.get_status_display }}</span>
       </div>
       {% empty %}

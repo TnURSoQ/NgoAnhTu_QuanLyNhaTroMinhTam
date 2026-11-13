@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}Lập hợp đồng · Nhà trọ Minh Tâm{% endblock %}
+{% block content %}
+<a class="back-link" href="{% url 'contract_list' %}"><i class="bi bi-arrow-left"></i> Quay lại danh sách hợp đồng</a>
+<div class="page-head">
+  <div>
+    <h1>Lập hợp đồng thuê</h1>
+    <p class="text-muted mb-0">Làm lần lượt 3 bước: chọn phòng, chọn người thuê, nhập thời hạn.</p>
+  </div>
+</div>
+
+<form method="post" novalidate class="form-card">
+  {% csrf_token %}
+  {% for e in form.non_field_errors %}<div class="alert alert-danger">{{ e }}</div>{% endfor %}
+
+  <section class="soft-card p-4 mb-3">
+    <div class="step-title"><span class="step-no">1</span> Chọn phòng</div>
+    {% if has_free_rooms %}
+    <select name="room" class="form-select {% if form.room.errors %}is-invalid{% endif %}" aria-label="Phòng">
+      <option value="">— Chọn phòng —</option>
+      {% for r in form.fields.room.queryset %}
+      <option value="{{ r.pk }}" {% if form.room.value|stringformat:"s" == r.pk|stringformat:"s" %}selected{% endif %}>Phòng {{ r.room_number }} · Tầng {{ r.floor }} · {{ r.price|floatformat:"0g" }} đ/tháng · tối đa {{ r.max_occupants }} người</option>
+      {% endfor %}
+    </select>
+    {% for e in form.room.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+    {% else %}
+    <div class="alert alert-warning mb-0">Hiện không có phòng nào còn trống. Hãy <a href="{% url 'room_list' %}">kiểm tra danh sách phòng</a>.</div>
+    {% endif %}
+  </section>
+
+  <section class="soft-card p-4 mb-3">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div class="step-title mb-0"><span class="step-no">2</span> Chọn người thuê</div>
+      <a class="btn btn-sm btn-outline-brand" href="{% url 'tenant_create' %}?next={% url 'contract_create' %}"><i class="bi bi-person-plus"></i> Thêm người thuê mới</a>
+    </div>
+    <p class="text-muted small mt-2 mb-3">Đánh dấu <strong>những người ở trong phòng</strong>, rồi chọn <strong>một người đại diện</strong> (người ký hợp đồng, được cấp tài khoản đăng nhập).</p>
+    {% for e in form.tenants.errors %}<div class="text-danger small mb-2">{{ e }}</div>{% endfor %}
+    {% for e in form.representative.errors %}<div class="text-danger small mb-2">{{ e }}</div>{% endfor %}
+    {% for t in eligible %}
+    <div class="tenant-pick">
+      <label class="tenant-pick-main">
+        <input class="form-check-input pick-box" type="checkbox" name="tenants" value="{{ t.pk }}" {% if t.pk in selected_ids %}checked{% endif %}>
+        <span class="avatar avatar-sm">{{ t.full_name|slice:":1"|upper }}</span>
+        <span><strong>{{ t.full_name }}</strong><small class="d-block text-muted">{{ t.phone }}</small></span>
+      </label>
+      <label class="tenant-pick-rep">
+        <input class="form-check-input pick-rep" type="radio" name="representative" value="{{ t.pk }}" {% if t.pk == rep_id %}checked{% endif %}>
+        <span>Đại diện</span>
+      </label>
+    </div>
+    {% empty %}
+    <div class="alert alert-info mb-0">Chưa có người thuê nào chưa có phòng. Hãy bấm <strong>Thêm người thuê mới</strong>.</div>
+    {% endfor %}
+  </section>
+
+  <section class="soft-card p-4 mb-3">
+    <div class="step-title"><span class="step-no">3</span> Thời hạn và tiền đặt cọc</div>
+    <div class="row g-3">
+      <div class="col-12 col-md-4">
+        <label class="form-label" for="{{ form.start_date.id_for_label }}">Ngày bắt đầu <span class="text-danger">*</span></label>
+        {{ form.start_date }}
+        {% for e in form.start_date.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label" for="{{ form.end_date.id_for_label }}">Ngày kết thúc <span class="text-danger">*</span></label>
+        {{ form.end_date }}
+        {% for e in form.end_date.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label" for="{{ form.deposit.id_for_label }}">Tiền đặt cọc (đ) <span class="text-danger">*</span></label>
+        {{ form.deposit }}
+        {% for e in form.deposit.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary px-4" {% if not has_free_rooms %}disabled{% endif %}>Lập hợp đồng</button>
+    <a class="btn btn-outline-brand" href="{% url 'contract_list' %}">Hủy</a>
+  </div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+  // Chọn "Đại diện" thì tự đánh dấu người đó ở trong phòng; bỏ đánh dấu thì bỏ luôn vai đại diện.
+  document.querySelectorAll('.tenant-pick').forEach(function (row) {
+    var box = row.querySelector('.pick-box'), rep = row.querySelector('.pick-rep');
+    rep.addEventListener('change', function () { if (rep.checked) box.checked = true; });
+    box.addEventListener('change', function () { if (!box.checked) rep.checked = false; });
+  });
+</script>
+{% endblock %}

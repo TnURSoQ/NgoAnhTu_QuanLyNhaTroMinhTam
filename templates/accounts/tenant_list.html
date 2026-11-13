@@ -49,7 +49,7 @@
           <td>{{ r.tenant.phone }}</td>
           <td>{% if r.room %}<span class="pill pill-mint">P.{{ r.room.room_number }}</span>{% else %}-{% endif %}</td>
           <td>{% if r.contract %}{{ r.contract.start_date|date:"d/m/Y" }}{% else %}-{% endif %}</td>
-          <td>{% if r.contract %}HĐ #{{ r.contract.pk }}{% else %}-{% endif %}</td>
+          <td>{% if r.contract %}<a href="{% url 'contract_detail' r.contract.pk %}">{{ r.contract.display_code }}</a>{% else %}-{% endif %}</td>
           <td><span class="pill pill-{{ r.tone }}">{{ r.label }}</span></td>
           <td class="text-end"><a class="btn btn-sm btn-outline-brand" href="{% url 'tenant_detail' r.tenant.pk %}">Xem</a></td>
         </tr>

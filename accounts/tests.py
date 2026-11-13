@@ -22,7 +22,7 @@ class LoginPageTests(TestCase):
     def test_login_page_renders(self):
         r = self.client.get(reverse('login'))
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'Chào mừng đến với Minh Tâm')
+        self.assertContains(r, 'Chào mừng đến với Nhà trọ Minh Tâm')
         self.assertContains(r, 'Ghi nhớ đăng nhập')
         self.assertContains(r, 'Quên mật khẩu?')
 

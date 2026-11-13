@@ -3,6 +3,7 @@ from django.contrib.messages.views import SuccessMessageMixin
 from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, UpdateView
 
@@ -114,16 +115,24 @@ class TenantFormMixin(OwnerRequiredMixin, SuccessMessageMixin):
     template_name = '_crud/form.html'
     success_message = 'Đã lưu hồ sơ %(full_name)s.'
 
+    def safe_next(self):
+        url = self.request.POST.get('next') or self.request.GET.get('next') or ''
+        ok = url_has_allowed_host_and_scheme(
+            url, allowed_hosts={self.request.get_host()}, require_https=self.request.is_secure())
+        return url if ok else ''
+
     def get_success_url(self):
-        return reverse('tenant_detail', args=[self.object.pk])
+        return self.safe_next() or reverse('tenant_detail', args=[self.object.pk])
 
 
 class TenantCreateView(TenantFormMixin, CreateView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
+        next_url = self.safe_next()
         ctx.update(page_title='Thêm người thuê',
                    subtitle='Tài khoản đăng nhập sẽ tự tạo khi người này được chọn làm người đại diện hợp đồng.',
-                   back_url=reverse('tenant_list'), submit_label='Lưu người thuê')
+                   back_url=next_url or reverse('tenant_list'), next=next_url,
+                   submit_label='Lưu người thuê')
         return ctx
 
 

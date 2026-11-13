@@ -18,7 +18,7 @@
           <a class="nav-item-link {% if current == 'owner_dashboard' %}active{% endif %}" href="{% url 'owner_dashboard' %}"><i class="bi bi-grid-1x2"></i> Tổng quan</a>
           <a class="nav-item-link {% if current|slice:':5' == 'room_' %}active{% endif %}" href="{% url 'room_list' %}"><i class="bi bi-door-open"></i> Phòng</a>
           <a class="nav-item-link {% if current|slice:':7' == 'tenant_' %}active{% endif %}" href="{% url 'tenant_list' %}"><i class="bi bi-people"></i> Người thuê</a>
-          <span class="nav-item-link disabled" title="Đang phát triển"><i class="bi bi-file-earmark-text"></i> Hợp đồng <em class="soon">Sắp có</em></span>
+          <a class="nav-item-link {% if current|slice:':9' == 'contract_' %}active{% endif %}" href="{% url 'contract_list' %}"><i class="bi bi-file-earmark-text"></i> Hợp đồng</a>
           <span class="nav-item-link disabled" title="Đang phát triển"><i class="bi bi-receipt"></i> Hóa đơn <em class="soon">Sắp có</em></span>
           <a class="nav-item-link {% if current == 'report_dashboard' %}active{% endif %}" href="{% url 'report_dashboard' %}"><i class="bi bi-bar-chart-line"></i> Báo cáo</a>
         {% elif user.role == 'tenant' %}

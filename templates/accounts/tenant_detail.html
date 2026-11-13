@@ -43,7 +43,7 @@
           {% for ct in history %}
           <div class="history-row">
             <span class="dot {% if ct.contract.status == 'hieu_luc' %}dot-green{% endif %}"></span>
-            <span><strong>P.{{ ct.contract.room.room_number }} · HĐ #{{ ct.contract.pk }}</strong>
+            <span><strong>P.{{ ct.contract.room.room_number }} · <a href="{% url 'contract_detail' ct.contract.pk %}">{{ ct.contract.display_code }}</a></strong>
               <small class="d-block text-muted">{{ ct.contract.start_date|date:"d/m/Y" }} – {{ ct.contract.end_date|date:"d/m/Y" }}{% if ct.is_representative %} · Người đại diện{% endif %}</small></span>
             <span class="ms-auto small fw-bold">{{ ct.contract.get_status_display }}</span>
           </div>
@@ -69,10 +69,11 @@
       <div class="section-head"><h2>Phòng và hợp đồng hiện tại</h2></div>
       {% if state == 'dang_thue' %}
         <div class="info-row"><span>Phòng</span><strong><a href="{% url 'room_detail' current.contract.room.pk %}">P.{{ current.contract.room.room_number }}</a></strong></div>
-        <div class="info-row"><span>Hợp đồng</span><strong>HĐ #{{ current.contract.pk }}</strong></div>
+        <div class="info-row"><span>Hợp đồng</span><strong><a href="{% url 'contract_detail' current.contract.pk %}">{{ current.contract.display_code }}</a></strong></div>
         <div class="info-row"><span>Thời hạn</span><strong>{{ current.contract.start_date|date:"d/m/Y" }} – {{ current.contract.end_date|date:"d/m/Y" }}</strong></div>
       {% else %}
-        <p class="text-muted mb-0">Hiện không có hợp đồng đang hiệu lực.</p>
+        <p class="text-muted">Hiện không có hợp đồng đang hiệu lực.</p>
+        {% if state == 'chua_thue' or state == 'da_tra' %}<a class="btn btn-primary" href="{% url 'contract_create' %}?tenant={{ tenant.pk }}"><i class="bi bi-file-earmark-plus"></i> Lập hợp đồng</a>{% endif %}
       {% endif %}
     </section>
 

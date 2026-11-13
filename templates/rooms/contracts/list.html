@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block title %}Hợp đồng · Nhà trọ Minh Tâm{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Hợp đồng</h1>
+    <p class="text-muted mb-0">Theo dõi hợp đồng thuê, gia hạn, chuyển phòng và trả phòng.</p>
+  </div>
+  <a class="btn btn-primary" href="{% url 'contract_create' %}"><i class="bi bi-plus-lg"></i> Lập hợp đồng</a>
+</div>
+
+<form method="get" class="toolbar">
+  <input type="hidden" name="status" value="{{ status }}">
+  <div class="input-icon flex-grow-1">
+    <i class="bi bi-search"></i>
+    <input type="search" name="q" value="{{ q }}" class="form-control" placeholder="Tìm theo mã hợp đồng, số phòng hoặc tên người thuê...">
+  </div>
+  <button type="submit" class="btn btn-outline-brand">Tìm</button>
+</form>
+
+<div class="filter-tabs">
+  <a class="filter-tab {% if not status %}active{% endif %}" href="{% querystring status=None %}">Tất cả <span>{{ counts.all }}</span></a>
+  <a class="filter-tab {% if status == 'hieu_luc' %}active{% endif %}" href="{% querystring status='hieu_luc' %}">Đang hiệu lực <span>{{ counts.hieu_luc }}</span></a>
+  <a class="filter-tab {% if status == 'sap_het' %}active{% endif %}" href="{% querystring status='sap_het' %}">Sắp hết hạn <span>{{ counts.sap_het }}</span></a>
+  <a class="filter-tab {% if status == 'ket_thuc' %}active{% endif %}" href="{% querystring status='ket_thuc' %}">Đã kết thúc <span>{{ counts.ket_thuc }}</span></a>
+</div>
+
+{% if rows %}
+<div class="soft-card p-2 d-none d-md-block">
+  <div class="table-responsive">
+    <table class="table table-modern align-middle mb-0">
+      <thead><tr><th>Mã hợp đồng</th><th>Phòng</th><th>Người thuê</th><th>Thời hạn</th><th class="text-end">Tiền cọc</th><th>Trạng thái</th><th></th></tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td><a class="fw-bold text-decoration-none" href="{% url 'contract_detail' r.contract.pk %}">{{ r.contract.display_code }}</a></td>
+          <td><span class="pill pill-mint">P.{{ r.contract.room.room_number }}</span></td>
+          <td>{% if r.tenant %}{{ r.tenant.full_name }}{% if r.people > 1 %} <span class="text-muted small">+{{ r.people|add:"-1" }} người</span>{% endif %}{% else %}-{% endif %}</td>
+          <td>{{ r.contract.start_date|date:"d/m/Y" }} – {{ r.contract.end_date|date:"d/m/Y" }}</td>
+          <td class="text-end">{{ r.contract.deposit|floatformat:"0g" }} đ</td>
+          <td><span class="pill pill-{{ r.tone }}">{{ r.label }}</span></td>
+          <td class="text-end"><a class="btn btn-sm btn-outline-brand" href="{% url 'contract_detail' r.contract.pk %}">Xem</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<div class="d-md-none">
+  {% for r in rows %}
+  <a class="soft-card person-card d-block text-decoration-none mb-3" href="{% url 'contract_detail' r.contract.pk %}">
+    <div class="d-flex align-items-center justify-content-between gap-2">
+      <strong>{{ r.contract.display_code }} · P.{{ r.contract.room.room_number }}</strong>
+      <span class="pill pill-{{ r.tone }}">{{ r.label }}</span>
+    </div>
+    <div class="mt-2 fw-semibold">{% if r.tenant %}{{ r.tenant.full_name }}{% if r.people > 1 %} <span class="text-muted small">+{{ r.people|add:"-1" }} người</span>{% endif %}{% endif %}</div>
+    <div class="small text-muted fw-semibold mt-1">{{ r.contract.start_date|date:"d/m/Y" }} – {{ r.contract.end_date|date:"d/m/Y" }}</div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="soft-card p-5 text-center text-muted">
+  <div class="fs-1">📄</div>
+  <p class="mb-3">{% if counts.all %}Không tìm thấy hợp đồng phù hợp.{% else %}Chưa có hợp đồng nào.{% endif %}</p>
+  <a class="btn btn-outline-brand" href="{% if counts.all %}{% url 'contract_list' %}{% else %}{% url 'contract_create' %}{% endif %}">{% if counts.all %}Xem tất cả{% else %}Lập hợp đồng đầu tiên{% endif %}</a>
+</div>
+{% endif %}
+{% endblock %}

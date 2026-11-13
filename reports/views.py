@@ -72,7 +72,7 @@ def overview(request):
             'subtitle': f'P.{c.room.room_number} - {who}',
             'badge': f'Còn {days} ngày' if days >= 0 else f'Quá {-days} ngày',
             'badge_tone': 'warning' if days >= 0 else 'danger',
-            'url': reverse('room_detail', args=[c.room_id]),
+            'url': reverse('contract_detail', args=[c.pk]),
         })
 
     # Một số phòng tiêu biểu

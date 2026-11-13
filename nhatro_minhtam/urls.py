@@ -17,6 +17,7 @@ urlpatterns = [
     path('phong/', include('rooms.owner_urls')),
     path('nguoi-thue/', include('accounts.owner_urls')),
     path('hoa-don/', include('billing.urls')),
-    path('hop-dong/', include('rooms.urls')),
+    path('hop-dong/', include('rooms.contract_urls')),
+    path('hop-dong-cua-toi/', include('rooms.urls')),
     path('', include('reports.urls')),
 ]
