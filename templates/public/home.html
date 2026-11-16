@@ -1,0 +1,41 @@
+{% extends 'base_public.html' %}
+{% block title %}{{ SITE_NAME }} · Phòng trọ cho thuê{% endblock %}
+{% block content %}
+<section class="hero">
+  <div>
+    <h1>Tìm phòng trọ ưng ý<br>tại {{ SITE_NAME }}</h1>
+    <p class="lead">Xem phòng, so sánh giá và đặt lịch đến xem trực tiếp, không cần đăng ký tài khoản.</p>
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-primary btn-lg" href="{% url 'public_rooms' %}"><i class="bi bi-door-open"></i> Xem phòng trống</a>
+      <a class="btn btn-outline-brand btn-lg" href="{% url 'appointment_lookup' %}"><i class="bi bi-search"></i> Tra cứu lịch hẹn</a>
+    </div>
+  </div>
+  <div class="hero-badge">
+    <strong>{{ total_free }}</strong>
+    <span>phòng đang trống</span>
+  </div>
+</section>
+
+<section class="mb-5">
+  <div class="section-head">
+    <h2>Phòng đang cho thuê</h2>
+    <a class="link-more" href="{% url 'public_rooms' %}">Xem tất cả <i class="bi bi-arrow-right"></i></a>
+  </div>
+  {% if rooms %}
+  <div class="row g-3">
+    {% for r in rooms %}<div class="col-12 col-md-6 col-lg-4">{% include 'public/_room_card.html' %}</div>{% endfor %}
+  </div>
+  {% else %}
+  <div class="soft-card p-4 text-center text-muted">Hiện chưa có phòng trống. Vui lòng quay lại sau.</div>
+  {% endif %}
+</section>
+
+<section class="mb-4">
+  <div class="section-head"><h2>Đặt lịch xem phòng trong 3 bước</h2></div>
+  <div class="row g-3">
+    <div class="col-12 col-md-4"><div class="soft-card p-4 h-100"><div class="step-title"><span class="step-no">1</span> Chọn phòng</div><p class="text-muted mb-0">Xem giá, diện tích, tiện ích và chọn phòng bạn thích.</p></div></div>
+    <div class="col-12 col-md-4"><div class="soft-card p-4 h-100"><div class="step-title"><span class="step-no">2</span> Điền thông tin</div><p class="text-muted mb-0">Nhập tên, số điện thoại và chọn ngày giờ bạn muốn đến xem.</p></div></div>
+    <div class="col-12 col-md-4"><div class="soft-card p-4 h-100"><div class="step-title"><span class="step-no">3</span> Nhận mã lịch hẹn</div><p class="text-muted mb-0">Lưu lại mã để tra cứu. Chủ trọ sẽ liên hệ xác nhận với bạn.</p></div></div>
+  </div>
+</section>
+{% endblock %}

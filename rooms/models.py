@@ -2,6 +2,7 @@ from django.db import models
 from django.utils import timezone
 from accounts.models import Tenant
 from django.core.exceptions import ValidationError
+import secrets
 
 class Room(models.Model):
     class Status(models.TextChoices):
@@ -14,8 +15,14 @@ class Room(models.Model):
     area = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     max_occupants = models.PositiveIntegerField(default=1)
+    description = models.TextField(blank=True, default='')
+    amenities = models.CharField(max_length=255, blank=True, default='')  # cách nhau bằng dấu phẩy
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.TRONG)
 
+    @property
+    def amenity_list(self):
+        return [a.strip() for a in self.amenities.split(',') if a.strip()]
+    
     def __str__(self):
         return f'Phòng {self.room_number}'
 
@@ -72,3 +79,50 @@ class ContractRenewal(models.Model):
 
     class Meta:
         ordering = ['-renewed_on', '-id']
+
+CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'  # bỏ I, O, 0, 1 cho khó nhầm
+
+
+class ViewingAppointment(models.Model):
+    """Lịch hẹn xem phòng do khách (chưa đăng nhập) đặt."""
+
+    class Status(models.TextChoices):
+        CHO_XAC_NHAN = 'cho_xac_nhan', 'Chờ xác nhận'
+        DA_XAC_NHAN = 'da_xac_nhan', 'Đã xác nhận'
+        DA_XEM = 'da_xem', 'Đã xem phòng'
+        DA_CHOT = 'da_chot', 'Đã chốt thuê'
+        HUY = 'huy', 'Đã hủy'
+
+    class Slot(models.TextChoices):
+        SANG = 'sang', 'Buổi sáng (8:00 - 11:30)'
+        CHIEU = 'chieu', 'Buổi chiều (13:30 - 17:00)'
+        TOI = 'toi', 'Buổi tối (18:00 - 20:00)'
+
+    code = models.CharField(max_length=10, unique=True, editable=False)
+    room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='appointments')
+    visitor_name = models.CharField(max_length=100)
+    visitor_phone = models.CharField(max_length=20)
+    appointment_date = models.DateField()
+    slot = models.CharField(max_length=10, choices=Slot.choices, default=Slot.SANG)
+    note = models.CharField(max_length=255, blank=True, default='')
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.CHO_XAC_NHAN)
+    owner_note = models.CharField(max_length=255, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['appointment_date', 'id']
+
+    @classmethod
+    def new_code(cls):
+        while True:
+            code = 'LH' + ''.join(secrets.choice(CODE_ALPHABET) for _ in range(6))
+            if not cls.objects.filter(code=code).exists():
+                return code
+
+    def save(self, *args, **kwargs):
+        if not self.code:
+            self.code = self.new_code()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'{self.code} - {self.visitor_name}'

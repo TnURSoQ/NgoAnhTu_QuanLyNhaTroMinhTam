@@ -37,6 +37,9 @@ def _is_free(room):
     return room.status == Room.Status.TRONG and not room.contracts.filter(
         status=Contract.Status.HIEU_LUC).exists()
 
+def is_free(room):
+    """Phòng có đang trống và sẵn sàng cho thuê không."""
+    return _is_free(room)
 
 # ---------------- lập hợp đồng ----------------
 def contract_errors(room, tenants, representative, start_date, end_date, deposit):

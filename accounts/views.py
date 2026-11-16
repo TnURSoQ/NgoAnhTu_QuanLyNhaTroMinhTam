@@ -1,4 +1,3 @@
-from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
 from django.shortcuts import redirect, render
 
@@ -18,9 +17,11 @@ class RememberLoginView(LoginView):
         return response
 
 
-@login_required
 def home(request):
     user = request.user
+    if not user.is_authenticated:
+        from rooms.public_views import landing
+        return landing(request)
     if is_owner(user):
         return redirect('owner_dashboard')
     if user.role == User.Role.TENANT and hasattr(user, 'tenant_profile'):

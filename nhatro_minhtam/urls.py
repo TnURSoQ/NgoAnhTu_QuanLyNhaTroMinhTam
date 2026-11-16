@@ -15,9 +15,11 @@ urlpatterns = [
     path('doi-mat-khau/xong/', auth_views.PasswordChangeDoneView.as_view(),
          name='password_change_done'),
     path('phong/', include('rooms.owner_urls')),
+    path('lich-hen/', include('rooms.appointment_urls')),
     path('nguoi-thue/', include('accounts.owner_urls')),
     path('hoa-don/', include('billing.urls')),
     path('hop-dong/', include('rooms.contract_urls')),
     path('hop-dong-cua-toi/', include('rooms.urls')),
+    path('', include('rooms.public_urls')),
     path('', include('reports.urls')),
 ]

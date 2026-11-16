@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <title>{% block title %}{{ SITE_NAME }}{% endblock %}</title>
+  {% include '_head.html' %}
+</head>
+<body class="pub-body">
+<header class="pub-nav">
+  <div class="pub-container d-flex align-items-center justify-content-between gap-3 flex-wrap">
+    <a class="brand" href="{% url 'home' %}">
+      <span class="brand-logo">{% include '_logo.html' %}</span>
+      <span><span class="brand-name">Minh Tâm</span><small class="brand-tag">Nhà trọ ấm áp</small></span>
+    </a>
+    <nav class="pub-links">
+      <a href="{% url 'public_rooms' %}">Xem phòng</a>
+      <a href="{% url 'appointment_lookup' %}">Tra cứu lịch hẹn</a>
+    </nav>
+    {% if user.is_authenticated %}
+      <a class="btn btn-primary btn-sm" href="{% url 'home' %}">Vào trang quản lý</a>
+    {% else %}
+      <a class="btn btn-outline-brand btn-sm" href="{% url 'login' %}"><i class="bi bi-person"></i> Đăng nhập</a>
+    {% endif %}
+  </div>
+</header>
+
+<main class="pub-container pub-main">
+  {% for message in messages %}
+    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags|default:'info' }}{% endif %} alert-dismissible fade show">
+      {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng"></button>
+    </div>
+  {% endfor %}
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="pub-footer">
+  <div class="pub-container d-flex flex-wrap justify-content-between gap-2">
+    <strong>{{ SITE_NAME }}</strong>
+    <span>{% if SITE_ADDRESS %}<i class="bi bi-geo-alt"></i> {{ SITE_ADDRESS }}{% endif %}{% if SITE_PHONE %} · <i class="bi bi-telephone"></i> {{ SITE_PHONE }}{% endif %}</span>
+  </div>
+</footer>
+{% include '_scripts.html' %}
+{% block scripts %}{% endblock %}
+</body>
+</html>

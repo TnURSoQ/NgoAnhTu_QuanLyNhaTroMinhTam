@@ -1,0 +1,60 @@
+{% extends 'base_public.html' %}
+{% block title %}Phòng {{ room.room_number }} · {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<a class="back-link" href="{% url 'public_rooms' %}"><i class="bi bi-arrow-left"></i> Quay lại danh sách phòng</a>
+<div class="page-head">
+  <div class="d-flex align-items-center gap-3 flex-wrap">
+    <h1>Phòng P.{{ room.room_number }}</h1>
+    {% if available %}<span class="pill pill-mint">Còn trống</span>{% else %}<span class="pill pill-gray">Đã có người thuê</span>{% endif %}
+  </div>
+  <div class="price-big">{{ room.price|floatformat:"0g" }} đ<small>/tháng</small></div>
+</div>
+
+<div class="row g-4">
+  <div class="col-12 col-lg-7">
+    <section class="soft-card p-4 mb-4">
+      <div class="section-head"><h2>Thông tin phòng</h2></div>
+      <div class="info-row"><span>Diện tích</span><strong>{% if room.area %}{{ room.area|floatformat:"-2" }} m²{% else %}-{% endif %}</strong></div>
+      <div class="info-row"><span>Sức chứa tối đa</span><strong>{{ room.max_occupants }} người</strong></div>
+      <div class="info-row"><span>Vị trí</span><strong>Tầng {{ room.floor }}</strong></div>
+      <div class="info-row"><span>Giá thuê</span><strong>{{ room.price|floatformat:"0g" }} đ/tháng</strong></div>
+    </section>
+    {% if room.amenity_list %}
+    <section class="soft-card p-4 mb-4">
+      <div class="section-head"><h2>Tiện ích trong phòng</h2></div>
+      <div class="chips">{% for a in room.amenity_list %}<span class="chip chip-lg"><i class="bi bi-check2-circle"></i> {{ a }}</span>{% endfor %}</div>
+    </section>
+    {% endif %}
+    {% if room.description %}
+    <section class="soft-card p-4">
+      <div class="section-head"><h2>Mô tả</h2></div>
+      <p class="mb-0">{{ room.description|linebreaksbr }}</p>
+    </section>
+    {% endif %}
+  </div>
+
+  <div class="col-12 col-lg-5">
+    <section class="soft-card p-4 booking-card" id="dat-lich">
+      <div class="section-head"><h2>Đặt lịch xem phòng</h2></div>
+      {% if available %}
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% for e in form.non_field_errors %}<div class="alert alert-danger">{{ e }}</div>{% endfor %}
+        {% for field in form %}
+        <div class="mb-3">
+          <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}</label>
+          {{ field }}
+          {% for e in field.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+        </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-primary w-100 py-2"><i class="bi bi-calendar-check"></i> Đặt lịch xem phòng</button>
+        <p class="text-muted small mt-3 mb-0">Không cần tài khoản. Sau khi đặt, bạn nhận một mã lịch hẹn để tra cứu.</p>
+      </form>
+      {% else %}
+      <div class="alert alert-warning mb-3">Phòng này đã có người thuê nên không đặt lịch được.</div>
+      <a class="btn btn-outline-brand" href="{% url 'public_rooms' %}">Xem phòng trống khác</a>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}

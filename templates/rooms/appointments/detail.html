@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block title %}Lịch hẹn {{ a.code }} · Nhà trọ Minh Tâm{% endblock %}
+{% block content %}
+<a class="back-link" href="{% url 'appointment_list' %}"><i class="bi bi-arrow-left"></i> Quay lại danh sách lịch hẹn</a>
+<div class="page-head">
+  <div class="d-flex align-items-center gap-3 flex-wrap"><h1>Lịch hẹn {{ a.code }}</h1><span class="pill pill-{{ tone }}">{{ a.get_status_display }}</span></div>
+  {% if a.status == 'da_xac_nhan' or a.status == 'da_xem' %}
+  <a class="btn btn-primary" href="{% url 'contract_create' %}?appointment={{ a.pk }}"><i class="bi bi-file-earmark-plus"></i> Lập hợp đồng cho khách</a>
+  {% endif %}
+</div>
+
+<div class="row g-4">
+  <div class="col-12 col-xl-7">
+    <section class="soft-card p-4">
+      <div class="section-head"><h2>Thông tin lịch hẹn</h2></div>
+      <div class="info-row"><span>Khách</span><strong>{{ a.visitor_name }}</strong></div>
+      <div class="info-row"><span>Số điện thoại</span><strong><a href="tel:{{ a.visitor_phone }}">{{ a.visitor_phone }}</a></strong></div>
+      <div class="info-row"><span>Phòng</span><strong><a href="{% url 'room_detail' a.room.pk %}">P.{{ a.room.room_number }}</a> · {{ a.room.price|floatformat:"0g" }} đ/tháng</strong></div>
+      <div class="info-row"><span>Ngày xem</span><strong>{{ a.appointment_date|date:"d/m/Y" }}</strong></div>
+      <div class="info-row"><span>Buổi</span><strong>{{ a.get_slot_display }}</strong></div>
+      <div class="info-row"><span>Ghi chú của khách</span><strong>{{ a.note|default:"-" }}</strong></div>
+      <div class="info-row"><span>Lời nhắn của chủ trọ</span><strong>{{ a.owner_note|default:"-" }}</strong></div>
+      <div class="info-row"><span>Đặt lúc</span><strong>{{ a.created_at|date:"d/m/Y H:i" }}</strong></div>
+    </section>
+  </div>
+  <div class="col-12 col-xl-5">
+    {% if actions %}
+    <section class="soft-card p-4 mb-4">
+      <div class="section-head"><h2>Xử lý lịch hẹn</h2></div>
+      <form method="post" action="{% url 'appointment_set_status' a.pk %}">
+        {% csrf_token %}
+        <label class="form-label" for="owner_note">Lời nhắn cho khách (nếu có)</label>
+        <input class="form-control mb-3" id="owner_note" name="owner_note" maxlength="255" placeholder="VD: Mời bạn đến cổng chính, gọi số này khi tới">
+        <div class="d-grid gap-2">
+          {% for value, label, css in actions %}<button type="submit" name="status" value="{{ value }}" class="btn {{ css }}">{{ label }}</button>{% endfor %}
+        </div>
+      </form>
+    </section>
+    {% endif %}
+    {% if can_reschedule %}
+    <section class="soft-card p-4">
+      <div class="section-head"><h2>Đổi ngày giờ hẹn</h2></div>
+      <form method="post" action="{% url 'appointment_reschedule' a.pk %}">
+        {% csrf_token %}
+        <div class="mb-3"><label class="form-label" for="{{ reschedule_form.appointment_date.id_for_label }}">Ngày hẹn mới</label>{{ reschedule_form.appointment_date }}</div>
+        <div class="mb-3"><label class="form-label" for="{{ reschedule_form.slot.id_for_label }}">Buổi</label>{{ reschedule_form.slot }}</div>
+        <button type="submit" class="btn btn-outline-brand w-100">Đổi lịch</button>
+      </form>
+    </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

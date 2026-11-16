@@ -9,7 +9,7 @@ from . import services
 from .contract_forms import (ContractCheckoutForm, ContractCreateForm, ContractRenewForm,
                              ContractTransferForm)
 from .display import contract_status_ui, representative_of
-from .models import Contract
+from .models import Contract, ViewingAppointment
 
 
 def _get_contract(pk):
@@ -86,9 +86,17 @@ def contract_create(request):
                     msg += (f' Tài khoản đăng nhập của {rep.full_name}: tên đăng nhập và mật khẩu '
                             f'ban đầu đều là số CCCD ({rep.id_card_number}).')
                 messages.success(request, msg)
+                ViewingAppointment.objects.filter(
+                    pk=request.POST.get('appointment') or 0, room=contract.room,
+                    status__in=['cho_xac_nhan', 'da_xac_nhan', 'da_xem']).update(status='da_chot')                
                 return redirect('contract_detail', pk=contract.pk)
     else:
         initial = {}
+        appt_id = request.GET.get('appointment', '')
+        if appt_id.isdigit():
+            appt = ViewingAppointment.objects.filter(pk=int(appt_id)).first()
+            if appt:
+                initial['room'] = appt.room_id        
         room_id = request.GET.get('room', '')
         tenant_id = request.GET.get('tenant', '')
         if room_id.isdigit():
@@ -98,6 +106,9 @@ def contract_create(request):
             initial['representative'] = int(tenant_id)
         form = ContractCreateForm(initial=initial)
 
+    appt_id = request.GET.get('appointment') or request.POST.get('appointment') or ''
+    appointment = (ViewingAppointment.objects.filter(pk=int(appt_id)).select_related('room').first()
+                   if appt_id.isdigit() else None)
     selected = form['tenants'].value() or []
     rep_value = form['representative'].value()
     return render(request, 'rooms/contracts/create.html', {
@@ -106,6 +117,7 @@ def contract_create(request):
         'selected_ids': {int(x) for x in selected if str(x).isdigit()},
         'rep_id': int(rep_value) if str(rep_value or '').isdigit() else None,
         'has_free_rooms': form.fields['room'].queryset.exists(),
+        'appointment': appointment,
     })
 
 

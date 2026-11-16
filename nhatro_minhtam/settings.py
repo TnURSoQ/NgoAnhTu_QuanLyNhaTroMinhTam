@@ -66,6 +66,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                                'accounts.context_processors.site_info',
             ],
         },
     },
@@ -137,3 +138,8 @@ LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'login'
 NUMBER_GROUPING = 3  # hiện 2.392.500 thay vì 2392500
 STATICFILES_DIRS = [BASE_DIR / 'static']
+
+# Thông tin hiển thị cho khách ở trang công khai 
+SITE_NAME = 'Nhà trọ Minh Tâm'
+SITE_ADDRESS = 'Đà Nẵng'
+SITE_PHONE = ''

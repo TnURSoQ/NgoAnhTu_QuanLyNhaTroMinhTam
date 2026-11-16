@@ -294,3 +294,29 @@ a.room-card { color: var(--ink); }
 .tenant-pick-rep { display: flex; align-items: center; gap: .45rem; font-weight: 700; font-size: .9rem; color: var(--brand-dark); cursor: pointer; margin: 0; white-space: nowrap; }
 .pick-box, .pick-rep { width: 1.2em; height: 1.2em; }
 .form-check-input { background-color: #fff; border-color: #C9B8A8; }
+
+/* ---------- trang công khai cho khách ---------- */
+.pub-body { background: var(--cream); }
+.pub-container { max-width: 1140px; margin: 0 auto; padding: 0 1rem; }
+.pub-nav { background: #fff; border-bottom: 1px solid var(--line); padding: .75rem 0; position: sticky; top: 0; z-index: 20; }
+.pub-nav .brand { padding: 0; }
+.pub-links { display: flex; gap: 1.2rem; font-weight: 700; }
+.pub-links a { text-decoration: none; color: var(--ink); }
+.pub-links a:hover { color: var(--brand); }
+.pub-main { padding-top: 1.5rem; padding-bottom: 3rem; min-height: 70vh; }
+.pub-footer { background: #fff; border-top: 1px solid var(--line); padding: 1.2rem 0; color: var(--muted); font-weight: 600; font-size: .9rem; }
+.hero { display: flex; align-items: center; justify-content: space-between; gap: 2rem; flex-wrap: wrap; padding: 2.5rem 2rem; margin-bottom: 2.5rem; border-radius: 28px; background: linear-gradient(135deg, #FCE7D8 0%, #F9D9C3 60%, #F4CDB2 100%); }
+.hero h1 { font-size: 2.2rem; font-weight: 800; line-height: 1.25; color: #6B3A27; }
+.hero .lead { color: #7B5646; font-weight: 600; max-width: 520px; margin: 1rem 0 1.4rem; }
+.hero-badge { background: rgba(255, 255, 255, .8); border-radius: 24px; padding: 1.4rem 2rem; text-align: center; box-shadow: 0 10px 24px rgba(120, 80, 50, .15); }
+.hero-badge strong { display: block; font-size: 3rem; font-weight: 800; color: var(--brand); line-height: 1; }
+.hero-badge span { font-weight: 700; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: .4rem; margin: .3rem 0 .4rem; }
+.chip { background: rgba(255, 255, 255, .75); border-radius: 999px; padding: .15rem .65rem; font-size: .8rem; font-weight: 700; color: #5B4A40; }
+.chip-lg { font-size: .9rem; padding: .35rem .85rem; background: var(--mint); color: #2F6B3F; }
+.price-big { font-size: 1.8rem; font-weight: 800; color: var(--brand-dark); }
+.price-big small { font-size: .9rem; color: var(--muted); font-weight: 600; margin-left: .2rem; }
+.booking-card { position: sticky; top: 90px; }
+.code-big { font-size: 2.4rem; font-weight: 800; letter-spacing: .15rem; color: var(--brand-dark); }
+.ok-icon { background: var(--mint); color: #3C8A55; }
+@media (max-width: 575.98px) { .hero { padding: 1.6rem 1.2rem; } .hero h1 { font-size: 1.6rem; } .booking-card { position: static; } }

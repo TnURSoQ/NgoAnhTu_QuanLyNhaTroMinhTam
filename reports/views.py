@@ -10,7 +10,7 @@ from django.utils import timezone
 from accounts.decorators import owner_required
 from billing.models import Invoice, Payment
 from rooms.display import representative_of, room_status_ui
-from rooms.models import Contract, Room
+from rooms.models import Contract, Room, ViewingAppointment
 
 @owner_required
 def overview(request):
@@ -53,6 +53,17 @@ def overview(request):
             'url': reverse('report_dashboard'),
         })
 
+    pending = ViewingAppointment.objects.filter(
+        status=ViewingAppointment.Status.CHO_XAC_NHAN).select_related('room').order_by('appointment_date')[:3]
+    for a in pending:
+        tasks.append({
+            'icon': 'bi-calendar-check', 'tone': 'lavender',
+            'title': 'Lịch hẹn xem phòng mới',
+            'subtitle': f'P.{a.room.room_number} - {a.visitor_name}',
+            'badge': f'{a.appointment_date:%d/%m}', 'badge_tone': 'warning',
+            'url': reverse('appointment_detail', args=[a.pk]),
+        })
+        
     expiring = (
         Contract.objects.filter(
             status=Contract.Status.HIEU_LUC,

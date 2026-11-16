@@ -1,0 +1,36 @@
+{% extends 'base_public.html' %}
+{% block title %}Lịch hẹn {{ appointment.code }} · {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-9 col-lg-7">
+    <section class="soft-card p-4 text-center mb-3">
+      <div class="confirm-icon ok-icon"><i class="bi bi-calendar-check"></i></div>
+      <p class="text-muted mb-1">Mã lịch hẹn của bạn</p>
+      <div class="code-big">{{ appointment.code }}</div>
+      <p class="text-muted small mb-3">Hãy lưu lại mã này để tra cứu bất cứ lúc nào.</p>
+      <span class="pill pill-{% if appointment.status == 'cho_xac_nhan' %}amber{% elif appointment.status == 'da_xac_nhan' %}sky{% elif appointment.status == 'da_xem' %}lavender{% elif appointment.status == 'da_chot' %}mint{% else %}gray{% endif %}">{{ appointment.get_status_display }}</span>
+    </section>
+
+    <section class="soft-card p-4 mb-3">
+      <div class="info-row"><span>Phòng</span><strong><a href="{% url 'public_room_detail' appointment.room.pk %}">P.{{ appointment.room.room_number }}</a> · {{ appointment.room.price|floatformat:"0g" }} đ/tháng</strong></div>
+      <div class="info-row"><span>Ngày xem</span><strong>{{ appointment.appointment_date|date:"d/m/Y" }}</strong></div>
+      <div class="info-row"><span>Buổi</span><strong>{{ appointment.get_slot_display }}</strong></div>
+      <div class="info-row"><span>Người đặt</span><strong>{{ appointment.visitor_name }}</strong></div>
+      <div class="info-row"><span>Số điện thoại</span><strong>{{ appointment.visitor_phone }}</strong></div>
+      {% if appointment.note %}<div class="info-row"><span>Ghi chú của bạn</span><strong>{{ appointment.note }}</strong></div>{% endif %}
+      {% if appointment.owner_note %}<div class="info-row"><span>Lời nhắn từ chủ trọ</span><strong>{{ appointment.owner_note }}</strong></div>{% endif %}
+    </section>
+
+    {% if appointment.status == 'cho_xac_nhan' %}<div class="alert alert-warning">Chủ trọ sẽ liên hệ qua số điện thoại của bạn để xác nhận lịch hẹn.</div>
+    {% elif appointment.status == 'da_xac_nhan' %}<div class="alert alert-info">Lịch hẹn đã được xác nhận. Vui lòng đến đúng ngày và buổi đã chọn.</div>
+    {% elif appointment.status == 'da_xem' %}<div class="alert alert-info">Cảm ơn bạn đã đến xem phòng.</div>
+    {% elif appointment.status == 'da_chot' %}<div class="alert alert-success">Bạn đã chốt thuê phòng này. Chúc bạn ở trọ vui vẻ!</div>
+    {% else %}<div class="alert alert-danger">Lịch hẹn này đã bị hủy. Bạn có thể <a href="{% url 'public_rooms' %}">chọn phòng khác</a> và đặt lại.</div>{% endif %}
+
+    <div class="d-flex gap-2 flex-wrap justify-content-center">
+      <a class="btn btn-outline-brand" href="{% url 'public_rooms' %}">Xem thêm phòng</a>
+      <a class="btn btn-outline-brand" href="{% url 'appointment_lookup' %}">Tra cứu mã khác</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

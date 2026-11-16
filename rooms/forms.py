@@ -13,11 +13,14 @@ class RoomForm(BootstrapFormMixin, forms.ModelForm):
 
     class Meta:
         model = Room
-        fields = ['room_number', 'floor', 'area', 'max_occupants', 'price', 'status']
+        fields = ['room_number', 'floor', 'area', 'max_occupants', 'price', 'status', 'amenities', 'description']
         labels = {
             'room_number': 'Số phòng', 'floor': 'Tầng',
             'max_occupants': 'Sức chứa tối đa (người)', 'status': 'Tình trạng',
+            'amenities': 'Tiện ích', 'description': 'Mô tả phòng',
         }
+        help_texts = {'amenities': 'Cách nhau bằng dấu phẩy, ví dụ: Điều hòa, Bình nóng lạnh, Wifi, Gác lửng'}
+        widgets = {'description': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Giới thiệu ngắn để khách xem phòng'})}
         error_messages = {'room_number': {'unique': 'Số phòng này đã tồn tại.'}}
 
     def __init__(self, *args, **kwargs):

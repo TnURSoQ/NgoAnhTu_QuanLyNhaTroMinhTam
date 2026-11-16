@@ -25,6 +25,8 @@
       <div class="info-row"><span>Giá thuê (niêm yết)</span><strong>{{ room.price|floatformat:"0g" }} đ/tháng</strong></div>
       <div class="info-row"><span>Tình trạng</span><strong>{{ label }}</strong></div>
       <div class="info-row"><span>Vị trí</span><strong>Tầng {{ room.floor }}</strong></div>
+      {% if room.amenity_list %}<div class="info-row"><span>Tiện ích</span><strong>{{ room.amenities }}</strong></div>{% endif %}
+      {% if room.description %}<div class="info-row"><span>Mô tả</span><strong>{{ room.description }}</strong></div>{% endif %}
     </section>
 
     <section class="soft-card p-4 mb-4">

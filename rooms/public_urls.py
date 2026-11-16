@@ -1,0 +1,10 @@
+from django.urls import path
+
+from . import public_views as views
+
+urlpatterns = [
+    path('phong-tro/', views.room_list, name='public_rooms'),
+    path('phong-tro/<int:pk>/', views.room_detail, name='public_room_detail'),
+    path('tra-cuu-lich-hen/', views.appointment_lookup, name='appointment_lookup'),
+    path('tra-cuu-lich-hen/<str:code>/', views.appointment_status, name='appointment_status'),
+]

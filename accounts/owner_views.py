@@ -126,6 +126,9 @@ class TenantFormMixin(OwnerRequiredMixin, SuccessMessageMixin):
 
 
 class TenantCreateView(TenantFormMixin, CreateView):
+    def get_initial(self):
+        return {k: self.request.GET[k] for k in ('full_name', 'phone') if k in self.request.GET}
+    
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         next_url = self.safe_next()
