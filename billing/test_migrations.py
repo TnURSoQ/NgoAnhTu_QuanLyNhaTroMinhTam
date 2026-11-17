@@ -14,8 +14,9 @@ class InvoiceSnapshotMigrationTests(TransactionTestCase):
         executor = MigrationExecutor(connection)
         latest = executor.loader.graph.leaf_nodes()
         try:
-            target = [node for node in latest if node[0] != 'billing'] + [
-                ('billing', '0004_invoice_reminded_at')]
+            other_apps = [node for node in latest if node[0] not in ('billing', 'rooms')]
+            target = other_apps + [('rooms', '0004_room_amenities_room_description_viewingappointment'),
+                                   ('billing', '0004_invoice_reminded_at')]
             executor.migrate(target)
             apps = executor.loader.project_state(target).apps
             Room = apps.get_model('rooms', 'Room')
@@ -48,8 +49,11 @@ class InvoiceSnapshotMigrationTests(TransactionTestCase):
                 Payment.objects.create(invoice=inv, amount=100000)
                 ids.append(inv.pk)
             executor = MigrationExecutor(connection)
-            executor.migrate(latest)
-            apps = executor.loader.project_state(latest).apps
+            backfill_target = other_apps + [
+                ('rooms', '0004_room_amenities_room_description_viewingappointment'),
+                ('billing', '0006_backfill_invoice_prices')]
+            executor.migrate(backfill_target)
+            apps = executor.loader.project_state(backfill_target).apps
             Invoice = apps.get_model('billing', 'Invoice')
             Line = apps.get_model('billing', 'InvoiceService')
             first = Invoice.objects.get(pk=ids[0])

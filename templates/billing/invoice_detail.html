@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'base.html' %}{% load static %}
 {% block title %}Hóa đơn tháng {{ invoice.month }}/{{ invoice.year }}{% endblock %}
 {% block content %}
 <a href="{% url 'my_invoices' %}" class="btn btn-link px-0">&larr; Danh sách hóa đơn</a>
@@ -9,6 +9,7 @@
 <p class="text-muted">Hạn thanh toán: {{ invoice.due_date|date:"d/m/Y" }}</p>
 {% if invoice.note %}<div class="soft-card p-3 mb-3"><strong>Ghi chú</strong><p class="mb-0">{{ invoice.note|linebreaksbr }}</p></div>{% endif %}
 {% include 'billing/_invoice_breakdown.html' %}
+{% include 'billing/_transfer_card.html' %}
 <h5>Các lần thanh toán</h5>
 {% if payments %}
 <div class="table-responsive">
@@ -21,3 +22,4 @@
 </div>
 {% else %}<p class="text-muted">Chưa có khoản thanh toán nào.</p>{% endif %}
 {% endblock %}
+{% block scripts %}<script src="{% static 'js/transfer.js' %}"></script>{% endblock %}

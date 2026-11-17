@@ -6,7 +6,7 @@ from .models import Contract, Room
 
 
 class RoomForm(BootstrapFormMixin, forms.ModelForm):
-    price = MoneyField(label='Giá thuê (đ/tháng)', max_digits=10, decimal_places=2, min_value=1)
+    price = MoneyField(label='Giá thuê (đ/tháng)', max_digits=8, decimal_places=0, min_value=1)
     area = FlexibleDecimalField(
         label='Diện tích (m²)', max_digits=5, decimal_places=2, required=False, min_value=1,
         widget=PlainDecimalInput(attrs={'placeholder': 'VD: 20'}))

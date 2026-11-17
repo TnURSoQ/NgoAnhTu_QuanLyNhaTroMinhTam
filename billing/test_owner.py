@@ -341,7 +341,7 @@ class OwnerBillingViewTests(BillingBase):
     def test_previous_meter_defaults_and_first_period_blank(self):
         r = self.client.get(reverse('invoice_create'), {'room': self.room.pk})
         self.assertEqual(r.context['form'].initial['old_electric'], '')
-        self.assertEqual(r.context['form'].initial['room_fee'], '2500000.00')
+        self.assertEqual(r.context['form'].initial['room_fee'], '2500000')
         UtilityReading.objects.create(room=self.room, month=12, year=self.today.year - 1,
                                         old_electric=1, new_electric=123, old_water=1, new_water=12)
         r = self.client.get(reverse('invoice_create'), {'room': self.room.pk})

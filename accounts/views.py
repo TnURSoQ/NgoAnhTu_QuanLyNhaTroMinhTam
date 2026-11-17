@@ -25,7 +25,7 @@ def home(request):
     if is_owner(user):
         return redirect('owner_dashboard')
     if user.role == User.Role.TENANT and hasattr(user, 'tenant_profile'):
-        return redirect('my_invoices')
+        return redirect('my_room')
     if user.is_staff:
         return redirect('admin:index')  # lập trình viên: vào trang quản trị hệ thống
     # Không thuộc nhóm nào: hiện thông báo thay vì chuyển hướng (tránh vòng lặp)

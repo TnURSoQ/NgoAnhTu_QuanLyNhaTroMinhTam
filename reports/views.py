@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from accounts.decorators import owner_required
-from billing.models import Invoice, Payment
+from billing.models import Invoice, Payment, PaymentNotice
 from rooms.display import representative_of, room_status_ui
 from rooms.models import Contract, Room, ViewingAppointment
 
@@ -51,6 +51,16 @@ def overview(request):
             'subtitle': f'P.{inv.contract.room.room_number} - {who}',
             'badge': f'{days} ngày', 'badge_tone': 'danger',
             'url': reverse('invoice_detail', args=[inv.pk]),
+        })
+
+    pending_transfers = PaymentNotice.objects.filter(
+        status=PaymentNotice.Status.CHO_XAC_NHAN).select_related('invoice__contract__room', 'tenant')
+    for notice in pending_transfers.order_by('created_at', 'pk')[:5]:
+        tasks.append({
+            'icon': 'bi-bank', 'tone': 'amber', 'title': 'Chuyển khoản chờ xác nhận',
+            'subtitle': f'P.{notice.invoice.contract.room.room_number} - {notice.tenant.full_name}',
+            'amount': notice.amount, 'badge': 'Chờ xác nhận', 'badge_tone': 'warning',
+            'url': reverse('invoice_detail', args=[notice.invoice_id]),
         })
 
     pending = ViewingAppointment.objects.filter(

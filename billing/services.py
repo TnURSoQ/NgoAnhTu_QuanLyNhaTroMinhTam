@@ -6,12 +6,16 @@ from django.db import IntegrityError, transaction
 from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 
+from accounts.permissions import is_owner
+from accounts.money import MAX_MONEY, whole_dong
+from accounts.text import normalize
+from rooms.display import representative_of
 from rooms.models import Contract, Room
-from .models import Invoice, InvoiceService, Payment, Service, UtilityRate, UtilityReading
+from .models import (BankAccount, Invoice, InvoiceService, Payment, PaymentNotice, Service,
+                     UtilityRate, UtilityReading)
 
 DUE_DAYS = 10
-CENT = Decimal('0.01')
-MAX_FEE = Decimal('99999999.99')
+MAX_FEE = MAX_MONEY
 
 
 def _money(value, label, positive=False):
@@ -21,12 +25,12 @@ def _money(value, label, positive=False):
             raise ValueError
         if positive and value <= 0:
             raise ValueError
-        if value != value.quantize(CENT):
+        if value != value.to_integral_value():
             raise ValueError
     except (InvalidOperation, ValueError, TypeError):
         raise ValidationError([f'{label} phải {"lớn hơn 0" if positive else "không âm"}, '
-                               'không vượt 99.999.999,99 đ và có tối đa 2 chữ số thập phân.'])
-    return value.quantize(CENT)
+                               'không vượt 99.999.999 đ và là số nguyên đồng.'])
+    return whole_dong(value)
 
 
 def _period(month, year):
@@ -57,8 +61,8 @@ def _make_invoice(reading, *, room_fee=None, due_date=None, note='', service_ite
         raise ValidationError(['Chưa cấu hình đơn giá điện nước.'])
     electric_price = _money(rate.electric_price, 'Đơn giá điện', positive=True)
     water_price = _money(rate.water_price, 'Đơn giá nước', positive=True)
-    electric_fee = _money((reading.electric_usage() * electric_price).quantize(CENT), 'Tiền điện')
-    water_fee = _money((reading.water_usage() * water_price).quantize(CENT), 'Tiền nước')
+    electric_fee = _money(whole_dong(reading.electric_usage() * electric_price), 'Tiền điện')
+    water_fee = _money(whole_dong(reading.water_usage() * water_price), 'Tiền nước')
     room_fee = _money(reading.room.price if room_fee is None else room_fee, 'Tiền phòng')
     invoice = Invoice(
         contract=contract, utility_reading=reading, month=reading.month, year=reading.year,
@@ -185,3 +189,78 @@ def delete_service(service):
         service.delete()
     except ProtectedError:
         raise ValidationError(['Không thể xóa dịch vụ đã dùng trong hóa đơn.'])
+
+
+def transfer_content(invoice):
+    representative = representative_of(invoice.contract)
+    name = normalize(representative.full_name).upper() if representative else ''
+    return ' '.join(f'P{invoice.contract.room.room_number} {name} T{invoice.month}.{invoice.year}'.split())
+
+
+@transaction.atomic
+def configure_bank_account(*, bank_name, account_number, account_holder):
+    account, _ = BankAccount.objects.update_or_create(pk=1, defaults={
+        'bank_name': bank_name.strip(), 'account_number': account_number.strip(),
+        'account_holder': account_holder.strip()})
+    account.full_clean()
+    return account
+
+
+@transaction.atomic
+def report_payment(invoice, tenant, *, amount=None, note=''):
+    invoice = Invoice.objects.select_for_update().get(pk=invoice.pk)
+    if not invoice.contract.contract_tenants.filter(tenant=tenant).exists():
+        raise ValidationError(['Bạn chỉ được báo chuyển khoản cho hóa đơn của mình.'])
+    if invoice.total_paid() >= invoice.total_amount:
+        raise ValidationError(['Hóa đơn đã thu đủ, không thể báo chuyển khoản.'])
+    if invoice.payment_notices.filter(status=PaymentNotice.Status.CHO_XAC_NHAN).exists():
+        raise ValidationError(['Hóa đơn đang có thông báo chờ chủ trọ xác nhận.'])
+    notice = PaymentNotice(invoice=invoice, tenant=tenant, note=note,
+                           amount=_money(amount, 'Số tiền đã chuyển', positive=True) if amount is not None else None)
+    notice.full_clean()
+    try:
+        with transaction.atomic():
+            notice.save()
+    except IntegrityError:
+        raise ValidationError(['Hóa đơn đang có thông báo chờ chủ trọ xác nhận.'])
+    return notice
+
+
+def _pending_notice_for_owner(notice, owner):
+    if not is_owner(owner):
+        raise ValidationError(['Chỉ chủ trọ mới được xử lý báo chuyển khoản.'])
+    # Cùng thứ tự khóa với các thao tác thu tiền: hóa đơn trước, thông báo sau.
+    Invoice.objects.select_for_update().get(pk=notice.invoice_id)
+    notice = PaymentNotice.objects.select_for_update().get(pk=notice.pk)
+    if notice.status != PaymentNotice.Status.CHO_XAC_NHAN:
+        raise ValidationError(['Thông báo này đã được xử lý.'])
+    return notice
+
+
+@transaction.atomic
+def confirm_payment_notice(notice, *, processed_by, amount, paid_date=None, note=''):
+    notice = _pending_notice_for_owner(notice, processed_by)
+    payment = record_payment(notice.invoice, amount=amount, paid_date=paid_date,
+                             method=Payment.Method.CHUYEN_KHOAN, note=note)
+    notice.payment = payment
+    notice.status = PaymentNotice.Status.DA_XAC_NHAN
+    notice.processed_by = processed_by
+    notice.processed_at = timezone.now()
+    notice.full_clean()
+    notice.save(update_fields=['payment', 'status', 'processed_by', 'processed_at'])
+    return notice
+
+
+@transaction.atomic
+def reject_payment_notice(notice, *, processed_by, reject_reason):
+    notice = _pending_notice_for_owner(notice, processed_by)
+    reason = (reject_reason or '').strip()
+    if not reason:
+        raise ValidationError(['Vui lòng nhập lý do từ chối.'])
+    notice.status = PaymentNotice.Status.TU_CHOI
+    notice.reject_reason = reason
+    notice.processed_by = processed_by
+    notice.processed_at = timezone.now()
+    notice.full_clean()
+    notice.save(update_fields=['status', 'reject_reason', 'processed_by', 'processed_at'])
+    return notice

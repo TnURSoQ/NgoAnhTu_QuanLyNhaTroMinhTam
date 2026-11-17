@@ -11,9 +11,10 @@ from accounts.decorators import owner_required
 from accounts.text import normalize
 from rooms.display import representative_of
 from . import services
-from .forms import (InvoiceCreateForm, InvoiceLineFormSet, PaymentForm, PeriodForm,
+from .forms import (BankAccountForm, InvoiceCreateForm, InvoiceLineFormSet, PaymentForm,
+                    PaymentNoticeConfirmForm, PaymentNoticeRejectForm, PeriodForm,
                     ServiceForm, UtilityRateForm)
-from .models import Invoice, Payment, Service, UtilityRate
+from .models import BankAccount, Invoice, Payment, PaymentNotice, Service, UtilityRate
 
 
 def _render(request, template, context):
@@ -125,6 +126,7 @@ def invoice_detail(request, pk):
         'invoice': inv, 'tenant': representative_of(inv.contract), 'reading': inv.utility_reading,
         'invoice_services': inv.invoice_services.select_related('service'),
         'payments': inv.payments.order_by('-paid_date', '-pk'), 'paid': paid,
+        'payment_notices': inv.payment_notices.select_related('tenant', 'payment', 'processed_by'),
         'remaining': inv.total_amount - paid, 'form': form})
 
 
@@ -163,22 +165,78 @@ def billing_settings(request):
     action = request.POST.get('action')
     rate_form = UtilityRateForm(request.POST if request.method == 'POST' and action == 'rate' else None)
     service_form = ServiceForm(request.POST if request.method == 'POST' and action == 'service' else None)
-    if request.method == 'POST' and action in ('rate', 'service'):
-        form = rate_form if action == 'rate' else service_form
+    bank = BankAccount.objects.first()
+    bank_form = BankAccountForm(request.POST if request.method == 'POST' and action == 'bank' else None,
+                                initial={k: getattr(bank, k) for k in
+                                         ('bank_name', 'account_number', 'account_holder')} if bank else {})
+    if request.method == 'POST' and action in ('rate', 'service', 'bank'):
+        form = {'rate': rate_form, 'service': service_form, 'bank': bank_form}[action]
         if form.is_valid():
             try:
                 if action == 'rate':
                     services.add_utility_rate(**form.cleaned_data)
+                elif action == 'bank':
+                    services.configure_bank_account(**form.cleaned_data)
                 else:
                     services.save_service(**form.cleaned_data)
             except ValidationError as e:
                 form.add_error(None, e.messages)
             else:
-                messages.success(request, 'Đã thêm đơn giá mới.' if action == 'rate' else 'Đã thêm dịch vụ.')
+                messages.success(request, {'rate': 'Đã thêm đơn giá mới.', 'service': 'Đã thêm dịch vụ.',
+                                           'bank': 'Đã cập nhật thông tin chuyển khoản.'}[action])
                 return redirect('billing_settings')
     return _render(request, 'billing/owner/settings.html', {
         'rate': UtilityRate.current(), 'rates': UtilityRate.objects.all(),
-        'services': Service.objects.order_by('name'), 'rate_form': rate_form, 'service_form': service_form})
+        'services': Service.objects.order_by('name'), 'rate_form': rate_form, 'service_form': service_form,
+        'bank_account': bank, 'bank_form': bank_form})
+
+
+def _get_payment_notice(pk):
+    return get_object_or_404(PaymentNotice.objects.select_related('invoice__contract__room', 'tenant'), pk=pk)
+
+
+@owner_required
+def payment_notice_confirm(request, pk):
+    notice = _get_payment_notice(pk)
+    if notice.status != PaymentNotice.Status.CHO_XAC_NHAN:
+        messages.error(request, 'Thông báo này đã được xử lý.')
+        return redirect('invoice_detail', pk=notice.invoice_id)
+    remaining = notice.invoice.total_amount - notice.invoice.total_paid()
+    form = PaymentNoticeConfirmForm(request.POST if request.method == 'POST' else None, initial={
+        'amount': notice.amount if notice.amount is not None else remaining, 'note': notice.note})
+    if request.method == 'POST' and form.is_valid():
+        try:
+            data = {k: v for k, v in form.cleaned_data.items() if k != 'method'}
+            services.confirm_payment_notice(notice, processed_by=request.user, **data)
+        except ValidationError as e:
+            form.add_error(None, e.messages)
+        else:
+            messages.success(request, 'Đã xác nhận chuyển khoản và ghi nhận thu tiền.')
+            return redirect('invoice_detail', pk=notice.invoice_id)
+    return _render(request, 'billing/owner/notice_action.html', {
+        'notice': notice, 'form': form, 'remaining': remaining,
+        'title': 'Xác nhận chuyển khoản', 'submit_label': 'Xác nhận và ghi nhận thu tiền'})
+
+
+@owner_required
+def payment_notice_reject(request, pk):
+    notice = _get_payment_notice(pk)
+    if notice.status != PaymentNotice.Status.CHO_XAC_NHAN:
+        messages.error(request, 'Thông báo này đã được xử lý.')
+        return redirect('invoice_detail', pk=notice.invoice_id)
+    form = PaymentNoticeRejectForm(request.POST if request.method == 'POST' else None)
+    if request.method == 'POST' and form.is_valid():
+        try:
+            services.reject_payment_notice(notice, processed_by=request.user, **form.cleaned_data)
+        except ValidationError as e:
+            form.add_error(None, e.messages)
+        else:
+            messages.success(request, 'Đã từ chối báo chuyển khoản và lưu lý do.')
+            return redirect('invoice_detail', pk=notice.invoice_id)
+    return _render(request, 'billing/owner/notice_action.html', {
+        'notice': notice, 'form': form, 'title': 'Từ chối chuyển khoản', 'danger': True,
+        'remaining': notice.invoice.total_amount - notice.invoice.total_paid(),
+        'submit_label': 'Từ chối và gửi lý do'})
 
 
 @owner_required

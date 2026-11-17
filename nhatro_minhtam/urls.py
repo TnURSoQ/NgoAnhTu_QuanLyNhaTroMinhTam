@@ -4,6 +4,7 @@ from django.urls import include, path
 
 from accounts import views as accounts_views
 from accounts.forms import ChangePasswordForm
+from billing import views as billing_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -15,6 +16,7 @@ urlpatterns = [
     path('doi-mat-khau/xong/', auth_views.PasswordChangeDoneView.as_view(),
          name='password_change_done'),
     path('phong/', include('rooms.owner_urls')),
+    path('phong-cua-toi/', billing_views.my_room, name='my_room'),
     path('lich-hen/', include('rooms.appointment_urls')),
     path('nguoi-thue/', include('accounts.owner_urls')),
     path('hoa-don/', include('billing.owner_urls')),

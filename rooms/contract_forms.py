@@ -29,7 +29,7 @@ class ContractCreateForm(BootstrapFormMixin, forms.Form):
         widget=forms.RadioSelect, empty_label=None)
     start_date = forms.DateField(label='Ngày bắt đầu', widget=_date_widget())
     end_date = forms.DateField(label='Ngày kết thúc', widget=_date_widget())
-    deposit = MoneyField(label='Tiền đặt cọc (đ)', max_digits=10, decimal_places=2, min_value=0)
+    deposit = MoneyField(label='Tiền đặt cọc (đ)', max_digits=8, decimal_places=0, min_value=0)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

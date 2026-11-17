@@ -1,5 +1,4 @@
 from datetime import timedelta
-from decimal import Decimal
 
 from django import forms
 from django.forms import formset_factory
@@ -28,7 +27,7 @@ class InvoiceCreateForm(PeriodForm):
     new_water = FlexibleDecimalField(label='Chỉ số nước mới', min_value=0, max_digits=10,
                                      decimal_places=2, widget=PlainDecimalInput)
     room_fee = MoneyField(label='Tiền phòng', min_value=0, max_value=MAX_FEE,
-                          max_digits=10, decimal_places=2)
+                          max_digits=8, decimal_places=0)
     due_date = forms.DateField(label='Hạn thanh toán', widget=forms.DateInput(
         attrs={'type': 'date'}, format='%Y-%m-%d'))
     note = forms.CharField(label='Ghi chú', required=False, widget=forms.Textarea(attrs={'rows': 2}))
@@ -47,7 +46,7 @@ class InvoiceLineForm(BootstrapFormMixin, forms.Form):
     description = forms.CharField(label='Mô tả', max_length=255)
     quantity = forms.IntegerField(label='Số lượng', min_value=1, max_value=2147483647, initial=1)
     unit_price = MoneyField(label='Đơn giá', min_value=0, max_value=MAX_FEE,
-                            max_digits=10, decimal_places=2, required=False)
+                            max_digits=8, decimal_places=0, required=False)
 
     def clean(self):
         data = super().clean()
@@ -61,8 +60,8 @@ InvoiceLineFormSet = formset_factory(InvoiceLineForm, extra=0, can_delete=True, 
 
 
 class PaymentForm(BootstrapFormMixin, forms.Form):
-    amount = MoneyField(label='Số tiền thu', min_value=Decimal('0.01'), max_value=MAX_FEE,
-                        max_digits=10, decimal_places=2)
+    amount = MoneyField(label='Số tiền thu', min_value=1, max_value=MAX_FEE,
+                        max_digits=8, decimal_places=0)
     paid_date = forms.DateField(label='Ngày thu', initial=timezone.localdate,
                                widget=forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'))
     method = forms.ChoiceField(label='Hình thức', choices=Payment.Method.choices)
@@ -70,15 +69,41 @@ class PaymentForm(BootstrapFormMixin, forms.Form):
 
 
 class UtilityRateForm(BootstrapFormMixin, forms.Form):
-    electric_price = MoneyField(label='Giá điện (đ/kWh)', min_value=Decimal('0.01'),
-                                max_digits=10, decimal_places=2)
-    water_price = MoneyField(label='Giá nước (đ/m³)', min_value=Decimal('0.01'),
-                             max_digits=10, decimal_places=2)
+    electric_price = MoneyField(label='Giá điện (đ/kWh)', min_value=1,
+                                max_digits=8, decimal_places=0)
+    water_price = MoneyField(label='Giá nước (đ/m³)', min_value=1,
+                             max_digits=8, decimal_places=0)
     effective_date = forms.DateField(label='Ngày hiệu lực', initial=timezone.localdate,
                                     widget=forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'))
 
 
 class ServiceForm(BootstrapFormMixin, forms.Form):
     name = forms.CharField(label='Tên dịch vụ', max_length=100)
-    unit_price = MoneyField(label='Đơn giá', min_value=Decimal('0.01'),
-                            max_digits=10, decimal_places=2)
+    unit_price = MoneyField(label='Đơn giá', min_value=1,
+                            max_digits=8, decimal_places=0)
+
+
+class BankAccountForm(BootstrapFormMixin, forms.Form):
+    bank_name = forms.CharField(label='Ngân hàng', max_length=100)
+    account_number = forms.CharField(label='Số tài khoản', max_length=50,
+                                     widget=forms.TextInput(attrs={'inputmode': 'numeric'}))
+    account_holder = forms.CharField(label='Chủ tài khoản', max_length=150)
+
+
+class PaymentNoticeForm(BootstrapFormMixin, forms.Form):
+    amount = MoneyField(label='Số tiền đã chuyển (không bắt buộc)', required=False,
+                        min_value=1, max_value=MAX_FEE, max_digits=8, decimal_places=0)
+    note = forms.CharField(label='Ghi chú', required=False, widget=forms.Textarea(attrs={
+        'rows': 2, 'placeholder': 'Ví dụ: chuyển lúc 14:30, tên người chuyển...'}))
+
+
+class PaymentNoticeConfirmForm(PaymentForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['method'].initial = Payment.Method.CHUYEN_KHOAN
+        self.fields['method'].disabled = True
+
+
+class PaymentNoticeRejectForm(BootstrapFormMixin, forms.Form):
+    reject_reason = forms.CharField(label='Lý do từ chối', widget=forms.Textarea(attrs={'rows': 3}),
+                                    error_messages={'required': 'Vui lòng nhập lý do từ chối.'})

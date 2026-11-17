@@ -85,7 +85,7 @@
       {% for t in tasks %}
       <a class="task" href="{{ t.url }}">
         <span class="task-icon tone-{{ t.tone }}"><i class="bi {{ t.icon }}"></i></span>
-        <span class="task-text"><strong>{{ t.title }}</strong><small>{{ t.subtitle }}</small></span>
+        <span class="task-text"><strong>{{ t.title }}</strong><small>{{ t.subtitle }}{% if t.amount %} · {{ t.amount|floatformat:"0g" }} đ{% endif %}</small></span>
         <span class="task-badge text-{{ t.badge_tone }}">{{ t.badge }}</span>
         <i class="bi bi-chevron-right text-muted"></i>
       </a>

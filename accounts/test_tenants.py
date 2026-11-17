@@ -1,6 +1,7 @@
 from datetime import date
 from decimal import Decimal
 
+from django import forms
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 
@@ -30,14 +31,49 @@ class TextAndFieldTests(SimpleTestCase):
         self.assertEqual(field.clean('2.500.000'), Decimal('2500000'))
         self.assertEqual(field.clean('2500000'), Decimal('2500000'))
         self.assertEqual(field.clean('2 500 000'), Decimal('2500000'))
-        self.assertEqual(field.clean('2.500.000,50'), Decimal('2500000.50'))
+        self.assertEqual(field.clean('2.500.000,00'), Decimal('2500000'))
+        with self.assertRaisesMessage(forms.ValidationError, 'nguyên đồng'):
+            field.clean('2.500.000,50')
         with self.assertRaises(Exception):
             field.clean('abc')
+        with self.assertRaises(forms.ValidationError):
+            field.clean('1e100')
 
     def test_money_widget_formats_whole_numbers_with_dots(self):
         widget = MoneyField(max_digits=10, decimal_places=2).widget
         self.assertEqual(widget.format_value(Decimal('2500000.00')), '2.500.000')
         self.assertEqual(widget.format_value(None), '')
+
+    def test_money_widget_discards_legacy_fractional_dong(self):
+        widget = MoneyField(max_digits=10, decimal_places=2).widget
+        self.assertEqual(widget.format_value(Decimal('2220227.50')), '2.220.227')
+        self.assertEqual(widget.format_value(Decimal('2220227.99')), '2.220.227')
+
+    def test_bound_money_preserves_thousands_after_form_error(self):
+        class AmountForm(forms.Form):
+            amount = MoneyField(max_digits=10, decimal_places=2)
+            required_note = forms.CharField()
+
+        for entered, expected in [('3.500', Decimal('3500')), ('2.220.227', Decimal('2220227'))]:
+            with self.subTest(entered=entered):
+                form = AmountForm({'amount': entered})
+                self.assertFalse(form.is_valid())
+                rendered_value = form.fields['amount'].widget.format_value(form['amount'].value())
+                self.assertEqual(form.fields['amount'].clean(rendered_value), expected)
+
+    def test_invalid_money_keeps_its_value_when_error_is_rendered(self):
+        class AmountForm(forms.Form):
+            amount = MoneyField(min_value=10000, max_digits=10, decimal_places=2)
+
+        for entered, expected in [('3.500', Decimal('3500'))]:
+            with self.subTest(entered=entered):
+                form = AmountForm({'amount': entered})
+                self.assertFalse(form.is_valid())
+                rendered_value = form.fields['amount'].widget.format_value(form['amount'].value())
+                self.assertEqual(form.fields['amount'].to_python(rendered_value), expected)
+        invalid_fraction = AmountForm({'amount': '1,234'})
+        self.assertFalse(invalid_fraction.is_valid())
+        self.assertEqual(invalid_fraction['amount'].value(), '1,234')
 
     def test_plain_decimal_widget(self):
         widget = PlainDecimalInput()

@@ -74,9 +74,9 @@ class TenantPortalTests(TestCase):
         self.assertIn('/admin/login/', r['Location'])
 
     # --- cô lập dữ liệu giữa các người thuê ---
-    def test_tenant_home_redirects_to_invoices(self):
+    def test_tenant_home_redirects_to_my_room(self):
         self.login_a()
-        self.assertRedirects(self.client.get('/'), reverse('my_invoices'), fetch_redirect_response=False)
+        self.assertRedirects(self.client.get('/'), reverse('my_room'), fetch_redirect_response=False)
 
     def test_invoice_list_shows_only_own(self):
         self.login_a()

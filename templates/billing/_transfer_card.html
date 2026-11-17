@@ -1,0 +1,30 @@
+<section class="soft-card p-3 p-md-4 mb-4">
+  <div class="section-head"><h2>Thông tin chuyển khoản</h2></div>
+  {% if transfer_invoice %}<p class="text-muted small">Phòng {{ transfer_invoice.contract.room.room_number }} · Hóa đơn tháng {{ transfer_invoice.month }}/{{ transfer_invoice.year }}</p>{% endif %}
+  {% if latest_notice %}
+    <div class="alert {% if latest_notice.status == 'cho_xac_nhan' %}alert-warning{% elif latest_notice.status == 'da_xac_nhan' %}alert-success{% else %}alert-danger{% endif %}">
+      {% if latest_notice.status == 'cho_xac_nhan' %}<strong>Đang chờ chủ trọ xác nhận</strong>
+      {% elif latest_notice.status == 'da_xac_nhan' %}<strong>Đã xác nhận</strong>
+      {% else %}<strong>Bị từ chối:</strong> {{ latest_notice.reject_reason }}{% endif %}
+      <small class="d-block mt-1">Báo lúc {{ latest_notice.created_at|date:"H:i d/m/Y" }}{% if latest_notice.amount %} · {{ latest_notice.amount|floatformat:"0g" }} đ{% endif %}</small>
+    </div>
+  {% endif %}
+  {% if notice_form.is_bound %}{% for error in notice_form.non_field_errors %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endfor %}{% endif %}
+  {% if bank_account %}
+    <div class="info-row"><span>Ngân hàng</span><strong>{{ bank_account.bank_name }}</strong></div>
+    <div class="info-row flex-wrap"><span>Số tài khoản</span><div class="d-flex align-items-center gap-2 flex-wrap"><strong class="text-break">{{ bank_account.account_number }}</strong><button class="btn btn-sm btn-outline-brand" type="button" data-copy-text="{{ bank_account.account_number }}" aria-label="Sao chép số tài khoản">Sao chép</button></div></div>
+    <div class="info-row"><span>Chủ tài khoản</span><strong class="text-break">{{ bank_account.account_holder }}</strong></div>
+    {% if transfer_invoice %}
+      <div class="mt-3"><label class="form-label fw-bold" for="transferContent">Nội dung chuyển khoản</label><div class="input-group"><input class="form-control" id="transferContent" value="{{ transfer_content }}" readonly><button class="btn btn-outline-brand" type="button" data-copy-text="{{ transfer_content }}">Sao chép</button></div><small class="text-muted d-block mt-2">Ghi đúng nội dung để chủ trọ đối chiếu khoản chuyển.</small></div>
+    {% else %}<p class="text-muted mt-3 mb-0">Chưa có hóa đơn để tạo nội dung chuyển khoản.</p>{% endif %}
+    {% if can_report_transfer %}
+      <hr class="my-4"><h3 class="h6">Báo đã chuyển khoản</h3><p class="small text-muted">Sau khi chuyển tiền, gửi thông tin để chủ trọ kiểm tra và xác nhận.</p>
+      <form method="post" action="{% url 'report_transfer' transfer_invoice.pk %}" novalidate>
+        {% csrf_token %}
+        {% for field in notice_form %}<div class="mb-3"><label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>{% endfor %}
+        <button class="btn btn-primary w-100"><i class="bi bi-send-check"></i> Tôi đã chuyển khoản</button>
+      </form>
+    {% endif %}
+  {% else %}<p class="text-muted mb-0">Chủ trọ chưa cập nhật thông tin chuyển khoản</p>{% endif %}
+  <span class="copy-feedback small text-success d-block mt-2" role="status" aria-live="polite"></span>
+</section>

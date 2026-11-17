@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from accounts.models import Tenant
+from accounts.model_fields import DongField
 from django.core.exceptions import ValidationError
 import secrets
 
@@ -13,7 +14,7 @@ class Room(models.Model):
     room_number = models.CharField(max_length=10, unique=True)
     floor = models.PositiveSmallIntegerField(default=1)
     area = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
-    price = models.DecimalField(max_digits=10, decimal_places=2)
+    price = DongField()
     max_occupants = models.PositiveIntegerField(default=1)
     description = models.TextField(blank=True, default='')
     amenities = models.CharField(max_length=255, blank=True, default='')  # cách nhau bằng dấu phẩy
@@ -35,7 +36,7 @@ class Contract(models.Model):
     room = models.ForeignKey(Room, on_delete=models.PROTECT, related_name='contracts')
     start_date = models.DateField()
     end_date = models.DateField()
-    deposit = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    deposit = DongField(default=0)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.HIEU_LUC)
     checkout_date = models.DateField(null=True, blank=True)  # ngày trả phòng thực tế
     previous_contract = models.ForeignKey(

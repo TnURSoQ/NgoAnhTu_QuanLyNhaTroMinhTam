@@ -7,6 +7,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from billing.models import Invoice
+from accounts.money import MAX_MONEY
 from .models import Contract, ContractRenewal, ContractTenant, Room
 
 
@@ -64,6 +65,8 @@ def contract_errors(room, tenants, representative, start_date, end_date, deposit
         errors.append('Ngày kết thúc không được trước ngày bắt đầu.')
     if deposit is not None and deposit < 0:
         errors.append('Tiền đặt cọc không được âm.')
+    if deposit is not None and (deposit != int(deposit) or deposit > MAX_MONEY):
+        errors.append('Tiền đặt cọc phải là số nguyên đồng và không vượt 99.999.999 đ.')
     return errors
 
 
