@@ -1,0 +1,33 @@
+{% extends 'base.html' %}{% load static %}
+{% block title %}Tạo hóa đơn · Nhà trọ Minh Tâm{% endblock %}
+{% block content %}
+<a class="back-link" href="{% url 'invoice_list' %}"><i class="bi bi-arrow-left"></i> Danh sách hóa đơn</a>
+<div class="page-head"><div><h1>Tạo hóa đơn</h1><p class="text-muted mb-0">Nhập chỉ số, kiểm tra các khoản thu và lưu hóa đơn.</p></div></div>
+{% if not rate %}<div class="alert alert-warning">Chưa cấu hình đơn giá điện nước. <a href="{% url 'billing_settings' %}">Thêm đơn giá</a> trước khi lập hóa đơn.</div>{% endif %}
+{% if not has_rooms %}<div class="alert alert-info">Không còn phòng có hợp đồng hiệu lực và chưa lập hóa đơn trong kỳ này.</div>{% endif %}
+<form method="post" id="invoiceForm" novalidate>{% csrf_token %}
+{% for error in form.non_field_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
+<section class="soft-card p-4 mb-4"><h2 class="step-title">1. Kỳ hóa đơn và phòng</h2><div class="row g-3 align-items-end">
+  <div class="col-6 col-md-3"><label for="{{ form.month.id_for_label }}" class="form-label">Tháng</label>{{ form.month }}{{ form.month.errors }}</div>
+  <div class="col-6 col-md-3"><label for="{{ form.year.id_for_label }}" class="form-label">Năm</label>{{ form.year }}{{ form.year.errors }}</div>
+  <div class="col-12 col-md-6"><label for="{{ form.room.id_for_label }}" class="form-label">Phòng</label>{{ form.room }}{{ form.room.errors }}</div>
+</div><small class="text-muted d-block mt-2">Đổi tháng/năm để tải danh sách phòng của kỳ đó. Chỉ số cũ lấy từ kỳ trước gần nhất; kỳ đầu vui lòng nhập.</small></section>
+<section class="soft-card p-4 mb-4"><h2 class="step-title">2. Chỉ số điện nước</h2><div class="row g-4">
+  <div class="col-12 col-md-6"><h3 class="h6">Điện · {{ rate.electric_price|default:0|floatformat:"0g" }} đ/kWh</h3><div class="row g-3"><div class="col-6"><label class="form-label" for="{{ form.old_electric.id_for_label }}">Chỉ số cũ</label>{{ form.old_electric }}{{ form.old_electric.errors }}</div><div class="col-6"><label class="form-label" for="{{ form.new_electric.id_for_label }}">Chỉ số mới</label>{{ form.new_electric }}{{ form.new_electric.errors }}</div></div><p class="mt-2 mb-0" id="electricPreview" aria-live="polite"></p></div>
+  <div class="col-12 col-md-6"><h3 class="h6">Nước · {{ rate.water_price|default:0|floatformat:"0g" }} đ/m³</h3><div class="row g-3"><div class="col-6"><label class="form-label" for="{{ form.old_water.id_for_label }}">Chỉ số cũ</label>{{ form.old_water }}{{ form.old_water.errors }}</div><div class="col-6"><label class="form-label" for="{{ form.new_water.id_for_label }}">Chỉ số mới</label>{{ form.new_water }}{{ form.new_water.errors }}</div></div><p class="mt-2 mb-0" id="waterPreview" aria-live="polite"></p></div>
+</div></section>
+<section class="soft-card p-4 mb-4"><h2 class="step-title">3. Các khoản thu</h2><div class="mb-4"><label class="form-label" for="{{ form.room_fee.id_for_label }}">Tiền phòng (đ/tháng)</label>{{ form.room_fee }}{{ form.room_fee.errors }}</div>
+  {{ lines.management_form }}{% for error in lines.non_form_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
+  <div id="invoiceLines">{% for line in lines %}{% include 'billing/owner/_line_form.html' %}{% endfor %}</div>
+  <template id="emptyLine">{% include 'billing/owner/_line_form.html' with line=lines.empty_form %}</template>
+  <button type="button" id="addLine" class="btn btn-outline-brand"><i class="bi bi-plus-lg"></i> Thêm khoản khác</button>
+  <div class="info-row mt-4"><span>Tổng cộng dự kiến</span><strong id="totalPreview" aria-live="polite">0 đ</strong></div>
+</section>
+<section class="soft-card p-4 mb-4"><h2 class="step-title">4. Hạn thanh toán và ghi chú</h2><div class="mb-3"><label class="form-label" for="{{ form.due_date.id_for_label }}">Hạn thanh toán</label>{{ form.due_date }}{{ form.due_date.errors }}</div><label class="form-label" for="{{ form.note.id_for_label }}">Ghi chú</label>{{ form.note }}{{ form.note.errors }}</section>
+<div class="d-flex gap-2"><button class="btn btn-primary px-4" {% if not rate or not has_rooms %}disabled{% endif %}>Lưu hóa đơn</button><a class="btn btn-outline-brand" href="{% url 'invoice_list' %}">Hủy</a></div>
+</form>
+{{ room_data|json_script:"roomDefaults" }}
+{{ rate.electric_price|default:0|json_script:"electricRate" }}
+{{ rate.water_price|default:0|json_script:"waterRate" }}
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/invoice.js' %}"></script>{% endblock %}

@@ -24,7 +24,7 @@
           <strong>Chưa thực hiện được.</strong> Còn {{ unpaid|length }} hóa đơn chưa thanh toán, tổng <strong>{{ unpaid_total|floatformat:"0g" }} đ</strong>. Hãy thu đủ tiền trước.
         </div>
         {% for inv, remaining in unpaid %}
-        <div class="info-row"><span>Hóa đơn tháng {{ inv.month }}/{{ inv.year }}</span><strong>còn nợ {{ remaining|floatformat:"0g" }} đ</strong></div>
+        <div class="info-row"><a href="{% url 'invoice_detail' inv.pk %}">Hóa đơn tháng {{ inv.month }}/{{ inv.year }}</a><strong>còn nợ {{ remaining|floatformat:"0g" }} đ</strong></div>
         {% endfor %}
         <a class="btn btn-outline-brand mt-3" href="{% url 'contract_detail' contract.pk %}">Quay lại</a>
       {% else %}

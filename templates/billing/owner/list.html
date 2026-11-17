@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}Hóa đơn · Nhà trọ Minh Tâm{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Hóa đơn</h1><p class="text-muted mb-0">Theo dõi tiền thuê và công nợ tháng {{ month }}/{{ year }}</p></div><a class="btn btn-primary" href="{% url 'invoice_create' %}?month={{ month }}&amp;year={{ year }}"><i class="bi bi-plus-lg"></i> Tạo hóa đơn</a></div>
+<form method="get" class="toolbar flex-wrap mb-3">
+  {% for field in period_form %}<div><label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>{% endfor %}
+  <div class="flex-grow-1"><label class="form-label" for="invoiceSearch">Tìm phòng hoặc người thuê</label><input id="invoiceSearch" class="form-control" name="q" value="{{ q }}" placeholder="Số phòng, tên người thuê..."></div>
+  <input type="hidden" name="status" value="{{ status }}"><button class="btn btn-outline-brand align-self-end">Lọc</button>
+</form>
+<div class="filter-tabs mb-4 flex-wrap">{% for tab in tabs %}<a class="filter-tab {% if status == tab.key %}active{% endif %}" href="?month={{ month }}&amp;year={{ year }}&amp;status={{ tab.key }}&amp;q={{ q|urlencode }}">{{ tab.label }} <span>{{ tab.count }}</span></a>{% endfor %}</div>
+<section class="soft-card overflow-hidden d-none d-lg-block"><div class="table-responsive"><table class="table-modern w-100">
+  <thead><tr><th>Phòng</th><th>Người thuê</th><th>Tổng tiền</th><th>Đã thu</th><th>Còn phải thu</th><th>Hạn thanh toán</th><th>Trạng thái</th><th></th></tr></thead><tbody>
+  {% for row in rows %}<tr><td>P.{{ row.invoice.contract.room.room_number }}</td><td>{{ row.tenant.full_name|default:"Chưa có đại diện" }}</td><td>{{ row.invoice.total_amount|floatformat:"0g" }} đ</td><td>{{ row.paid|floatformat:"0g" }} đ</td><td class="fw-bold">{{ row.remaining|floatformat:"0g" }} đ</td><td>{{ row.invoice.due_date|date:"d/m/Y" }}<small class="d-block text-muted">{{ row.due_label }}</small></td><td>{% include 'billing/_status_badge.html' with invoice=row.invoice %}</td><td><a class="btn btn-sm btn-outline-brand" href="{% url 'invoice_detail' row.invoice.pk %}">Xem</a></td></tr>
+  {% empty %}<tr><td colspan="8" class="text-center p-4 text-muted">Không có hóa đơn phù hợp.</td></tr>{% endfor %}
+  </tbody></table></div></section>
+<div class="d-lg-none">{% for row in rows %}<section class="soft-card p-3 mb-3"><div class="d-flex justify-content-between gap-2"><h2 class="h5">P.{{ row.invoice.contract.room.room_number }}</h2>{% include 'billing/_status_badge.html' with invoice=row.invoice %}</div><p>{{ row.tenant.full_name|default:"Chưa có đại diện" }}</p><div class="info-row"><span>Tổng tiền</span><strong>{{ row.invoice.total_amount|floatformat:"0g" }} đ</strong></div><div class="info-row"><span>Đã thu</span><strong>{{ row.paid|floatformat:"0g" }} đ</strong></div><div class="info-row"><span>Còn phải thu</span><strong>{{ row.remaining|floatformat:"0g" }} đ</strong></div><p class="small text-muted mt-2">Hạn {{ row.invoice.due_date|date:"d/m/Y" }} · {{ row.due_label }}</p><a class="btn btn-outline-brand w-100" href="{% url 'invoice_detail' row.invoice.pk %}">Xem hóa đơn</a></section>{% empty %}<div class="soft-card p-4 text-muted">Không có hóa đơn phù hợp.</div>{% endfor %}</div>
+{% endblock %}

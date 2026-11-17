@@ -50,7 +50,7 @@ def overview(request):
             'title': 'Hóa đơn quá hạn',
             'subtitle': f'P.{inv.contract.room.room_number} - {who}',
             'badge': f'{days} ngày', 'badge_tone': 'danger',
-            'url': reverse('report_dashboard'),
+            'url': reverse('invoice_detail', args=[inv.pk]),
         })
 
     pending = ViewingAppointment.objects.filter(

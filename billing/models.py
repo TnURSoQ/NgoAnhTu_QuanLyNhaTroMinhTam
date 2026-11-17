@@ -10,7 +10,7 @@ class UtilityRate(models.Model):
     effective_date = models.DateField()
 
     class Meta:
-        ordering = ['-effective_date']
+        ordering = ['-effective_date', '-pk']
 
     def __str__(self):
         return f'Đơn giá từ {self.effective_date}'
@@ -19,7 +19,7 @@ class UtilityRate(models.Model):
     def current(cls):
         """Lấy đơn giá hiện hành (mới nhất, có hiệu lực tới hôm nay)."""
         from django.utils import timezone
-        return cls.objects.filter(effective_date__lte=timezone.now().date()).first()
+        return cls.objects.filter(effective_date__lte=timezone.localdate()).first()
 
 
 class UtilityReading(models.Model):
@@ -66,6 +66,7 @@ class Service(models.Model):
 class Invoice(models.Model):
     class Status(models.TextChoices):
         CHUA_THANH_TOAN = 'chua_thanh_toan', 'Chưa thanh toán'
+        THU_MOT_PHAN = 'thu_mot_phan', 'Thu một phần'
         DA_THANH_TOAN = 'da_thanh_toan', 'Đã thanh toán'
         QUA_HAN = 'qua_han', 'Quá hạn'
 
@@ -78,6 +79,9 @@ class Invoice(models.Model):
     room_fee = models.DecimalField(max_digits=10, decimal_places=2)
     electric_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     water_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    electric_unit_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    water_unit_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    note = models.TextField(blank=True, default='')
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.CHUA_THANH_TOAN)
     due_date = models.DateField()
@@ -94,10 +98,13 @@ class Invoice(models.Model):
 
     def update_status(self):
         """Tính lại trạng thái từ số tiền đã thu và hạn thanh toán."""
-        if self.total_paid() >= self.total_amount:
+        paid = self.total_paid()
+        if paid >= self.total_amount:
             new_status = self.Status.DA_THANH_TOAN
         elif self.due_date < timezone.localdate():
             new_status = self.Status.QUA_HAN
+        elif paid > 0:
+            new_status = self.Status.THU_MOT_PHAN
         else:
             new_status = self.Status.CHUA_THANH_TOAN
         self.status = new_status
@@ -117,7 +124,9 @@ class Invoice(models.Model):
 
 class InvoiceService(models.Model):
     invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name='invoice_services')
-    service = models.ForeignKey(Service, on_delete=models.PROTECT)
+    service = models.ForeignKey(Service, on_delete=models.PROTECT, null=True, blank=True)
+    description = models.CharField(max_length=255, blank=True, default='')
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     quantity = models.PositiveIntegerField(default=1)
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
 
@@ -127,7 +136,15 @@ class InvoiceService(models.Model):
         ]
 
     def save(self, *args, **kwargs):
-        self.subtotal = self.quantity * self.service.unit_price
+        if self.unit_price is None and self.service_id:
+            self.unit_price = self.service.unit_price
+        if not self.description and self.service_id:
+            self.description = self.service.name
+        if self.unit_price is None:
+            raise ValidationError('Vui lòng nhập đơn giá cho khoản tự nhập.')
+        self.subtotal = self.quantity * self.unit_price
+        if kwargs.get('update_fields') is not None:
+            kwargs['update_fields'] = set(kwargs['update_fields']) | {'unit_price', 'description', 'subtotal'}
         super().save(*args, **kwargs)
 
 class Payment(models.Model):
@@ -139,6 +156,7 @@ class Payment(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     paid_date = models.DateField(default=timezone.localdate)
     method = models.CharField(max_length=20, choices=Method.choices, default=Method.TIEN_MAT)
+    note = models.TextField(blank=True, default='')
 
     def clean(self):
         if self.amount is None:

@@ -20,7 +20,8 @@
           <a class="nav-item-link {% if current|slice:':12' == 'appointment_' %}active{% endif %}" href="{% url 'appointment_list' %}"><i class="bi bi-calendar-check"></i> Lịch hẹn</a>
           <a class="nav-item-link {% if current|slice:':7' == 'tenant_' %}active{% endif %}" href="{% url 'tenant_list' %}"><i class="bi bi-people"></i> Người thuê</a>
           <a class="nav-item-link {% if current|slice:':9' == 'contract_' %}active{% endif %}" href="{% url 'contract_list' %}"><i class="bi bi-file-earmark-text"></i> Hợp đồng</a>
-          <span class="nav-item-link disabled" title="Đang phát triển"><i class="bi bi-receipt"></i> Hóa đơn <em class="soon">Sắp có</em></span>
+          <a class="nav-item-link {% if current|slice:':8' == 'invoice_' or current == 'payment_delete' %}active{% endif %}" href="{% url 'invoice_list' %}"><i class="bi bi-receipt"></i> Hóa đơn</a>
+          <a class="nav-item-link {% if current == 'billing_settings' or current|slice:':8' == 'service_' %}active{% endif %}" href="{% url 'billing_settings' %}"><i class="bi bi-gear"></i> Cấu hình</a>
           <a class="nav-item-link {% if current == 'report_dashboard' %}active{% endif %}" href="{% url 'report_dashboard' %}"><i class="bi bi-bar-chart-line"></i> Báo cáo</a>
         {% elif user.role == 'tenant' %}
           <a class="nav-item-link {% if current == 'my_invoices' or current == 'my_invoice_detail' %}active{% endif %}" href="{% url 'my_invoices' %}"><i class="bi bi-receipt"></i> Hóa đơn</a>
@@ -28,7 +29,7 @@
           <a class="nav-item-link {% if current == 'my_contracts' %}active{% endif %}" href="{% url 'my_contracts' %}"><i class="bi bi-file-earmark-text"></i> Hợp đồng</a>
           <a class="nav-item-link {% if current == 'password_change' %}active{% endif %}" href="{% url 'password_change' %}"><i class="bi bi-key"></i> Đổi mật khẩu</a>
         {% endif %}
-        {% if user.is_staff %}
+        {% if user.is_staff and not hide_admin_navigation %}
           <a class="nav-item-link nav-dev" href="{% url 'admin:index' %}"><i class="bi bi-gear"></i> Quản trị hệ thống</a>
         {% endif %}
         {% endwith %}

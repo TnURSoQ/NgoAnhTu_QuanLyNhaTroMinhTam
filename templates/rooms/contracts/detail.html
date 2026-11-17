@@ -38,7 +38,7 @@
       {% for i in invoices %}
       <div class="history-row">
         <span class="dot {% if i.invoice.status == 'da_thanh_toan' %}dot-green{% endif %}"></span>
-        <span><strong>Tháng {{ i.invoice.month }}/{{ i.invoice.year }}</strong><small class="d-block text-muted">Tổng {{ i.invoice.total_amount|floatformat:"0g" }} đ · Hạn {{ i.invoice.due_date|date:"d/m/Y" }}</small></span>
+        <span><a href="{% url 'invoice_detail' i.invoice.pk %}"><strong>Tháng {{ i.invoice.month }}/{{ i.invoice.year }}</strong></a><small class="d-block text-muted">Tổng {{ i.invoice.total_amount|floatformat:"0g" }} đ · Hạn {{ i.invoice.due_date|date:"d/m/Y" }}</small></span>
         <span class="ms-auto text-end">
           <span class="pill {% if i.invoice.status == 'da_thanh_toan' %}pill-mint{% elif i.invoice.status == 'qua_han' %}pill-rose{% else %}pill-amber{% endif %}">{{ i.invoice.get_status_display }}</span>
           {% if i.remaining > 0 %}<small class="d-block text-muted mt-1">Còn nợ {{ i.remaining|floatformat:"0g" }} đ</small>{% endif %}

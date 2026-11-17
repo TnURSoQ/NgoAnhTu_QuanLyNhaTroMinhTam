@@ -1,0 +1,11 @@
+<div class="invoice-line border rounded p-3 mb-3">
+  {{ line.service }}{{ line.service.errors }}
+  {% for error in line.non_field_errors %}<div class="text-danger">{{ error }}</div>{% endfor %}
+  <div class="row g-3 align-items-end">
+    <div class="col-12 col-md-5"><label class="form-label" for="{{ line.description.id_for_label }}">Mô tả</label>{{ line.description }}{{ line.description.errors }}</div>
+    <div class="col-5 col-md-2"><label class="form-label" for="{{ line.quantity.id_for_label }}">Số lượng</label>{{ line.quantity }}{{ line.quantity.errors }}</div>
+    <div class="col-7 col-md-3"><label class="form-label" for="{{ line.unit_price.id_for_label }}">Đơn giá (đ)</label>{{ line.unit_price }}{{ line.unit_price.errors }}</div>
+    <div class="col-12 col-md-2"><label class="d-flex align-items-center gap-2">{{ line.DELETE }} Bỏ khoản</label></div>
+  </div>
+  <small class="text-muted d-block mt-2">Thành tiền: <span class="line-subtotal">0</span> đ</small>
+</div>

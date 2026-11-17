@@ -23,10 +23,9 @@ class Command(BaseCommand):
         today = timezone.localdate()
 
         invoices = Invoice.objects.filter(
-            status__in=[Invoice.Status.CHUA_THANH_TOAN, Invoice.Status.QUA_HAN],
             due_date__lt=today,
             reminded_at__isnull=True,
-        ).select_related('contract__room')
+        ).exclude(status=Invoice.Status.DA_THANH_TOAN).select_related('contract__room')
 
         marked = sent = skipped = 0
 

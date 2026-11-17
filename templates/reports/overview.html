@@ -28,7 +28,7 @@
     </a>
   </div>
   <div class="col-6 col-xl-3">
-    <a class="kpi tone-amber" href="{% url 'report_dashboard' %}">
+    <a class="kpi tone-amber" href="{% url 'invoice_list' %}?month={{ today.month }}&amp;year={{ today.year }}">
       <span class="kpi-icon"><i class="bi bi-cash-coin"></i></span>
       <span class="kpi-text"><strong class="kpi-value kpi-money text-danger">{{ month_unpaid|floatformat:"0g" }} đ</strong><span class="kpi-label">Chưa thu (tháng {{ today.month }}/{{ today.year }})</span></span>
       <i class="bi bi-chevron-right kpi-go"></i>
