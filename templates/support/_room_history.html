@@ -1,0 +1,4 @@
+<section class="soft-card p-4 mb-4">
+  <div class="section-head"><h2>Lịch sử sửa chữa</h2></div>
+  {% for item in maintenance_requests %}<div class="history-row"><span><strong><a href="{% url 'maintenance_detail' item.pk %}">{{ item.display_code }}</a></strong><small class="d-block">{{ item.title }}</small><small class="text-muted">{{ item.created_at|date:"d/m/Y" }}</small></span><span class="pill pill-{{ item.status_tone }} ms-auto">{{ item.get_status_display }}</span></div>{% empty %}<p class="text-muted mb-0">Chưa có yêu cầu sửa chữa nào.</p>{% endfor %}
+</section>

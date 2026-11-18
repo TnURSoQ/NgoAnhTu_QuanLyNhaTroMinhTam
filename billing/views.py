@@ -7,6 +7,7 @@ from django.views.decorators.http import require_POST
 
 from accounts.decorators import tenant_required
 from rooms.models import Contract
+from support.models import Announcement, MaintenanceRequest
 from . import services
 from .forms import PaymentNoticeForm
 from .models import BankAccount, Invoice, Payment, PaymentNotice
@@ -61,6 +62,8 @@ def my_room(request):
     return render(request, 'billing/my_room.html', {
         'contract': contract, 'room': contract.room if contract else None,
         'latest_invoice': latest_invoice, 'unpaid_invoice': unpaid_invoice,
+        'maintenance_requests': MaintenanceRequest.objects.filter(tenant=request.tenant)[:3],
+        'announcements': Announcement.objects.filter(is_active=True)[:3],
         **_transfer_context(transfer_invoice, transfer_invoice.remaining if transfer_invoice else 0),
     })
 

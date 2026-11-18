@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title %}Gửi yêu cầu sửa chữa · Nhà trọ Minh Tâm{% endblock %}
+{% block content %}
+<a class="back-link" href="{% url 'my_maintenance_requests' %}"><i class="bi bi-arrow-left"></i> Yêu cầu của tôi</a>
+<div class="page-head"><div><h1>Gửi yêu cầu sửa chữa</h1><p class="text-muted mb-0">Hãy cho chúng tôi biết tình trạng sự cố để được hỗ trợ nhanh chóng.</p></div></div>
+{% if not contract %}<div class="alert alert-info">Bạn cần có hợp đồng hiệu lực để gửi yêu cầu sửa chữa.</div>{% endif %}
+<div class="row g-4">
+  <div class="col-12 col-xl-8"><section class="soft-card p-3 p-md-4">
+    <div class="section-head"><h2>Thông tin yêu cầu</h2></div>
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% for error in form.non_field_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
+      <div class="mb-3"><label class="form-label" for="request-room">Phòng</label><input id="request-room" class="form-control" value="{% if contract %}P.{{ contract.room.room_number }} (tự động){% else %}Chưa có hợp đồng hiệu lực{% endif %}" disabled></div>
+      <div class="row g-3">
+      {% for field in form %}
+        <div class="{% if field.name == 'title' or field.name == 'description' %}col-12{% else %}col-12 col-md-6{% endif %}">
+          <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}</label>
+          {{ field }}{% for error in field.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+        </div>
+      {% endfor %}
+      </div>
+      <button class="btn btn-primary w-100 mt-4" type="submit" {% if not contract %}disabled{% endif %}><i class="bi bi-send"></i> Gửi yêu cầu sửa chữa</button>
+    </form>
+  </section></div>
+  <div class="col-12 col-xl-4"><section class="soft-card p-4"><span class="task-icon tone-amber mb-3"><i class="bi bi-tools"></i></span><h2 class="h5">Chủ trọ sẽ tiếp nhận yêu cầu</h2><p class="text-muted">Bạn có thể xem lời nhắn, ngày dự kiến sửa xong và trạng thái xử lý trong chi tiết yêu cầu.</p><p class="small text-muted mb-0">Ngày và buổi thuận tiện là tùy chọn. Bạn có thể hủy khi yêu cầu còn ở trạng thái đã gửi.</p></section></div>
+</div>
+{% endblock %}

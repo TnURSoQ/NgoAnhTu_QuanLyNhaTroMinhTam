@@ -11,6 +11,7 @@ from accounts.decorators import owner_required
 from billing.models import Invoice, Payment, PaymentNotice
 from rooms.display import representative_of, room_status_ui
 from rooms.models import Contract, Room, ViewingAppointment
+from support.models import MaintenanceRequest
 
 @owner_required
 def overview(request):
@@ -42,6 +43,16 @@ def overview(request):
 
     # Công việc cần xử lý
     tasks = []
+    open_maintenance = MaintenanceRequest.objects.filter(
+        status__in=[MaintenanceRequest.Status.DA_GUI, MaintenanceRequest.Status.DANG_XU_LY])
+    for item in open_maintenance.filter(status=MaintenanceRequest.Status.DA_GUI).select_related('room', 'tenant')[:3]:
+        tasks.append({
+            'icon': 'bi-tools', 'tone': 'rose', 'title': 'Yêu cầu sửa chữa mới',
+            'subtitle': f'{item.display_code} · P.{item.room.room_number} - {item.tenant.full_name} · {item.title}',
+            'badge': item.get_priority_display(),
+            'badge_tone': 'danger' if item.priority != MaintenanceRequest.Priority.BINH_THUONG else 'warning',
+            'url': reverse('maintenance_detail', args=[item.pk]),
+        })
     for days, inv in overdue[:5]:
         tenant = representative_of(inv.contract)
         who = tenant.full_name if tenant else 'chưa có người đại diện'
@@ -115,6 +126,7 @@ def overview(request):
     return render(request, 'reports/overview.html', {
         'today': today,
         'rooms_total': rooms_total,
+        'maintenance_count': open_maintenance.count(),
         'rooms_empty': rooms_empty,
         'month_unpaid': month_unpaid,
         'overdue_count': len(overdue),

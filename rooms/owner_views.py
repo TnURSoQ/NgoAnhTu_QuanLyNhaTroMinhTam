@@ -96,6 +96,7 @@ def room_detail(request, pk):
     return render(request, 'rooms/room_detail.html', {
         'room': room, 'contract': contract, 'people': people, 'invoice_info': invoice_info,
         'history': history, 'label': label, 'tone': tone,
+        'maintenance_requests': room.maintenance_requests.all()[:5],
     })
 
 

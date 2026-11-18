@@ -1,0 +1,9 @@
+<section class="soft-card p-3 p-md-4 mb-4">
+  <div class="section-head"><h2>Thông báo từ chủ trọ</h2></div>
+  {% for announcement in announcements %}<article class="{% if not forloop.last %}border-bottom pb-3 mb-3{% endif %}"><h3 class="h6">{{ announcement.title }}</h3><small class="text-muted">{{ announcement.created_at|date:"d/m/Y H:i" }}</small><div class="mt-2 text-break">{{ announcement.content|linebreaksbr }}</div></article>{% empty %}<p class="text-muted mb-0">Chưa có thông báo mới.</p>{% endfor %}
+</section>
+<section class="soft-card p-3 p-md-4 mb-4">
+  <div class="section-head"><h2>Yêu cầu sửa chữa gần đây</h2><a href="{% url 'my_maintenance_requests' %}">Xem tất cả</a></div>
+  {% for item in maintenance_requests %}<a class="d-block {% if not forloop.last %}border-bottom pb-3 mb-3{% endif %}" href="{% url 'my_maintenance_detail' item.pk %}"><div class="d-flex justify-content-between gap-2 flex-wrap"><strong>{{ item.display_code }}</strong><span class="pill pill-{{ item.status_tone }}">{{ item.get_status_display }}</span></div><div class="mt-1">{{ item.title }}</div><small class="text-muted">{{ item.created_at|date:"d/m/Y H:i" }}</small></a>{% empty %}<p class="text-muted">Bạn chưa gửi yêu cầu sửa chữa nào.</p>{% endfor %}
+  {% if contract %}<a class="btn btn-outline-brand w-100 mt-3" href="{% url 'maintenance_create' %}"><i class="bi bi-tools"></i> Gửi yêu cầu sửa chữa</a>{% endif %}
+</section>

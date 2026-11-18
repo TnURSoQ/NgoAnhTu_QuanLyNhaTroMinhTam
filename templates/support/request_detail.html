@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %}{{ maintenance.display_code }} · Sửa chữa{% endblock %}
+{% block content %}
+<a class="back-link" href="{% if owner_view %}{% url 'maintenance_list' %}{% else %}{% url 'my_maintenance_requests' %}{% endif %}"><i class="bi bi-arrow-left"></i> Danh sách yêu cầu</a>
+<div class="page-head"><div><div class="d-flex align-items-center gap-3 flex-wrap"><h1>{{ maintenance.display_code }}</h1><span class="pill pill-{{ maintenance.status_tone }}">{{ maintenance.get_status_display }}</span></div><p class="text-muted mb-0 mt-2">{{ maintenance.title }}</p></div><span class="pill pill-{{ maintenance.priority_tone }}">{% if maintenance.priority != 'binh_thuong' %}<i class="bi bi-exclamation-triangle me-1"></i>{% endif %}{{ maintenance.get_priority_display }}</span></div>
+<div class="row g-4">
+  <div class="col-12 col-xl-8"><section class="soft-card p-3 p-md-4 mb-4">
+    <div class="section-head"><h2>Thông tin yêu cầu</h2></div>
+    <div class="info-row"><span>Phòng</span><strong>{% if owner_view %}<a href="{% url 'room_detail' maintenance.room_id %}">P.{{ maintenance.room.room_number }}</a>{% else %}P.{{ maintenance.room.room_number }}{% endif %}</strong></div>
+    <div class="info-row"><span>Danh mục</span><strong>{{ maintenance.get_category_display }}</strong></div>
+    <div class="info-row"><span>Ngày gửi</span><strong>{{ maintenance.created_at|date:"d/m/Y H:i" }}</strong></div>
+    <div class="info-row"><span>Ngày thuận tiện</span><strong>{{ maintenance.preferred_date|date:"d/m/Y"|default:'Không yêu cầu' }}</strong></div>
+    <div class="info-row"><span>Buổi thuận tiện</span><strong>{{ maintenance.get_preferred_slot_display|default:'Không yêu cầu' }}</strong></div>
+    <div class="info-row"><span>Liên hệ khi cần</span><strong>{{ maintenance.get_contact_method_display }}</strong></div>
+    <h3 class="h6 mt-4">Mô tả chi tiết</h3><div class="text-break">{{ maintenance.description|linebreaksbr }}</div>
+  </section>
+  <section class="soft-card p-3 p-md-4"><div class="section-head"><h2>Phản hồi từ chủ trọ</h2></div><div class="info-row"><span>Ngày dự kiến xong</span><strong>{{ maintenance.expected_done|date:"d/m/Y"|default:'Chưa cập nhật' }}</strong></div>{% if maintenance.resolved_at %}<div class="info-row"><span>Hoàn thành lúc</span><strong>{{ maintenance.resolved_at|date:"d/m/Y H:i" }}</strong></div>{% endif %}<div class="mt-3 text-break">{{ maintenance.owner_note|default:'Chưa có lời nhắn từ chủ trọ.'|linebreaksbr }}</div></section>
+  </div>
+  <div class="col-12 col-xl-4">
+  {% if owner_view %}
+    <section class="soft-card p-4 mb-4"><div class="section-head"><h2>Người gửi</h2></div><strong>{{ maintenance.tenant.full_name }}</strong><a class="d-block mt-2" href="tel:{{ maintenance.tenant.phone }}"><i class="bi bi-telephone"></i> {{ maintenance.tenant.phone }}</a><a class="d-block mt-2" href="{% url 'tenant_detail' maintenance.tenant_id %}">Xem người thuê</a></section>
+    {% if can_update %}
+    <section class="soft-card p-4">
+      <div class="section-head"><h2>Xử lý yêu cầu</h2></div>
+      <form method="post" action="{% url 'maintenance_set_status' maintenance.pk %}" novalidate>
+        {% csrf_token %}
+        {% for error in form.non_field_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
+        {% for error in form.status.errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
+        {% for field in form %}{% if field.name != 'status' %}
+        <div class="mb-3"><label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>
+        {% endif %}{% endfor %}
+        <div class="d-flex gap-2 flex-wrap">
+          {% for value, label in form.fields.status.choices %}<button class="btn {% if value == 'da_huy' %}btn-outline-brand text-danger{% else %}btn-primary{% endif %}" type="submit" name="status" value="{{ value }}">{{ label }}</button>{% endfor %}
+        </div>
+      </form>
+    </section>
+    {% else %}<div class="alert alert-info">Yêu cầu đã kết thúc và không thể đổi trạng thái.</div>{% if form.errors %}<div class="alert alert-danger">Không thể chuyển yêu cầu sang trạng thái này.</div>{% endif %}{% endif %}
+  {% elif maintenance.status == 'da_gui' %}<section class="soft-card p-4"><h2 class="h5">Cần hủy yêu cầu?</h2><p class="text-muted">Bạn có thể hủy trước khi chủ trọ tiếp nhận xử lý.</p><form method="post" action="{% url 'maintenance_cancel' maintenance.pk %}">{% csrf_token %}<button class="btn btn-outline-brand text-danger" type="submit">Hủy yêu cầu</button></form></section>{% endif %}
+  </div>
+</div>
+{% endblock %}

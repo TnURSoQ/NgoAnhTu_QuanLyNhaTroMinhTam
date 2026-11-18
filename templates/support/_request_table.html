@@ -1,0 +1,16 @@
+<div class="table-responsive">
+  <table class="table align-middle mb-0">
+    <thead><tr><th>Mã yêu cầu</th><th>Tiêu đề</th>{% if owner_view %}<th>Phòng / Người gửi</th><th>Ưu tiên</th>{% endif %}<th>Ngày gửi</th><th>Trạng thái</th></tr></thead>
+    <tbody>
+      {% for item in items %}
+      <tr>
+        <td><a class="fw-bold" href="{% if owner_view %}{% url 'maintenance_detail' item.pk %}{% else %}{% url 'my_maintenance_detail' item.pk %}{% endif %}">{{ item.display_code }}</a></td>
+        <td>{{ item.title }}</td>
+        {% if owner_view %}<td>P.{{ item.room.room_number }}<small class="d-block text-muted">{{ item.tenant.full_name }}</small></td><td><span class="pill pill-{{ item.priority_tone }}">{% if item.priority != 'binh_thuong' %}<i class="bi bi-exclamation-triangle me-1"></i>{% endif %}{{ item.get_priority_display }}</span></td>{% endif %}
+        <td>{{ item.created_at|date:"d/m/Y H:i" }}</td>
+        <td><span class="pill pill-{{ item.status_tone }}">{{ item.get_status_display }}</span></td>
+      </tr>
+      {% empty %}<tr><td colspan="6" class="text-muted py-4 text-center">Chưa có yêu cầu sửa chữa phù hợp.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>

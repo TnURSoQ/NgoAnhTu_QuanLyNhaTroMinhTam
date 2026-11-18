@@ -24,6 +24,7 @@ urlpatterns = [
     path('cau-hinh/', include('billing.settings_urls')),
     path('hop-dong/', include('rooms.contract_urls')),
     path('hop-dong-cua-toi/', include('rooms.urls')),
+    path('', include('support.urls')),
     path('', include('rooms.public_urls')),
     path('', include('reports.urls')),
 ]

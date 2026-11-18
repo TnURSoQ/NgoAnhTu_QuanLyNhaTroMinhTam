@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block title %}Đã gửi yêu cầu sửa chữa{% endblock %}
+{% block content %}
+<div class="row justify-content-center"><div class="col-12 col-md-8 col-xl-6"><section class="soft-card p-4 p-md-5 text-center">
+  <i class="bi bi-check-circle-fill text-success display-4"></i><h1 class="h3 mt-3">Đã gửi yêu cầu sửa chữa</h1><p class="text-muted">Yêu cầu của bạn đã được ghi nhận. Chủ trọ sẽ sớm kiểm tra và liên hệ lại.</p>
+  <div class="text-start my-4"><div class="info-row"><span>Mã yêu cầu</span><strong>{{ maintenance.display_code }}</strong></div><div class="info-row"><span>Phòng</span><strong>P.{{ maintenance.room.room_number }}</strong></div><div class="info-row"><span>Thời gian gửi</span><strong>{{ maintenance.created_at|date:"d/m/Y H:i" }}</strong></div><div class="info-row"><span>Trạng thái</span><span class="pill pill-{{ maintenance.status_tone }}">{{ maintenance.get_status_display }}</span></div></div>
+  <a class="btn btn-primary" href="{% url 'my_maintenance_detail' maintenance.pk %}">Xem chi tiết yêu cầu</a><a class="btn btn-outline-brand mt-2 mt-sm-0" href="{% url 'my_maintenance_requests' %}">Danh sách yêu cầu</a>
+</section></div></div>
+{% endblock %}

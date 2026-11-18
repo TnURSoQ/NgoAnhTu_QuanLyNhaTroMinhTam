@@ -12,29 +12,36 @@
   </div>
 </div>
 
-<div class="row g-3 mb-4">
-  <div class="col-6 col-xl-3">
+<div class="row row-cols-1 row-cols-sm-2 row-cols-xl-5 g-3 mb-4">
+  <div class="col">
+    <a class="kpi tone-lavender" href="{% url 'maintenance_list' %}">
+      <span class="kpi-icon"><i class="bi bi-tools"></i></span>
+      <span class="kpi-text"><strong class="kpi-value">{{ maintenance_count }}</strong><span class="kpi-label">Yêu cầu sửa chữa</span></span>
+      <i class="bi bi-chevron-right kpi-go"></i>
+    </a>
+  </div>
+  <div class="col">
     <a class="kpi tone-sky" href="{% url 'room_list' %}">
       <span class="kpi-icon"><i class="bi bi-house-door"></i></span>
       <span class="kpi-text"><strong class="kpi-value">{{ rooms_total }}</strong><span class="kpi-label">Tổng số phòng</span></span>
       <i class="bi bi-chevron-right kpi-go"></i>
     </a>
   </div>
-  <div class="col-6 col-xl-3">
+  <div class="col">
     <a class="kpi tone-mint" href="{% url 'room_list' %}?status=trong">
       <span class="kpi-icon"><i class="bi bi-door-open"></i></span>
       <span class="kpi-text"><strong class="kpi-value">{{ rooms_empty }}</strong><span class="kpi-label">Còn trống</span></span>
       <i class="bi bi-chevron-right kpi-go"></i>
     </a>
   </div>
-  <div class="col-6 col-xl-3">
+  <div class="col">
     <a class="kpi tone-amber" href="{% url 'invoice_list' %}?month={{ today.month }}&amp;year={{ today.year }}">
       <span class="kpi-icon"><i class="bi bi-cash-coin"></i></span>
       <span class="kpi-text"><strong class="kpi-value kpi-money text-danger">{{ month_unpaid|floatformat:"0g" }} đ</strong><span class="kpi-label">Chưa thu (tháng {{ today.month }}/{{ today.year }})</span></span>
       <i class="bi bi-chevron-right kpi-go"></i>
     </a>
   </div>
-  <div class="col-6 col-xl-3">
+  <div class="col">
     <a class="kpi tone-rose" href="{% url 'report_dashboard' %}">
       <span class="kpi-icon"><i class="bi bi-exclamation-triangle"></i></span>
       <span class="kpi-text"><strong class="kpi-value">{{ overdue_count }}</strong><span class="kpi-label">Hóa đơn quá hạn</span></span>

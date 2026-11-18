@@ -1,0 +1,7 @@
+{% extends 'base.html' %}
+{% block title %}Yêu cầu sửa chữa · Nhà trọ Minh Tâm{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Yêu cầu sửa chữa</h1><p class="text-muted mb-0">Theo dõi các sự cố bạn đã gửi cho chủ trọ.</p></div>{% if contract %}<a class="btn btn-primary" href="{% url 'maintenance_create' %}"><i class="bi bi-plus-lg"></i> Gửi yêu cầu sửa chữa</a>{% endif %}</div>
+{% if not contract %}<div class="alert alert-info">Bạn cần có hợp đồng hiệu lực để gửi yêu cầu sửa chữa. Bạn vẫn có thể xem các yêu cầu trước đây.</div>{% endif %}
+<section class="soft-card p-3 p-md-4">{% include 'support/_request_table.html' %}</section>
+{% endblock %}
