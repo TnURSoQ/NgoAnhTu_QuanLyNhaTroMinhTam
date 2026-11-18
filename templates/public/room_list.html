@@ -1,40 +1,9 @@
 {% extends 'base_public.html' %}
 {% block title %}Xem phòng · {{ SITE_NAME }}{% endblock %}
 {% block content %}
-<div class="page-head">
-  <div><h1>Phòng đang cho thuê</h1><p class="text-muted mb-0">Hiện có {{ total_free }} phòng trống. Chọn phòng để xem chi tiết và đặt lịch.</p></div>
-</div>
-
-<form method="get" class="toolbar">
-  <select name="price" class="form-select w-auto" onchange="this.form.submit()" aria-label="Khoảng giá">
-    <option value="">Mọi mức giá</option>
-    {% for key, r in price_ranges.items %}<option value="{{ key }}" {% if key == price %}selected{% endif %}>{{ r.2 }}</option>{% endfor %}
-  </select>
-  <select name="floor" class="form-select w-auto" onchange="this.form.submit()" aria-label="Tầng">
-    <option value="">Mọi tầng</option>
-    {% for f in floors %}<option value="{{ f }}" {% if f == floor %}selected{% endif %}>Tầng {{ f }}</option>{% endfor %}
-  </select>
-  <select name="people" class="form-select w-auto" onchange="this.form.submit()" aria-label="Số người ở">
-    <option value="">Số người ở</option>
-    {% for n in "1234" %}<option value="{{ n }}" {% if people|stringformat:"s" == n %}selected{% endif %}>Từ {{ n }} người</option>{% endfor %}
-  </select>
-  <select name="sort" class="form-select w-auto" onchange="this.form.submit()" aria-label="Sắp xếp">
-    <option value="">Sắp xếp theo tầng</option>
-    <option value="gia_tang" {% if sort == 'gia_tang' %}selected{% endif %}>Giá thấp đến cao</option>
-    <option value="gia_giam" {% if sort == 'gia_giam' %}selected{% endif %}>Giá cao đến thấp</option>
-  </select>
-  {% if price or floor or people or sort %}<a class="btn btn-outline-brand" href="{% url 'public_rooms' %}">Xóa bộ lọc</a>{% endif %}
-</form>
-
-{% if rooms %}
-<div class="row g-3">
-  {% for r in rooms %}<div class="col-12 col-md-6 col-lg-4">{% include 'public/_room_card.html' %}</div>{% endfor %}
-</div>
-{% else %}
-<div class="soft-card p-5 text-center text-muted">
-  <div class="fs-1">🔍</div>
-  <p class="mb-3">Không có phòng nào phù hợp với bộ lọc.</p>
-  <a class="btn btn-outline-brand" href="{% url 'public_rooms' %}">Xem tất cả phòng trống</a>
-</div>
-{% endif %}
+<div class="catalog-heading"><span class="eyebrow">KHÔNG GIAN SỐNG TẠI MINH TÂM</span><h1>Một căn phòng.<br><em>Nhiều khởi đầu mới.</em></h1><p>Hiện có {{ total_free }} phòng trống. Tìm một nơi vừa với nhu cầu và nhịp sống của bạn.</p></div>
+{% url 'public_rooms' as filter_url %}{% include 'public/_room_filters.html' %}
+<section id="phong-trong" class="room-section"><div class="public-section-head"><div><h2>Phòng đang cho thuê <span class="count-bubble">{{ filtered_count }}</span></h2><p>{% if has_filters %}Tìm thấy {{ filtered_count }} phòng phù hợp với bộ lọc của bạn.{% else %}Thông tin rõ ràng. Dễ dàng chọn lịch đến xem.{% endif %}</p></div>{% if has_filters %}<span class="filter-indicator"><i class="bi bi-sliders2"></i> Đang áp dụng bộ lọc</span>{% endif %}</div>
+{% if rooms %}<div class="row g-4">{% for r in rooms %}<div class="col-12 col-md-6 col-lg-4">{% include 'public/_room_card.html' %}</div>{% endfor %}</div>{% else %}{% include 'public/_empty_rooms.html' %}{% endif %}
+</section>
 {% endblock %}

@@ -163,7 +163,9 @@ class TenantRoomAndTransferViewTests(TransferBase):
         self.client.force_login(self.tenant_user)
 
     def test_my_room_home_and_menu(self):
-        self.assertRedirects(self.client.get('/'), reverse('my_room'), fetch_redirect_response=False)
+        home = self.client.get('/')
+        self.assertTemplateUsed(home, 'public/home.html')
+        self.assertContains(home, reverse('my_room'))
         self.assertEqual(reverse('my_room'), '/phong-cua-toi/')
         response = self.client.get(reverse('my_room'))
         for text in ['Phòng của tôi', 'Phòng 101', 'Đang ở', 'Cần thanh toán tháng',

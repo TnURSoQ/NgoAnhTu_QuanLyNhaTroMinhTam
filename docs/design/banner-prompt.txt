@@ -1,0 +1,6 @@
+Asset: static/images/minhtam-hero.webp
+Method: built-in image_gen tool; optimized to WebP for the website.
+Role: illustrative banner, not a photograph of a specific listed room.
+
+Final generation prompt:
+Use case: photorealistic-natural. Asset type: wide website hero background photograph for a Vietnamese rental room website named Minh Tam, not a mockup. Generate a 1792x1024 or similar wide landscape editorial interior photo of a modest but beautifully arranged compact studio rental apartment in Da Nang: warm oak desk and chair on the right, a leafy plant by sheer linen curtains and a bright window, cream plaster walls, subtle terracotta bedding in the far right background, soft natural afternoon sunlight, realistic materials, serene welcoming everyday home. Main furnishings concentrated on right 60 percent; left 40 percent quiet cream wall with natural warm shadows and ample negative space for HTML headings. High quality architectural photography, understated and attainable rather than extravagant. No people, no written text, no logos, no watermark, no website UI, no borders, no yellow overlay; the website will add its own typography and warm overlay. Wide composition.

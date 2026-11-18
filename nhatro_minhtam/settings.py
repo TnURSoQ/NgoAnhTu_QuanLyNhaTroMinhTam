@@ -136,7 +136,7 @@ DEFAULT_FROM_EMAIL = 'Nhà trọ Minh Tâm <no-reply@minhtam.local>'
 
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'home'
-LOGOUT_REDIRECT_URL = 'login'
+LOGOUT_REDIRECT_URL = 'home'
 NUMBER_GROUPING = 3  # hiện 2.392.500 thay vì 2392500
 STATICFILES_DIRS = [BASE_DIR / 'static']
 

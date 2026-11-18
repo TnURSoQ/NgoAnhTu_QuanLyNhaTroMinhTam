@@ -54,18 +54,21 @@ class TenantPortalTests(TestCase):
             self.assertEqual(r.status_code, 302)
             self.assertIn('/dang-nhap/', r['Location'])
 
-    def test_owner_goes_to_overview_not_portal(self):
+    def test_owner_sees_public_home_with_management_entry(self):
         self.client.login(username='chutro', password='pw12345!')
-        self.assertRedirects(self.client.get('/'), reverse('owner_dashboard'), fetch_redirect_response=False)
+        page = self.client.get('/')
+        self.assertTemplateUsed(page, 'public/home.html')
+        self.assertContains(page, reverse('owner_dashboard'))
         r = self.client.get(reverse('my_invoices'))
         self.assertRedirects(r, reverse('home'), fetch_redirect_response=False)
 
-    def test_user_without_role_gets_403_no_redirect_loop(self):
+    def test_user_without_role_sees_public_home_without_redirect_loop(self):
         User.objects.create_user('la', password='pw12345!')
         self.client.login(username='la', password='pw12345!')
-        self.assertEqual(self.client.get('/').status_code, 403)
+        self.assertTemplateUsed(self.client.get('/'), 'public/home.html')
         r = self.client.get(reverse('my_invoices'), follow=True)
-        self.assertEqual(r.status_code, 403)
+        self.assertTemplateUsed(r, 'public/home.html')
+        self.assertEqual(r.redirect_chain, [(reverse('home'), 302)])
 
     def test_tenant_cannot_enter_admin(self):
         self.login_a()
@@ -74,9 +77,11 @@ class TenantPortalTests(TestCase):
         self.assertIn('/admin/login/', r['Location'])
 
     # --- cô lập dữ liệu giữa các người thuê ---
-    def test_tenant_home_redirects_to_my_room(self):
+    def test_tenant_home_has_link_to_my_room(self):
         self.login_a()
-        self.assertRedirects(self.client.get('/'), reverse('my_room'), fetch_redirect_response=False)
+        response = self.client.get('/')
+        self.assertTemplateUsed(response, 'public/home.html')
+        self.assertContains(response, reverse('my_room'))
 
     def test_invoice_list_shows_only_own(self):
         self.login_a()
@@ -117,7 +122,7 @@ class TenantPortalTests(TestCase):
         self.login_a()
         self.assertEqual(self.client.get(reverse('logout')).status_code, 405)
         r = self.client.post(reverse('logout'))
-        self.assertRedirects(r, reverse('login'), fetch_redirect_response=False)
+        self.assertRedirects(r, reverse('home'), fetch_redirect_response=False)
 
     def test_default_password_banner_then_change(self):
         self.login_a()

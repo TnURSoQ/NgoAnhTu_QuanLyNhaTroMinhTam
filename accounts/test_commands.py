@@ -47,8 +47,9 @@ class CreateOwnerCommandTests(TestCase):
         self.assertFalse(owner.is_staff or owner.is_superuser)
 
         self.client.force_login(owner)
-        self.assertRedirects(self.client.get(reverse('home')), reverse('owner_dashboard'),
-                             fetch_redirect_response=False)
+        home = self.client.get(reverse('home'))
+        self.assertTemplateUsed(home, 'public/home.html')
+        self.assertContains(home, 'Quản lý phòng trọ')
         page = self.client.get(reverse('owner_dashboard'))
         self.assertContains(page, 'Hà Thị Minh Tâm')
         self.assertNotContains(page, 'Quản trị hệ thống')
@@ -62,7 +63,9 @@ class CreateOwnerCommandTests(TestCase):
         self.assertTrue(login_response.context['form'].errors)
 
         self.client.force_login(developer)
-        self.assertRedirects(self.client.get(reverse('home')), reverse('admin:index'))
+        home = self.client.get(reverse('home'))
+        self.assertTemplateUsed(home, 'public/home.html')
+        self.assertContains(home, 'Quản trị hệ thống')
         self.assertEqual(self.client.get(reverse('admin:index')).status_code, 200)
         self.assertRedirects(self.client.get(reverse('owner_dashboard')), reverse('home'),
                              fetch_redirect_response=False)

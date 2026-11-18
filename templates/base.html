@@ -46,25 +46,7 @@
   <div class="app-main">
     <header class="app-topbar">
       <button class="btn-icon d-lg-none" type="button" id="sidebarToggle" aria-label="Mở menu"><i class="bi bi-list"></i></button>
-      <div class="dropdown ms-auto">
-        <button class="user-chip dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-          <span class="avatar">{{ user.first_name|default:user.username|slice:":1"|upper }}</span>
-          <span class="d-none d-sm-block text-start lh-sm">
-            <strong>{{ user.first_name|default:user.username }}</strong>
-            <small>{% if user.role == 'owner' %}Chủ trọ{% elif user.role == 'tenant' %}Người thuê{% else %}Quản trị hệ thống{% endif %}</small>
-          </span>
-        </button>
-        <ul class="dropdown-menu dropdown-menu-end">
-          <li><a class="dropdown-item" href="{% url 'password_change' %}"><i class="bi bi-key me-2"></i>Đổi mật khẩu</a></li>
-          <li><hr class="dropdown-divider"></li>
-          <li>
-            <form method="post" action="{% url 'logout' %}">
-              {% csrf_token %}
-              <button type="submit" class="dropdown-item"><i class="bi bi-box-arrow-right me-2"></i>Đăng xuất</button>
-            </form>
-          </li>
-        </ul>
-      </div>
+      {% include '_account_menu.html' %}
     </header>
     <main class="app-content">
       {% for message in messages %}

@@ -1,6 +1,6 @@
 from datetime import date
 
-from django.test import TestCase
+from django.test import Client, TestCase
 from django.urls import reverse
 
 from rooms.models import Contract, ContractTenant, Room
@@ -39,9 +39,101 @@ class LoginPageTests(TestCase):
         self.client.post(reverse('login'), {'username': 'chutro', 'password': 'pw12345!'})
         self.assertTrue(self.client.session.get_expire_at_browser_close())
 
+    def test_login_returns_to_shared_public_home(self):
+        response = self.client.post(reverse('login'), {'username': 'chutro', 'password': 'pw12345!'})
+        self.assertRedirects(response, reverse('home'))
+        page = self.client.get(response.url)
+        self.assertTemplateUsed(page, 'public/home.html')
+        self.assertContains(page, 'Quản lý phòng trọ')
+
+    def test_logout_returns_to_shared_public_home(self):
+        self.client.force_login(User.objects.get(username='chutro'))
+        response = self.client.post(reverse('logout'))
+        self.assertRedirects(response, reverse('home'))
+        page = self.client.get(response.url)
+        self.assertTemplateUsed(page, 'public/home.html')
+        self.assertContains(page, 'Đăng nhập')
+        self.assertNotContains(page, 'Menu tài khoản')
+
     def test_logged_in_user_skips_login_page(self):
         self.client.login(username='chutro', password='pw12345!')
         self.assertEqual(self.client.get(reverse('login')).status_code, 302)
+
+
+class ModalLoginTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.owner = User.objects.create_user('modal-owner', password='ModalLogin#2026', role=User.Role.OWNER)
+        cls.tenant = User.objects.create_user('modal-tenant', password='ModalLogin#2026', role=User.Role.TENANT)
+        Tenant.objects.create(user=cls.tenant, full_name='Người thuê', id_card_number='999', phone='0901234567')
+
+    def post_login(self, **overrides):
+        data = {'username': self.owner.username, 'password': 'ModalLogin#2026'}
+        data.update(overrides)
+        return self.client.post(reverse('login'), data, HTTP_ACCEPT='application/json')
+
+    def test_public_pages_offer_login_modal_with_csrf_and_distinct_field_ids(self):
+        for name in ('home', 'public_rooms', 'appointment_lookup'):
+            response = self.client.get(reverse(name))
+            self.assertContains(response, 'data-bs-target="#loginModal"')
+            self.assertContains(response, 'id="modal_username"')
+            self.assertContains(response, 'id="modal_password"')
+            self.assertContains(response, 'name="csrfmiddlewaretoken"')
+            self.assertContains(response, '/static/js/login-modal.js')
+        self.client.force_login(self.owner)
+        self.assertNotContains(self.client.get(reverse('home')), 'id="loginModal"')
+
+    def test_invalid_credentials_and_required_fields_return_inline_errors(self):
+        response = self.post_login(password='wrong')
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['errors']['__all__'][0]['code'], 'invalid_login')
+        self.assertNotIn('_auth_user_id', self.client.session)
+        response = self.post_login(username='', password='')
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(set(response.json()['errors']), {'username', 'password'})
+
+    def test_owner_and_tenant_can_login_and_see_their_account_menu(self):
+        for user, label in ((self.owner, 'Quản lý phòng trọ'), (self.tenant, 'Phòng của tôi')):
+            with self.subTest(role=user.role):
+                response = self.post_login(username=user.username)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json(), {'redirect_url': reverse('home')})
+                self.assertEqual(self.client.session['_auth_user_id'], str(user.pk))
+                page = self.client.get(response.json()['redirect_url'])
+                self.assertContains(page, label)
+                self.assertNotContains(page, 'id="loginModal"')
+                self.client.logout()
+
+    def test_remember_me_retains_existing_session_behavior(self):
+        for remember in ('on', ''):
+            self.post_login(remember_me=remember)
+            self.assertEqual(self.client.session.get_expire_at_browser_close(), not bool(remember))
+            self.client.logout()
+
+    def test_preserves_current_page_filters_and_rejects_external_redirects(self):
+        target = reverse('public_rooms') + '?q=dieu+hoa&floor=1#phong-trong'
+        response = self.post_login(next=target)
+        self.assertEqual(response.json()['redirect_url'], target)
+        self.client.logout()
+        response = self.post_login(next='https://attacker.invalid/collect')
+        self.assertEqual(response.json()['redirect_url'], reverse('home'))
+
+    def test_inactive_account_cannot_login(self):
+        self.owner.is_active = False
+        self.owner.save(update_fields=['is_active'])
+        response = self.post_login()
+        self.assertEqual(response.status_code, 400)
+        self.assertNotIn('_auth_user_id', self.client.session)
+
+    def test_json_login_requires_valid_csrf_token(self):
+        browser = Client(enforce_csrf_checks=True)
+        browser.get(reverse('home'))
+        data = {'username': self.owner.username, 'password': 'ModalLogin#2026'}
+        self.assertEqual(browser.post(reverse('login'), data, HTTP_ACCEPT='application/json').status_code, 403)
+        data['csrfmiddlewaretoken'] = browser.cookies['csrftoken'].value
+        response = browser.post(reverse('login'), data, HTTP_ACCEPT='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(browser.session['_auth_user_id'], str(self.owner.pk))
 
 
 class SidebarTests(TestCase):
@@ -86,10 +178,12 @@ class RoleAccessTests(TestCase):
         self.assertEqual(r.status_code, 302)
         self.assertIn('/admin/login/', r['Location'])
 
-    def test_developer_without_role_goes_to_admin(self):
+    def test_developer_without_role_sees_public_home_and_admin_entry(self):
         User.objects.create_user('dev', password='pw12345!', is_staff=True, is_superuser=True)
         self.client.login(username='dev', password='pw12345!')
-        self.assertRedirects(self.client.get('/'), '/admin/', fetch_redirect_response=False)
+        response = self.client.get('/')
+        self.assertTemplateUsed(response, 'public/home.html')
+        self.assertContains(response, 'href="/admin/"')
 
     def test_developer_without_role_is_not_owner(self):
         User.objects.create_user('dev', password='pw12345!', is_staff=True, is_superuser=True)

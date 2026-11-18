@@ -27,8 +27,40 @@ class PublicPagesTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Tìm phòng trọ ưng ý')
         self.assertContains(r, 'P.101')
+        self.assertContains(r, 'Đăng nhập')
+        self.assertNotContains(r, 'Menu tài khoản')
         for name in ['public_rooms', 'appointment_lookup']:
             self.assertEqual(self.client.get(reverse(name)).status_code, 200)
+
+    def test_owner_and_tenant_browse_public_pages_and_enter_their_own_area(self):
+        for role, label, target, forbidden in [
+            (User.Role.OWNER, 'Quản lý phòng trọ', 'owner_dashboard', 'my_room'),
+            (User.Role.TENANT, 'Phòng của tôi', 'my_room', 'owner_dashboard'),
+        ]:
+            with self.subTest(role=role):
+                user = User.objects.create_user(role, role=role)
+                if role == User.Role.TENANT:
+                    Tenant.objects.create(user=user, full_name='Người thuê', id_card_number='001', phone='0901234567')
+                self.client.force_login(user)
+                for url in [reverse('home'), reverse('public_rooms'),
+                            reverse('public_room_detail', args=[self.r101.pk]), reverse('appointment_lookup')]:
+                    response = self.client.get(url)
+                    self.assertEqual(response.status_code, 200)
+                    self.assertContains(response, 'Menu tài khoản')
+                    self.assertContains(response, f'href="{reverse(target)}"')
+                    self.assertContains(response, label)
+                    self.assertNotContains(response, f'href="{reverse(forbidden)}"')
+                    self.assertNotContains(response, 'Vào trang quản lý')
+                home = self.client.get(reverse('home'))
+                self.assertTemplateUsed(home, 'public/home.html')
+                self.assertContains(home, 'P.101')
+                self.assertNotContains(home, 'P.102')
+                management = self.client.get(reverse(target))
+                self.assertEqual(management.status_code, 200)
+                self.assertContains(management, f'href="{reverse("home")}"')
+                forbidden_page = self.client.get(reverse(forbidden), follow=True)
+                self.assertTemplateUsed(forbidden_page, 'public/home.html')
+                self.assertEqual(forbidden_page.redirect_chain, [(reverse('home'), 302)])
 
     def test_list_only_shows_free_rooms(self):
         r = self.client.get(reverse('public_rooms'))
@@ -61,6 +93,52 @@ class PublicPagesTests(TestCase):
         self.assertRedirects(r, reverse('public_room_detail', args=[self.rented.pk]))
         self.assertFalse(ViewingAppointment.objects.exists())
 
+    def test_keyword_search_ignores_accents_and_searches_room_amenities_description(self):
+        for page in ('home', 'public_rooms'):
+            for query in ('101', 'P.101', 'dieu hoa', 'PHÒNG THOÁNG', 'wifi thoang'):
+                with self.subTest(page=page, query=query):
+                    response = self.client.get(reverse(page), {'q': query})
+                    self.assertEqual(list(response.context['rooms']), [self.r101])
+                    self.assertContains(response, f'value="{query}"')
+
+    def test_combined_filters_and_reset_preserve_search_form_values(self):
+        for page in ('home', 'public_rooms'):
+            with self.subTest(page=page):
+                response = self.client.get(reverse(page), {
+                    'q': 'dieu hoa', 'price': '2-3', 'floor': 1, 'people': 2,
+                    'amenity': 'Wifi', 'sort': 'gia_tang'})
+                self.assertEqual(list(response.context['rooms']), [self.r101])
+                self.assertEqual(response.context['filtered_count'], 1)
+                self.assertEqual(response.context['total_free'], 2)
+                self.assertContains(response, 'value="Wifi" selected')
+                self.assertContains(response, 'value="gia_tang" selected')
+                self.assertContains(response, f'href="{reverse(page)}#phong-trong"')
+                self.assertContains(response, 'Xóa bộ lọc')
+
+    def test_home_filters_all_rooms_beyond_six_featured_results(self):
+        for n in range(5):
+            room(f'30{n}', floor=3)
+        last = room('999', floor=9)
+        home = self.client.get(reverse('home'))
+        self.assertEqual(len(home.context['rooms']), 6)
+        self.assertEqual(home.context['total_free'], 8)
+        self.assertNotIn(last, home.context['rooms'])
+        response = self.client.get(reverse('home'), {'floor': 9})
+        self.assertEqual(list(response.context['rooms']), [last])
+
+    def test_search_never_exposes_rented_rooms_and_shows_empty_state(self):
+        for page in ('home', 'public_rooms'):
+            response = self.client.get(reverse(page), {'q': self.rented.room_number})
+            self.assertEqual(response.context['filtered_count'], 0)
+            self.assertNotContains(response, 'Phòng P.102')
+            self.assertContains(response, 'Chưa tìm thấy căn phòng phù hợp')
+
+    def test_invalid_optional_filters_are_ignored(self):
+        response = self.client.get(reverse('home'), {
+            'people': '-4', 'floor': 'abc', 'amenity': 'unknown', 'sort': 'unknown', 'price': 'unknown'})
+        self.assertFalse(response.context['has_filters'])
+        self.assertEqual(response.context['filtered_count'], 2)
+
 
 class BookingTests(TestCase):
     def setUp(self):
@@ -84,6 +162,15 @@ class BookingTests(TestCase):
         page = self.client.get(reverse('appointment_status', args=[a.code.lower()]))
         self.assertContains(page, a.code)
         self.assertContains(page, 'Chủ trọ sẽ liên hệ')
+
+    def test_logged_in_owner_and_tenant_can_still_book_from_public_pages(self):
+        for index, role in enumerate((User.Role.OWNER, User.Role.TENANT)):
+            with self.subTest(role=role):
+                self.client.force_login(User.objects.create_user(role, role=role))
+                phone = f'090123456{index}'
+                response = self.client.post(self.url, self.data(visitor_phone=phone))
+                appointment = ViewingAppointment.objects.get(visitor_phone=phone)
+                self.assertRedirects(response, reverse('appointment_status', args=[appointment.code]))
 
     def test_validation(self):
         past = (self.today - timedelta(days=1)).isoformat()
@@ -155,6 +242,7 @@ class OwnerAppointmentTests(TestCase):
         self.assertEqual(len(self.client.get(reverse('appointment_list'), {'q': 'khach a'}).context['items']), 1)
         self.assertEqual(len(self.client.get(reverse('appointment_list'), {'q': '0912345'}).context['items']), 1)
         self.assertNotContains(r, 'href="/admin/')
+        self.assertNotContains(r, 'Xem trang khách thấy')
 
     def test_status_flow_and_invalid_jump(self):
         self.login()

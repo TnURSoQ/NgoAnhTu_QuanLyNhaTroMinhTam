@@ -1,0 +1,33 @@
+<div class="modal fade login-modal" id="loginModal" tabindex="-1" aria-labelledby="loginModalTitle" aria-describedby="loginModalDescription" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <button type="button" class="btn-close login-modal-close" data-bs-dismiss="modal" aria-label="Đóng cửa sổ đăng nhập"></button>
+      <div class="modal-body">
+        <span class="login-modal-mark">{% include '_logo.html' %}</span>
+        <span class="eyebrow">MINH TÂM · NHÀ TRỌ ẤM ÁP</span>
+        <h2 id="loginModalTitle">Chào mừng bạn<br><em>trở về nhà.</em></h2>
+        <p id="loginModalDescription">Đăng nhập để quản lý phòng trọ và theo dõi thông tin của bạn.</p>
+        <form method="post" action="{% url 'login' %}" id="modalLoginForm" novalidate>
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <div class="alert alert-danger login-modal-errors d-none" role="alert" aria-live="polite" tabindex="-1"></div>
+          <div class="mb-3" data-login-field="username">
+            <label class="form-label" for="{{ modal_login_form.username.id_for_label }}">Tên đăng nhập</label>
+            <div class="input-icon"><i class="bi bi-person"></i>{{ modal_login_form.username }}</div>
+          </div>
+          <div class="mb-3" data-login-field="password">
+            <label class="form-label" for="{{ modal_login_form.password.id_for_label }}">Mật khẩu</label>
+            <div class="input-icon"><i class="bi bi-lock"></i>{{ modal_login_form.password }}<button class="toggle-pw modal-password-toggle" type="button" aria-label="Hiện mật khẩu" aria-pressed="false"><i class="bi bi-eye"></i></button></div>
+          </div>
+          <div class="d-flex justify-content-between align-items-center gap-2 mb-4">
+            <div class="form-check mb-0">{{ modal_login_form.remember_me }}<label class="form-check-label" for="{{ modal_login_form.remember_me.id_for_label }}">Ghi nhớ đăng nhập</label></div>
+            <button type="button" class="login-forgot-link" data-bs-toggle="collapse" data-bs-target="#modalForgotHelp" aria-expanded="false" aria-controls="modalForgotHelp">Quên mật khẩu?</button>
+          </div>
+          <div class="collapse" id="modalForgotHelp"><p class="alert alert-info small">Vui lòng liên hệ chủ trọ để được đặt lại mật khẩu.</p></div>
+          <button class="btn btn-primary w-100 login-modal-submit" type="submit"><span>Đăng nhập</span><i class="bi bi-arrow-right"></i></button>
+        </form>
+        <p class="login-modal-foot"><i class="bi bi-shield-check"></i> Tài khoản do chủ trọ cấp cho người thuê.</p>
+      </div>
+    </div>
+  </div>
+</div>

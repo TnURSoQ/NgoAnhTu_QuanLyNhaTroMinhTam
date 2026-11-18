@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 
+from accounts.text import normalize
 from . import services
 from .models import Room, ViewingAppointment
 from .public_forms import BookingForm
@@ -17,14 +18,24 @@ def free_rooms():
 
 
 def landing(request):
-    """Trang chủ công khai (khách chưa đăng nhập)."""
-    rooms = list(free_rooms()[:6])
-    return render(request, 'public/home.html', {'rooms': rooms, 'total_free': free_rooms().count()})
+    """Trang chủ xem phòng dùng chung trước và sau khi đăng nhập."""
+    context = _room_context(request)
+    if not context['has_filters']:
+        context['rooms'] = context['rooms'][:6]
+    return render(request, 'public/home.html', context)
 
 
 def room_list(request):
+    return render(request, 'public/room_list.html', _room_context(request))
+
+
+def _room_context(request):
     rooms = list(free_rooms())
+    total_free = len(rooms)
+    starting_price = min((room.price for room in rooms), default=None)
     floors = sorted({r.floor for r in rooms})
+    capacities = sorted({1, 2, 3, 4} | {r.max_occupants for r in rooms})
+    amenities = sorted({a for room in rooms for a in room.amenity_list}, key=normalize)
 
     try:
         floor = int(request.GET.get('floor', ''))
@@ -34,12 +45,18 @@ def room_list(request):
         people = int(request.GET.get('people', ''))
     except ValueError:
         people = None
+    if people is not None and people < 1:
+        people = None
     price = request.GET.get('price', '')
     if price not in PRICE_RANGES:
         price = ''
     sort = request.GET.get('sort', '')
     if sort not in ('gia_tang', 'gia_giam'):
         sort = ''
+    q = request.GET.get('q', '').strip()
+    amenity = request.GET.get('amenity', '').strip()
+    if amenity not in amenities:
+        amenity = ''
 
     if floor is not None:
         rooms = [r for r in rooms if r.floor == floor]
@@ -48,13 +65,22 @@ def room_list(request):
     if price:
         low, high, _ = PRICE_RANGES[price]
         rooms = [r for r in rooms if (low is None or r.price >= low) and (high is None or r.price < high)]
+    if amenity:
+        rooms = [r for r in rooms if normalize(amenity) in {normalize(a) for a in r.amenity_list}]
+    if q:
+        terms = normalize(q).split()
+        rooms = [r for r in rooms if all(term in normalize(
+            f'Phòng P.{r.room_number} {r.description} {r.amenities}') for term in terms)]
     if sort:
         rooms.sort(key=lambda r: r.price, reverse=(sort == 'gia_giam'))
 
-    return render(request, 'public/room_list.html', {
+    return {
         'rooms': rooms, 'floors': floors, 'floor': floor, 'people': people, 'price': price,
-        'sort': sort, 'price_ranges': PRICE_RANGES, 'total_free': free_rooms().count(),
-    })
+        'sort': sort, 'price_ranges': PRICE_RANGES, 'total_free': total_free,
+        'q': q, 'amenity': amenity, 'amenities': amenities, 'capacities': capacities,
+        'filtered_count': len(rooms), 'starting_price': starting_price,
+        'has_filters': bool(q or price or floor is not None or people is not None or amenity or sort),
+    }
 
 
 def room_detail(request, pk):

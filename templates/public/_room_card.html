@@ -1,12 +1,8 @@
-<a class="room-card tone-mint d-block text-decoration-none h-100" href="{% url 'public_room_detail' r.pk %}">
-  <div class="d-flex justify-content-between align-items-start">
-    <div>
-      <h3 class="room-no">P.{{ r.room_number }}</h3>
-      <div class="room-meta">{% if r.area %}{{ r.area|floatformat:"-2" }} m² · {% endif %}Tối đa {{ r.max_occupants }} người · Tầng {{ r.floor }}</div>
-    </div>
-    <span class="pill pill-mint">Còn trống</span>
+<a class="listing-card" href="{% url 'public_room_detail' r.pk %}" aria-label="Xem phòng {{ r.room_number }} và đặt lịch">
+  <div class="listing-visual listing-visual-{% if r.pk|divisibleby:3 %}sand{% elif r.pk|divisibleby:2 %}sage{% else %}warm{% endif %}" aria-hidden="true"><span class="listing-floor">TẦNG {{ r.floor }}</span><span class="listing-door-number">{{ r.room_number }}</span><i class="bi bi-door-open listing-door"></i><span class="listing-status"><span></span> Còn trống</span></div>
+  <div class="listing-content"><div class="listing-heading"><h3>Phòng P.{{ r.room_number }}</h3><span class="listing-arrow"><i class="bi bi-arrow-up-right"></i></span></div>
+    <div class="listing-facts">{% if r.area %}<span><i class="bi bi-aspect-ratio"></i> {{ r.area|floatformat:"-2" }} m²</span>{% endif %}<span><i class="bi bi-people"></i> Tối đa {{ r.max_occupants }} người</span><span><i class="bi bi-building"></i> Tầng {{ r.floor }}</span></div>
+    {% if r.amenity_list %}<div class="listing-amenities">{% for a in r.amenity_list|slice:":3" %}<span>{{ a }}</span>{% endfor %}</div>{% else %}<div class="listing-amenities"><span>Hẹn đến xem trực tiếp</span></div>{% endif %}
+    <div class="listing-bottom"><div class="listing-price">{{ r.price|floatformat:"0g" }} đ<small>/ tháng</small></div><span class="listing-book">Đặt lịch xem <i class="bi bi-arrow-right"></i></span></div>
   </div>
-  <div class="room-price">{{ r.price|floatformat:"0g" }} đ<small>/tháng</small></div>
-  {% if r.amenity_list %}<div class="chips">{% for a in r.amenity_list|slice:":3" %}<span class="chip">{{ a }}</span>{% endfor %}</div>{% endif %}
-  <div class="room-more">Xem chi tiết và đặt lịch <i class="bi bi-arrow-right"></i></div>
 </a>

@@ -3,33 +3,33 @@
   --brand: #B9563A;
   --brand-dark: #9C4429;
   --brand-soft: #F7E3D8;
-  --cream: #FBF5EE;
-  --ink: #3A2E29;
-  --muted: #8B7B71;
-  --line: #EBDFD2;
+  --cream: #F8F7F4;
+  --ink: #2D3731;
+  --muted: #748078;
+  --line: #E5E6DF;
   --peach: #FCE7D8;
   --mint: #E3F0E3;
   --lavender: #ECE6F6;
   --sky: #E3ECF8;
   --amber: #FFF0D3;
   --rose: #FBE2DE;
-  --radius: 18px;
+  --radius: 16px;
 
   /* ghi đè biến của Bootstrap */
   --bs-primary: #B9563A;
   --bs-primary-rgb: 185, 86, 58;
-  --bs-body-bg: #FBF5EE;
-  --bs-body-color: #3A2E29;
+  --bs-body-bg: #F8F7F4;
+  --bs-body-color: #2D3731;
   --bs-link-color: #B9563A;
   --bs-link-color-rgb: 185, 86, 58;
   --bs-link-hover-color: #9C4429;
   --bs-link-hover-color-rgb: 156, 68, 41;
-  --bs-border-color: #EBDFD2;
-  --bs-font-sans-serif: 'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --bs-border-color: #E5E6DF;
+  --bs-font-sans-serif: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --bs-body-font-family: var(--bs-font-sans-serif);
 }
 
-body { background: var(--cream); color: var(--ink); }
+body { background: var(--cream); color: var(--ink); font-size: .94rem; line-height: 1.65; }
 h1, h2, h3, h4, h5 { color: var(--ink); }
 .text-muted { color: var(--muted) !important; }
 
@@ -92,7 +92,7 @@ h1, h2, h3, h4, h5 { color: var(--ink); }
 .nav-item-link i { font-size: 1.15rem; color: var(--muted); }
 .nav-item-link:hover { background: var(--brand-soft); color: var(--brand-dark); }
 .nav-item-link:hover i { color: var(--brand-dark); }
-.nav-item-link.active { background: var(--brand); color: #fff; box-shadow: 0 6px 14px rgba(185, 86, 58, .28); }
+.nav-item-link.active { background: var(--brand); color: #fff; box-shadow: 0 4px 12px rgba(185, 86, 58, .15); }
 .nav-item-link.active i { color: #fff; }
 .sidebar-foot { margin-top: auto; display: flex; align-items: center; gap: .6rem; padding: 1rem .8rem; color: var(--muted); font-size: .85rem; font-weight: 600; line-height: 1.25; }
 .sidebar-foot .plant { font-size: 2.3rem; }
@@ -113,7 +113,7 @@ h1, h2, h3, h4, h5 { color: var(--ink); }
 /* ---------- thành phần dùng chung ---------- */
 .page-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 1rem; margin-bottom: 1.4rem; }
 .page-head h1 { font-size: 1.9rem; font-weight: 800; margin: 0; }
-.soft-card { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 2px 10px rgba(120, 80, 50, .06); }
+.soft-card { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 3px 16px rgba(35, 50, 40, .035); }
 .section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.1rem; }
 .section-head h2 { font-size: 1.15rem; font-weight: 800; margin: 0; }
 .link-more { font-size: .88rem; font-weight: 700; text-decoration: none; }

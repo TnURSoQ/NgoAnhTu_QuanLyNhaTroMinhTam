@@ -1,41 +1,29 @@
-{% extends 'base_public.html' %}
-{% block title %}{{ SITE_NAME }} · Phòng trọ cho thuê{% endblock %}
+{% extends 'base_public.html' %}{% load static %}
+{% block title %}{{ SITE_NAME }} · Tìm một nơi để gọi là nhà{% endblock %}
 {% block content %}
-<section class="hero">
-  <div>
-    <h1>Tìm phòng trọ ưng ý<br>tại {{ SITE_NAME }}</h1>
-    <p class="lead">Xem phòng, so sánh giá và đặt lịch đến xem trực tiếp, không cần đăng ký tài khoản.</p>
-    <div class="d-flex gap-2 flex-wrap">
-      <a class="btn btn-primary btn-lg" href="{% url 'public_rooms' %}"><i class="bi bi-door-open"></i> Xem phòng trống</a>
-      <a class="btn btn-outline-brand btn-lg" href="{% url 'appointment_lookup' %}"><i class="bi bi-search"></i> Tra cứu lịch hẹn</a>
-    </div>
+<section class="rental-hero" aria-labelledby="hero-title">
+  <img class="rental-hero-image" src="{% static 'images/minhtam-hero.webp' %}" alt="" fetchpriority="high" width="1659" height="948">
+  <div class="rental-hero-content">
+    <span class="eyebrow"><span class="eyebrow-dot"></span> Minh Tâm · Nhà trọ ấm áp</span>
+    <h1 id="hero-title">Tìm phòng trọ ưng ý.<br><em>Bắt đầu một<br>cuộc sống mới.</em></h1>
+    <p>Một góc nhỏ để nghỉ ngơi, một không gian để là chính mình. Tìm căn phòng phù hợp và hẹn đến xem cùng Minh Tâm.</p>
+    <a class="hero-text-link" href="#phong-trong">Khám phá phòng trống <i class="bi bi-arrow-down-right"></i></a>
   </div>
-  <div class="hero-badge">
-    <strong>{{ total_free }}</strong>
-    <span>phòng đang trống</span>
-  </div>
+  <div class="hero-availability"><span class="availability-dot"></span><div><strong>{{ total_free }} phòng đang trống</strong><small>{% if starting_price %}Chỉ từ {{ starting_price|floatformat:"0g" }} đ / tháng{% else %}Khám phá không gian sống tại Minh Tâm{% endif %}</small></div><i class="bi bi-door-open"></i></div>
+  <span class="hero-caption">Ảnh minh họa không gian sống</span>
+</section>
+<div class="hero-search-wrap">{% url 'home' as filter_url %}{% include 'public/_room_filters.html' %}</div>
+
+<div class="public-benefits"><span><i class="bi bi-door-open"></i> Xem phòng trước khi quyết định</span><span><i class="bi bi-calendar2-check"></i> Chủ động chọn lịch hẹn</span><span><i class="bi bi-person-check"></i> Đặt lịch không cần tài khoản</span></div>
+
+<section class="room-section" id="phong-trong" aria-labelledby="rooms-heading">
+  <div class="public-section-head"><div><span class="eyebrow">CHỌN MỘT KHÔNG GIAN CHO RIÊNG BẠN</span><h2 id="rooms-heading">{% if has_filters %}Phòng phù hợp với bạn{% else %}Căn phòng tiếp theo của bạn{% endif %}<span class="count-bubble">{{ filtered_count }}</span></h2><p>{% if has_filters %}Tìm thấy {{ filtered_count }} phòng phù hợp với tìm kiếm của bạn.{% else %}Phòng đang cho thuê · Chọn một căn phòng, đến xem và cảm nhận.{% endif %}</p></div><a class="btn btn-outline-brand" href="{% url 'public_rooms' %}">Xem tất cả phòng <i class="bi bi-arrow-up-right"></i></a></div>
+  {% if rooms %}<div class="row g-4">{% for r in rooms %}<div class="col-12 col-md-6 col-lg-4">{% include 'public/_room_card.html' %}</div>{% endfor %}</div>
+  {% else %}{% include 'public/_empty_rooms.html' %}{% endif %}
 </section>
 
-<section class="mb-5">
-  <div class="section-head">
-    <h2>Phòng đang cho thuê</h2>
-    <a class="link-more" href="{% url 'public_rooms' %}">Xem tất cả <i class="bi bi-arrow-right"></i></a>
-  </div>
-  {% if rooms %}
-  <div class="row g-3">
-    {% for r in rooms %}<div class="col-12 col-md-6 col-lg-4">{% include 'public/_room_card.html' %}</div>{% endfor %}
-  </div>
-  {% else %}
-  <div class="soft-card p-4 text-center text-muted">Hiện chưa có phòng trống. Vui lòng quay lại sau.</div>
-  {% endif %}
-</section>
-
-<section class="mb-4">
-  <div class="section-head"><h2>Đặt lịch xem phòng trong 3 bước</h2></div>
-  <div class="row g-3">
-    <div class="col-12 col-md-4"><div class="soft-card p-4 h-100"><div class="step-title"><span class="step-no">1</span> Chọn phòng</div><p class="text-muted mb-0">Xem giá, diện tích, tiện ích và chọn phòng bạn thích.</p></div></div>
-    <div class="col-12 col-md-4"><div class="soft-card p-4 h-100"><div class="step-title"><span class="step-no">2</span> Điền thông tin</div><p class="text-muted mb-0">Nhập tên, số điện thoại và chọn ngày giờ bạn muốn đến xem.</p></div></div>
-    <div class="col-12 col-md-4"><div class="soft-card p-4 h-100"><div class="step-title"><span class="step-no">3</span> Nhận mã lịch hẹn</div><p class="text-muted mb-0">Lưu lại mã để tra cứu. Chủ trọ sẽ liên hệ xác nhận với bạn.</p></div></div>
-  </div>
+<section class="booking-guide" aria-labelledby="guide-title">
+  <div class="guide-intro"><span class="eyebrow">THẬT DỄ ĐỂ BẮT ĐẦU</span><h2 id="guide-title">Một nơi ở mới,<br>chỉ qua <em>3 bước.</em></h2><p>Không cần đăng ký tài khoản. Bạn chọn phòng, chúng tôi sẵn sàng đón bạn đến xem.</p><a href="{% url 'appointment_lookup' %}" class="hero-text-link">Đã có lịch hẹn? Tra cứu tại đây <i class="bi bi-arrow-right"></i></a></div>
+  <div class="guide-steps"><article><span class="guide-number">01</span><div><h3>Chọn phòng bạn thích</h3><p>Xem giá, diện tích và tiện ích để tìm căn phòng phù hợp.</p></div><i class="bi bi-house-door"></i></article><article><span class="guide-number">02</span><div><h3>Hẹn một buổi đến xem</h3><p>Để lại thông tin liên hệ và chọn ngày, buổi thuận tiện cho bạn.</p></div><i class="bi bi-calendar2-heart"></i></article><article><span class="guide-number">03</span><div><h3>Gặp nhau tại Minh Tâm</h3><p>Lưu mã lịch hẹn. Chủ trọ sẽ liên hệ xác nhận và đón bạn.</p></div><i class="bi bi-key"></i></article></div>
 </section>
 {% endblock %}
