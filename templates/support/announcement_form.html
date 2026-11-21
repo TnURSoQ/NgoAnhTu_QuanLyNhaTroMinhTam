@@ -1,0 +1,22 @@
+{% extends 'base.html' %}{% load static %}
+{% block title %}{{ page_title }} · Thông báo{% endblock %}
+{% block content %}
+<a class="back-link" href="{{ back_url }}"><i class="bi bi-arrow-left"></i> Danh sách thông báo</a>
+<div class="page-head"><h1>{{ page_title }}</h1></div>
+<section class="soft-card p-3 p-md-4 form-card">
+  <form method="post" novalidate>
+    {% csrf_token %}{{ form.non_field_errors }}
+    {% for field in form %}
+    <div class="mb-3" {% if field.name == 'rooms' %}id="announcementRooms"{% endif %}>
+      {% if field.name == 'is_active' %}<label class="d-flex gap-2 align-items-center">{{ field }} {{ field.label }}</label>
+      {% else %}<label class="form-label" {% if field.name != 'rooms' %}for="{{ field.id_for_label }}"{% endif %}>{{ field.label }}</label>
+      {% if field.name == 'rooms' %}<div class="row g-2">{% for choice in field %}<div class="col-6 col-md-4"><label class="d-flex align-items-center gap-2">{{ choice.tag }} {{ choice.choice_label }}</label></div>{% empty %}<p class="text-muted">Chưa có phòng. Hãy thêm phòng trước khi gửi thông báo theo phòng.</p>{% endfor %}</div>{% else %}{{ field }}{% endif %}{% endif %}
+      {% for error in field.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+      {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+    </div>{% endfor %}
+    <p class="small text-muted">Thông báo hiển thị trong ứng dụng cho người đang thuê; người đã trả phòng không nhận thông báo mới của nhà trọ.</p>
+    <div class="d-flex gap-2 mt-4"><button class="btn btn-primary" type="submit">Lưu thông báo</button><a class="btn btn-outline-brand" href="{{ back_url }}">Hủy</a></div>
+  </form>
+</section>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/announcement-form.js' %}"></script>{% endblock %}

@@ -12,12 +12,15 @@
 
 <div class="row g-4">
   <div class="col-12 col-lg-7">
+    <section class="soft-card p-3 mb-4"><h2 class="h5">Ảnh thực tế của phòng</h2>{% if room.photos.all %}<div class="room-photo-gallery">{% for photo in room.photos.all %}<figure><a href="{{ photo.image.url }}" target="_blank" rel="noopener"><img src="{{ photo.image.url }}" alt="{{ photo.caption|default:'Ảnh phòng' }} {{ room.room_number }}" loading="lazy" width="900" height="600"></a>{% if photo.caption %}<figcaption>{{ photo.caption }}</figcaption>{% endif %}</figure>{% endfor %}</div>{% else %}<div class="room-photo-placeholder"><i class="bi bi-images" aria-hidden="true"></i><p>Chủ trọ đang cập nhật ảnh thực tế của phòng này.</p></div>{% endif %}</section>
     <section class="soft-card p-4 mb-4">
       <div class="section-head"><h2>Thông tin phòng</h2></div>
       <div class="info-row"><span>Diện tích</span><strong>{% if room.area %}{{ room.area|floatformat:"-2" }} m²{% else %}-{% endif %}</strong></div>
       <div class="info-row"><span>Sức chứa tối đa</span><strong>{{ room.max_occupants }} người</strong></div>
       <div class="info-row"><span>Vị trí</span><strong>Tầng {{ room.floor }}</strong></div>
       <div class="info-row"><span>Giá thuê</span><strong>{{ room.price|floatformat:"0g" }} đ/tháng</strong></div>
+      {% if utility_rate %}<div class="info-row"><span>Điện</span><strong>{{ utility_rate.electric_price|floatformat:'0g' }} đ/kWh</strong></div><div class="info-row"><span>Nước</span><strong>{{ utility_rate.water_price|floatformat:'0g' }} đ/m³</strong></div><p class="small text-muted mt-2">Điện nước tính theo chỉ số sử dụng thực tế. Đơn giá đang áp dụng từ {{ utility_rate.effective_date|date:'d/m/Y' }}.</p>{% else %}<p class="small text-muted mt-2">Đơn giá điện nước đang được cập nhật; vui lòng hỏi chủ trọ trước khi quyết định thuê.</p>{% endif %}
+      {% if public_services %}<h3 class="h6 mt-3">Các dịch vụ có thể đăng ký</h3>{% for service in public_services %}<div class="info-row"><span>{{ service.name }}</span><strong>{{ service.unit_price|floatformat:'0g' }} đ / đơn vị</strong></div>{% endfor %}<p class="small text-muted mt-2 mb-0">Chỉ tính các dịch vụ ghi trong hợp đồng. Xác nhận số lượng, kỳ thu và tiền cọc với chủ trọ khi nhận phòng.</p>{% endif %}
     </section>
     {% if room.amenity_list %}
     <section class="soft-card p-4 mb-4">

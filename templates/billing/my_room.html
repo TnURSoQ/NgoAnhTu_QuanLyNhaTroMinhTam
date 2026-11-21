@@ -3,10 +3,12 @@
 {% block content %}
 <div class="page-head"><div><h1>Phòng của tôi</h1><p class="text-muted mb-0">Thông tin chỗ ở, hóa đơn và thanh toán của bạn.</p></div><a class="btn btn-outline-brand" href="{% url 'my_invoices' %}"><i class="bi bi-receipt"></i> Tất cả hóa đơn</a></div>
 {% if not contract %}<div class="alert alert-info">Bạn hiện không có hợp đồng hiệu lực. Bạn vẫn có thể xem hóa đơn và lịch sử thanh toán cũ.</div>{% endif %}
+{% if can_submit_cooccupants %}<div class="mb-4"><a class="btn btn-outline-brand" href="{% url 'my_cooccupants' %}"><i class="bi bi-person-plus"></i> Người ở cùng / Gửi hồ sơ</a></div>{% endif %}
 <div class="row g-4">
   <div class="col-12 col-xl-8">
     {% include 'support/_tenant_cards.html' %}
-    {% if room %}<section class="soft-card p-3 p-md-4 mb-4"><div class="d-flex justify-content-between align-items-center gap-2 mb-3"><h2 class="h4 mb-0">Phòng {{ room.room_number }}</h2><span class="pill pill-mint">Đang ở</span></div><div class="info-row"><span>Tầng</span><strong>{{ room.floor }}</strong></div><div class="info-row"><span>Diện tích</span><strong>{% if room.area %}{{ room.area|floatformat:"-2" }} m²{% else %}Chưa cập nhật{% endif %}</strong></div><div class="info-row"><span>Tiền phòng</span><strong>{{ room.price|floatformat:"0g" }} đ/tháng</strong></div></section>{% endif %}
+    {% if room %}<section class="soft-card p-3 p-md-4 mb-4"><div class="d-flex justify-content-between align-items-center gap-2 mb-3"><h2 class="h4 mb-0">Phòng {{ room.room_number }}</h2><span class="pill pill-mint">Đang ở</span></div><div class="info-row"><span>Tầng</span><strong>{{ room.floor }}</strong></div><div class="info-row"><span>Diện tích</span><strong>{% if room.area %}{{ room.area|floatformat:"-2" }} m²{% else %}Chưa cập nhật{% endif %}</strong></div><div class="info-row"><span>Tiền phòng</span><strong>{{ contract.agreed_rent|floatformat:"0g" }} đ/tháng</strong></div></section>{% endif %}
+    {% if room %}{% include 'rooms/_amenities.html' %}{% endif %}
     <section class="soft-card p-3 p-md-4 mb-4">
       {% if unpaid_invoice %}<div class="section-head"><h2>Cần thanh toán tháng {{ unpaid_invoice.month }}/{{ unpaid_invoice.year }}</h2></div><div class="info-row"><span>Còn phải thu</span><strong class="text-danger fs-5">{{ unpaid_invoice.remaining|floatformat:"0g" }} đ</strong></div><div class="info-row"><span>Hạn thanh toán</span><strong>{{ unpaid_invoice.due_date|date:"d/m/Y" }}</strong></div><a class="btn btn-primary mt-3" href="{% url 'my_invoice_detail' unpaid_invoice.pk %}">Xem hóa đơn</a>
       {% else %}<div class="d-flex align-items-center gap-2 text-success"><i class="bi bi-check-circle fs-4"></i><h2 class="h5 mb-0">Bạn đã thanh toán đủ</h2></div>{% if not latest_invoice %}<p class="text-muted mt-2 mb-0">Chưa có hóa đơn nào.</p>{% endif %}{% endif %}
@@ -15,7 +17,7 @@
   </div>
   <div class="col-12 col-xl-4">
     {% include 'billing/_transfer_card.html' %}
-    {% if contract %}<section class="soft-card p-3 p-md-4"><div class="section-head"><h2>Hợp đồng hiện tại</h2></div><div class="info-row"><span>Mã hợp đồng</span><strong>{{ contract.display_code }}</strong></div><div class="info-row"><span>Từ ngày</span><strong>{{ contract.start_date|date:"d/m/Y" }}</strong></div><div class="info-row"><span>Đến ngày</span><strong>{{ contract.end_date|date:"d/m/Y" }}</strong></div><div class="info-row"><span>Tiền phòng</span><strong>{{ contract.room.price|floatformat:"0g" }} đ/tháng</strong></div><div class="info-row"><span>Trạng thái</span><span class="pill pill-mint">{{ contract.get_status_display }}</span></div><a class="btn btn-outline-brand w-100 mt-3" href="{% url 'my_contracts' %}">Xem hợp đồng</a></section>{% endif %}
+    {% if contract %}<section class="soft-card p-3 p-md-4"><div class="section-head"><h2>Hợp đồng hiện tại</h2></div><div class="info-row"><span>Mã hợp đồng</span><strong>{{ contract.display_code }}</strong></div><div class="info-row"><span>Từ ngày</span><strong>{{ contract.start_date|date:"d/m/Y" }}</strong></div><div class="info-row"><span>Đến ngày</span><strong>{{ contract.end_date|date:"d/m/Y" }}</strong></div><div class="info-row"><span>Tiền phòng</span><strong>{{ contract.agreed_rent|floatformat:"0g" }} đ/tháng</strong></div><div class="info-row"><span>Trạng thái</span><span class="pill pill-mint">{{ contract.get_status_display }}</span></div><a class="btn btn-outline-brand w-100 mt-3" href="{% url 'my_contracts' %}">Xem hợp đồng</a></section>{% endif %}
   </div>
 </div>
 {% endblock %}

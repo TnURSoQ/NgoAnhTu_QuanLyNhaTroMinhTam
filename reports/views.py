@@ -1,16 +1,19 @@
 from datetime import timedelta
 from decimal import Decimal
+import csv
 
-from django.db.models import Count, Prefetch, Sum
+from django.db.models import Case, Count, DecimalField, F, Prefetch, Sum, When
 from django.db.models.functions import ExtractMonth, ExtractYear
 from django.shortcuts import render
+from django.http import HttpResponse
 from django.urls import reverse
 from django.utils import timezone
 
 from accounts.decorators import owner_required
 from billing.models import Invoice, Payment, PaymentNotice
 from rooms.display import representative_of, room_status_ui
-from rooms.models import Contract, Room, ViewingAppointment
+from rooms.models import Contract, DepositEntry, Room, ViewingAppointment
+from billing.models import InvoiceDraft
 from support.models import MaintenanceRequest
 
 @owner_required
@@ -43,6 +46,23 @@ def overview(request):
 
     # Công việc cần xử lý
     tasks = []
+    pending_drafts = InvoiceDraft.objects.filter(invoice__isnull=True)
+    for draft in pending_drafts.select_related('contract__room')[:3]:
+        tasks.append({'icon': 'bi-speedometer2', 'tone': 'amber', 'title': 'Điện nước chưa chốt',
+                      'subtitle': f'P.{draft.contract.room.room_number} · tháng {draft.month}/{draft.year}',
+            'badge': 'Chờ nhập', 'badge_tone': 'warning',
+                      'url': f'{reverse("invoice_drafts")}?month={draft.month}&year={draft.year}'})
+    deposit_returns = Contract.objects.filter(status=Contract.Status.KET_THUC).annotate(
+        held=Sum(Case(
+            When(deposit_entries__kind__in=['receive', 'transfer_in'], then=F('deposit_entries__amount')),
+            When(deposit_entries__kind__in=['refund', 'deduct', 'transfer_out', 'pay_invoice'], then=-F('deposit_entries__amount')),
+            default=0, output_field=DecimalField(max_digits=14, decimal_places=0)))
+    ).filter(held__gt=0).select_related('room').order_by('checkout_date', 'pk')[:3]
+    for contract in deposit_returns:
+        tasks.append({'icon': 'bi-wallet2', 'tone': 'amber', 'title': 'Cọc còn giữ sau bàn giao',
+                      'subtitle': f'{contract.display_code} · P.{contract.room.room_number}',
+                      'amount': contract.held, 'badge': 'Chờ quyết toán', 'badge_tone': 'warning',
+                      'url': reverse('contract_detail', args=[contract.pk])})
     open_maintenance = MaintenanceRequest.objects.filter(
         status__in=[MaintenanceRequest.Status.DA_GUI, MaintenanceRequest.Status.DANG_XU_LY])
     for item in open_maintenance.filter(status=MaintenanceRequest.Status.DA_GUI).select_related('room', 'tenant')[:3]:
@@ -136,6 +156,10 @@ def overview(request):
 
 @owner_required
 def dashboard(request):
+    return render(request, 'reports/dashboard.html', _dashboard_context(request))
+
+
+def _dashboard_context(request):
     today = timezone.localdate()
 
     # 1. Tình trạng phòng
@@ -205,7 +229,7 @@ def dashboard(request):
         })
         total_debt += remaining
 
-    return render(request, 'reports/dashboard.html', {
+    return {
         'room_stats': room_stats,
         'year': year,
         'years': years,
@@ -214,4 +238,47 @@ def dashboard(request):
         'debts': debts,
         'total_debt': total_debt,
         'overdue_count': sum(1 for d in debts if d['overdue_days'] > 0),
-    })
+        'deposit_held': (DepositEntry.objects.filter(kind__in=['receive', 'transfer_in']).aggregate(
+            total=Sum('amount'))['total'] or 0) - (DepositEntry.objects.filter(
+                kind__in=['refund', 'deduct', 'transfer_out', 'pay_invoice']).aggregate(total=Sum('amount'))['total'] or 0),
+        'cash_received': Payment.objects.filter(paid_date__year=year).exclude(method=Payment.Method.TU_COC).aggregate(
+            total=Sum('amount'))['total'] or 0,
+        'deposit_applied': Payment.objects.filter(paid_date__year=year, method=Payment.Method.TU_COC).aggregate(
+            total=Sum('amount'))['total'] or 0,
+    }
+
+
+def _csv_cell(value):
+    text = str(value or '')
+    return "'" + text if text.lstrip().startswith(('=', '+', '-', '@', '\t', '\r')) else text
+
+
+@owner_required
+def cashbook_csv(request):
+    try:
+        year = int(request.GET.get('year', timezone.localdate().year))
+        if not 2000 <= year <= 2100:
+            raise ValueError
+    except (ValueError, TypeError):
+        return HttpResponse('Năm không hợp lệ.', status=400)
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="so-thu-coc-{year}.csv"'
+    response.write('\ufeff')
+    writer = csv.writer(response)
+    writer.writerow(['Ngày', 'Nhóm', 'Nội dung', 'Hợp đồng', 'Phòng', 'Số tiền (đ)',
+                     'Thu tiền mới (đ)', 'Chi tiền thực tế (đ)', 'Biến động nội bộ (đ)', 'Hình thức', 'Ghi chú'])
+    for payment in Payment.objects.filter(paid_date__year=year).select_related('invoice__contract__room').order_by('paid_date', 'pk'):
+        internal = payment.method == Payment.Method.TU_COC
+        writer.writerow([payment.paid_date.isoformat(), 'Đối trừ cọc vào hóa đơn' if internal else 'Thực thu hóa đơn', f'Phiếu thu #{payment.pk}',
+                         payment.invoice.contract.display_code, _csv_cell(payment.invoice.contract.room.room_number),
+                         int(payment.amount), 0 if internal else int(payment.amount), 0,
+                         int(payment.amount) if internal else 0, payment.get_method_display(), _csv_cell(payment.note)])
+    for entry in DepositEntry.objects.filter(occurred_on__year=year).select_related('contract__room').order_by('occurred_on', 'pk'):
+        writer.writerow([entry.occurred_on.isoformat(), 'Tiền cọc (tách riêng)', entry.get_kind_display(),
+                         entry.contract.display_code, _csv_cell(entry.contract.room.room_number),
+                         int(entry.amount), int(entry.amount) if entry.kind == DepositEntry.Kind.RECEIVE else 0,
+                         int(entry.amount) if entry.kind == DepositEntry.Kind.REFUND else 0,
+                         (int(entry.amount) if entry.kind == DepositEntry.Kind.TRANSFER_IN else -int(entry.amount))
+                         if entry.method == DepositEntry.Method.INTERNAL else 0,
+                         entry.get_method_display(), _csv_cell(entry.note)])
+    return response

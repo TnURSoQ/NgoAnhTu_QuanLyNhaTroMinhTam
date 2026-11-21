@@ -1,0 +1,45 @@
+{% extends 'base.html' %}{% load static %}
+{% block title %}{{ page_title }} · Nhà trọ Minh Tâm{% endblock %}
+{% block content %}
+<a class="back-link" href="{{ back_url }}"><i class="bi bi-arrow-left"></i> Quay lại</a>
+<div class="page-head"><div><h1>{{ page_title }}</h1>{% if subtitle %}<p class="text-muted mb-0">{{ subtitle }}</p>{% endif %}</div></div>
+<form method="post" enctype="multipart/form-data" id="roomForm" class="form-card" novalidate>
+  {% csrf_token %}
+  {% for error in form.non_field_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
+  <section class="soft-card p-4 mb-4"><h2 class="h5 mb-3">Thông tin phòng</h2><div class="row g-3">
+    {% for field in room_fields %}<div class="{% if field.widget_type == 'textarea' %}col-12{% else %}col-12 col-md-6{% endif %}">
+      <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}</label>{{ field }}
+      {% for error in field.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+      {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+    </div>{% endfor %}
+  </div></section>
+  <section class="soft-card p-4 mb-4"><h2 class="h5">Tiện ích trong phòng</h2>
+    <p class="text-muted small">Chọn các tiện ích thực tế có sẵn. Phí dịch vụ được cấu hình và thỏa thuận riêng trong hợp đồng.</p>
+    <div class="row g-2 mb-3">{% for choice in form.amenity_choices %}<div class="col-12 col-sm-6 col-lg-4"><label class="d-flex gap-2 align-items-center">{{ choice.tag }} {{ choice.choice_label }}</label></div>{% endfor %}</div>
+    {{ form.amenity_choices.errors }}
+    <label class="form-label" for="{{ form.amenities.id_for_label }}">{{ form.amenities.label }}</label>{{ form.amenities }}
+    {% for error in form.amenities.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}<div class="form-text">{{ form.amenities.help_text }}</div>
+  </section>
+  <section class="soft-card p-4 mb-4" id="roomPhotos"><h2 class="h5">Ảnh phòng</h2>
+    <p class="text-muted small">Ảnh đầu tiên hoặc ảnh được chọn làm đại diện sẽ xuất hiện trên danh sách phòng. Các ảnh còn lại hiển thị trong trang chi tiết.</p>
+    {{ form.cover_photo.errors }}{{ form.delete_photos.errors }}{{ form.new_cover_index }}{{ form.new_cover_index.errors }}
+    {% if existing_photos %}<div class="room-photo-editor mb-4">
+      {% for photo in existing_photos %}{% with photo_id=photo.pk|stringformat:'s' %}<figure class="room-photo-edit-card">
+        <img src="{{ photo.image.url }}" alt="{{ photo.caption|default:'Ảnh phòng' }}" width="480" height="320" loading="lazy">
+        {% if photo.caption %}<figcaption class="small text-muted mt-2">{{ photo.caption }}</figcaption>{% endif %}
+        <label class="d-flex gap-2 align-items-center mt-2"><input type="radio" class="form-check-input photo-cover" name="{{ form.cover_photo.html_name }}" value="{{ photo.pk }}" {% if form.cover_photo.value|stringformat:'s' == photo_id %}checked{% endif %}> Ảnh đại diện</label>
+        <label class="d-flex gap-2 align-items-center mt-2 text-danger"><input type="checkbox" class="form-check-input photo-delete" name="{{ form.delete_photos.html_name }}" value="{{ photo.pk }}" {% if photo_id in deleted_photo_ids %}checked{% endif %}> Xóa ảnh khi lưu</label>
+      </figure>{% endwith %}{% endfor %}
+    </div>{% endif %}
+    <label class="form-label" for="{{ form.photos.id_for_label }}">{% if existing_photos %}Thêm ảnh mới{% else %}Tải ảnh phòng{% endif %}</label>
+    {{ form.photos }}
+    {% for error in form.photos.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+    <div class="form-text">{{ form.photos.help_text }}</div>
+    {% if form.is_bound and form.photos.value %}<p class="small text-warning mt-2">Ảnh mới chưa được lưu. Vui lòng chọn lại tệp ảnh sau khi sửa các lỗi trong biểu mẫu.</p>{% endif %}
+    <div class="d-flex gap-2 align-items-center mt-3"><button type="button" class="btn btn-sm btn-outline-brand" id="clearNewPhotos" hidden>Bỏ chọn ảnh mới</button><span class="small text-muted" id="photoSelectionCount" aria-live="polite"></span></div>
+    <div class="room-photo-editor mt-3" id="newPhotoPreviews" aria-label="Ảnh mới đã chọn"></div>
+  </section>
+  <div class="d-flex gap-2"><button class="btn btn-primary px-4">{{ submit_label|default:'Lưu phòng' }}</button><a class="btn btn-outline-brand" href="{{ back_url }}">Hủy</a></div>
+</form>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/room-photos.js' %}"></script>{% endblock %}

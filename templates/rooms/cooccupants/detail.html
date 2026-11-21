@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %}{{ proposal.display_code }} · Hồ sơ người ở cùng{% endblock %}
+{% block content %}
+<a class="back-link" href="{% if owner_view %}{% url 'cooccupant_review_list' %}{% else %}{% url 'my_cooccupants' %}{% endif %}"><i class="bi bi-arrow-left"></i> Danh sách hồ sơ</a>
+<div class="page-head"><div><h1>{{ proposal.full_name }}</h1><p class="text-muted mb-0">{{ proposal.display_code }} · Phòng {{ proposal.contract.room.room_number }} · {{ proposal.contract.display_code }}</p></div><span class="pill pill-{{ proposal.status_tone }}">{{ proposal.get_status_display }}</span></div>
+<div class="row g-4"><div class="col-12 col-xl-7"><section class="soft-card p-3 p-md-4 mb-4"><h2 class="h5">Thông tin đã gửi</h2>
+  <div class="info-row"><span>Người gửi</span><strong>{{ proposal.submitted_by.full_name }}</strong></div>
+  <div class="info-row"><span>Ngày gửi</span><strong>{{ proposal.created_at|date:'d/m/Y H:i' }}</strong></div>
+  <div class="info-row"><span>Họ và tên</span><strong>{{ proposal.full_name }}</strong></div>
+  <div class="info-row"><span>Số CCCD/CMND</span><strong>{{ proposal.id_card_number }}</strong></div>
+  <div class="info-row"><span>Điện thoại</span><strong>{{ proposal.phone }}</strong></div>
+  <div class="info-row"><span>Email</span><strong>{{ proposal.email|default:'Chưa cung cấp' }}</strong></div>
+  <div class="info-row"><span>Ngày sinh</span><strong>{{ proposal.date_of_birth|date:'d/m/Y'|default:'Chưa cung cấp' }}</strong></div>
+  <div class="info-row"><span>Quê quán</span><strong>{{ proposal.hometown|default:'Chưa cung cấp' }}</strong></div>
+  <div class="info-row"><span>Nghề nghiệp</span><strong>{{ proposal.occupation|default:'Chưa cung cấp' }}</strong></div>
+  {% if proposal.note %}<h3 class="h6 mt-3">Lời nhắn</h3><p class="text-break mb-0">{{ proposal.note|linebreaksbr }}</p>{% endif %}
+  <div class="mt-4">{% include 'accounts/_identity_images.html' with document=proposal.identity_document current_id_number=proposal.id_card_number %}</div>
+</section>
+{% if proposal.previous_request %}<div class="alert alert-info">Gửi lại từ hồ sơ <a href="{% if owner_view %}{% url 'cooccupant_review' proposal.previous_request_id %}{% else %}{% url 'my_cooccupant_detail' proposal.previous_request_id %}{% endif %}">{{ proposal.previous_request.display_code }}</a>. Phản hồi lần trước: {{ proposal.previous_request.review_note|default:'Hồ sơ trước đã hủy.' }}</div>{% endif %}
+</div><div class="col-12 col-xl-5">
+  {% if proposal.status != 'pending' %}<section class="soft-card p-3 p-md-4"><h2 class="h5">Kết quả xử lý</h2><p>{{ proposal.review_note|default:'Không có phản hồi bổ sung.'|linebreaksbr }}</p>{% if proposal.reviewed_at %}<p class="small text-muted">{{ proposal.reviewed_at|date:'d/m/Y H:i' }} · {{ proposal.reviewed_by.first_name|default:proposal.reviewed_by.username }}</p>{% endif %}{% if proposal.status == 'approved' %}<p class="text-success">Người ở cùng đã được thêm vào hợp đồng. Hệ thống không tự cấp tài khoản đăng nhập mới.</p>{% if owner_view %}<a class="btn btn-outline-brand" href="{% url 'tenant_detail' proposal.approved_tenant_id %}">Xem hồ sơ người thuê</a>{% endif %}{% endif %}{% if can_resubmit %}<a class="btn btn-primary" href="{% url 'cooccupant_resubmit' proposal.pk %}">Sửa và gửi lại</a>{% endif %}</section>
+  {% elif owner_view %}
+  <section class="soft-card p-3 p-md-4"><h2 class="h5">Đối chiếu và xác nhận</h2><p>Phòng hiện có <strong>{{ current_count }}/{{ proposal.contract.room.max_occupants }}</strong> người. Số chỗ còn lại sẽ được kiểm tra lại khi xác nhận.</p>
+    {% if proposal.contract.status != 'hieu_luc' %}<div class="alert alert-warning">Hợp đồng đã kết thúc. Bạn có thể từ chối hồ sơ và hướng dẫn người gửi theo hợp đồng mới.</div>{% endif %}
+    {% if existing_tenant %}<div class="alert alert-info">Số giấy tờ này đã có hồ sơ <a href="{% url 'tenant_detail' existing_tenant.pk %}">{{ existing_tenant.full_name }}</a>. Điện thoại đang lưu: {{ existing_tenant.phone }}. Hãy kiểm tra trước khi dùng lại; dữ liệu đã lưu sẽ được giữ nguyên.</div>{% endif %}
+    <form method="post" novalidate>{% csrf_token %}{% for error in form.non_field_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
+    {% for field in form %}<div class="mb-3">{% if field.widget_type == 'checkbox' %}<label class="d-flex gap-2 align-items-start">{{ field }} <span>{{ field.label }}</span></label>{% else %}<label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% endif %}{% for error in field.errors %}<div class="small text-danger mt-1">{{ error }}</div>{% endfor %}</div>{% endfor %}
+    <button class="btn btn-primary" type="submit">Lưu kết quả</button></form>
+  </section>
+  {% else %}<section class="soft-card p-3 p-md-4"><h2 class="h5">Đang chờ chủ trọ xác nhận</h2><p class="text-muted">Thông tin chưa được thêm vào danh sách người đang ở. Nếu nhập nhầm, bạn có thể hủy rồi gửi lại hồ sơ.</p><form method="post" action="{% url 'cooccupant_cancel' proposal.pk %}">{% csrf_token %}<button class="btn btn-outline-brand text-danger" type="submit">Hủy hồ sơ</button></form></section>{% endif %}
+</div></div>
+{% endblock %}

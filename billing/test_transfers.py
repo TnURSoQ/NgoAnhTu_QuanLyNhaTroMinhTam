@@ -190,6 +190,8 @@ class TenantRoomAndTransferViewTests(TransferBase):
             self.assertContains(r, 'data-copy-text=')
 
     def test_room_debt_is_latest_unpaid_and_accounts_for_partial_payments(self):
+        self.contract.start_date = self.today.replace(year=self.today.year - 1, month=1, day=1)
+        self.contract.save()
         older = self.create(month=1 if self.today.month != 1 else 2, year=self.today.year - 1)
         services.record_payment(self.invoice, amount=1000000)
         r = self.client.get(reverse('my_room'))

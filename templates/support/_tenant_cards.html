@@ -1,5 +1,5 @@
 <section class="soft-card p-3 p-md-4 mb-4">
-  <div class="section-head"><h2>Thông báo từ chủ trọ</h2></div>
+  <div class="section-head"><h2>Thông báo từ chủ trọ</h2><a href="{% url 'my_notifications' %}">Xem tất cả</a></div>
   {% for announcement in announcements %}<article class="{% if not forloop.last %}border-bottom pb-3 mb-3{% endif %}"><h3 class="h6">{{ announcement.title }}</h3><small class="text-muted">{{ announcement.created_at|date:"d/m/Y H:i" }}</small><div class="mt-2 text-break">{{ announcement.content|linebreaksbr }}</div></article>{% empty %}<p class="text-muted mb-0">Chưa có thông báo mới.</p>{% endfor %}
 </section>
 <section class="soft-card p-3 p-md-4 mb-4">

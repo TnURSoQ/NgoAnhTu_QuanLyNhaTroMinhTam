@@ -30,6 +30,7 @@
       </ul>
       <div class="tab-content">
         <div class="tab-pane fade show active" id="tab-info">
+          {% include 'accounts/_identity_images.html' with document=tenant.identity_documents.first current_id_number=tenant.id_card_number %}
           <div class="info-row"><span>Họ và tên</span><strong>{{ tenant.full_name }}</strong></div>
           <div class="info-row"><span>Số điện thoại</span><strong>{{ tenant.phone }}</strong></div>
           <div class="info-row"><span>Số CCCD</span><strong>{{ tenant.id_card_number }}</strong></div>

@@ -1,8 +1,10 @@
-from datetime import timedelta
+import calendar
+from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 
@@ -11,7 +13,7 @@ from accounts.money import MAX_MONEY, whole_dong
 from accounts.text import normalize
 from rooms.display import representative_of
 from rooms.models import Contract, Room
-from .models import (BankAccount, Invoice, InvoiceService, Payment, PaymentNotice, Service,
+from .models import (BankAccount, Invoice, InvoiceDraft, InvoiceService, Payment, PaymentNotice, Service,
                      UtilityRate, UtilityReading)
 
 DUE_DAYS = 10
@@ -44,26 +46,113 @@ def _period(month, year):
 
 
 def available_rooms(month, year):
-    billed = Invoice.objects.filter(month=month, year=year).values_list('contract__room_id', flat=True)
-    return Room.objects.filter(contracts__status=Contract.Status.HIEU_LUC).exclude(
+    first, last = period_dates(month, year)
+    billed = Contract.objects.filter(status=Contract.Status.HIEU_LUC, invoices__month=month,
+                                     invoices__year=year).values_list('room_id', flat=True)
+    return Room.objects.filter(contracts__status=Contract.Status.HIEU_LUC,
+                                contracts__start_date__lte=last, contracts__end_date__gte=first).exclude(
         pk__in=billed).distinct().order_by('room_number')
 
 
-def _make_invoice(reading, *, room_fee=None, due_date=None, note='', service_items=None):
-    contract = Contract.objects.select_for_update().filter(
-        room=reading.room, status=Contract.Status.HIEU_LUC).first()
-    if not contract:
+def period_dates(month, year):
+    return date(year, month, 1), date(year, month, calendar.monthrange(year, month)[1])
+
+
+def validate_contract_period(contract, month, year):
+    if contract.status == Contract.Status.KET_THUC and not contract.checkout_date:
+        raise ValidationError(['Hợp đồng đã kết thúc nhưng chưa có ngày bàn giao để đối chiếu kỳ hóa đơn.'])
+    first, last = period_dates(month, year)
+    end = contract.checkout_date if contract.status == Contract.Status.KET_THUC else contract.end_date
+    if contract.start_date > last or end < first:
+        raise ValidationError(['Kỳ hóa đơn phải nằm trong thời gian thuê thực tế của hợp đồng.'])
+
+
+def room_contract(room_id, month, year):
+    first, last = period_dates(month, year)
+    return Contract.objects.filter(room_id=room_id, status=Contract.Status.HIEU_LUC,
+                                    start_date__lte=last, end_date__gte=first).first()
+
+
+def billable_services(contract):
+    return Service.objects.all() if contract.use_default_services else contract.services.all()
+
+
+def default_room_fee(contract, month, year):
+    rent = contract.agreed_rent
+    if contract.prorate_first_month and (contract.start_date.year, contract.start_date.month) == (year, month):
+        _, last = period_dates(month, year)
+        rent = whole_dong(rent * (last.day - contract.start_date.day + 1) / last.day)
+    return rent
+
+
+def previous_utility_reading(room_id, month, year, contract=None):
+    """Chỉ số cuối kỳ trước của chính phòng này, kể cả qua tháng 12/tháng 1."""
+    contract = contract or room_contract(room_id, month, year)
+    readings = UtilityReading.objects.filter(room_id=room_id)
+    if contract:
+        legacy = Q(contract__isnull=True, invoices__isnull=True)
+        if contract.initial_electric is not None and contract.initial_water is not None:
+            legacy &= Q(year__gt=contract.start_date.year) | Q(year=contract.start_date.year, month__gte=contract.start_date.month)
+        readings = readings.filter(Q(contract=contract) | legacy)
+    return readings.filter(
+        Q(year__lt=year) | Q(year=year, month__lt=month)
+    ).order_by('-year', '-month').first()
+
+
+def utility_baseline(room_id, month, year, contract=None):
+    contract = contract or room_contract(room_id, month, year)
+    previous = previous_utility_reading(room_id, month, year, contract)
+    if previous:
+        return previous.new_electric, previous.new_water, f'reading:{previous.pk}:{previous.new_electric}:{previous.new_water}'
+    if contract and contract.initial_electric is not None and contract.initial_water is not None:
+        return contract.initial_electric, contract.initial_water, f'handover:{contract.pk}:{contract.initial_electric}:{contract.initial_water}'
+    return None, None, ''
+
+
+def _set_previous_reading(reading):
+    electric, water, token = utility_baseline(reading.room_id, reading.month, reading.year, reading.contract)
+    if token:
+        reading.old_electric, reading.old_water = electric, water
+    return bool(token)
+
+
+def _store_reading(reading):
+    existing = UtilityReading.objects.filter(contract=reading.contract, month=reading.month,
+                                              year=reading.year).first()
+    if existing is None:
+        existing = UtilityReading.objects.filter(room_id=reading.room_id, month=reading.month,
+                                                  year=reading.year, contract__isnull=True,
+                                                  invoices__isnull=True).first()
+    if existing:
+        for name in ('contract', 'room', 'old_electric', 'new_electric', 'old_water', 'new_water'):
+            setattr(existing, name, getattr(reading, name))
+        reading = existing
+    reading.full_clean()
+    reading.save()
+    return reading
+
+
+def _make_invoice(reading, *, room_fee=None, due_date=None, note='', service_items=None,
+                  contract=None, unit_prices=None):
+    if contract is None:
+        contract = room_contract(reading.room_id, reading.month, reading.year)
+    if not contract or contract.room_id != reading.room_id:
         raise ValidationError(['Phòng này không có hợp đồng còn hiệu lực.'])
+    validate_contract_period(contract, reading.month, reading.year)
+    if reading.contract_id and reading.contract_id != contract.pk:
+        raise ValidationError(['Chỉ số điện nước không thuộc hợp đồng này.'])
     if Invoice.objects.filter(contract=contract, month=reading.month, year=reading.year).exists():
         raise ValidationError([f'Đã có hóa đơn tháng {reading.month}/{reading.year} cho hợp đồng này.'])
-    rate = UtilityRate.current()
-    if not rate:
-        raise ValidationError(['Chưa cấu hình đơn giá điện nước.'])
-    electric_price = _money(rate.electric_price, 'Đơn giá điện', positive=True)
-    water_price = _money(rate.water_price, 'Đơn giá nước', positive=True)
+    if unit_prices is None:
+        rate = UtilityRate.current()
+        if not rate:
+            raise ValidationError(['Chưa cấu hình đơn giá điện nước.'])
+        unit_prices = (rate.electric_price, rate.water_price)
+    electric_price = _money(unit_prices[0], 'Đơn giá điện', positive=True)
+    water_price = _money(unit_prices[1], 'Đơn giá nước', positive=True)
     electric_fee = _money(whole_dong(reading.electric_usage() * electric_price), 'Tiền điện')
     water_fee = _money(whole_dong(reading.water_usage() * water_price), 'Tiền nước')
-    room_fee = _money(reading.room.price if room_fee is None else room_fee, 'Tiền phòng')
+    room_fee = _money(default_room_fee(contract, reading.month, reading.year) if room_fee is None else room_fee, 'Tiền phòng')
     invoice = Invoice(
         contract=contract, utility_reading=reading, month=reading.month, year=reading.year,
         room_fee=room_fee, electric_fee=electric_fee, water_fee=water_fee,
@@ -72,7 +161,7 @@ def _make_invoice(reading, *, room_fee=None, due_date=None, note='', service_ite
     invoice.full_clean()
     invoice.save()
     if service_items is None:
-        service_items = [{'service': s, 'quantity': 1} for s in Service.objects.all()]
+        service_items = [{'service': s, 'quantity': 1} for s in billable_services(contract)]
     total = room_fee + electric_fee + water_fee
     for item in service_items:
         service = item.get('service')
@@ -99,6 +188,8 @@ def _make_invoice(reading, *, room_fee=None, due_date=None, note='', service_ite
     invoice.total_amount = _money(total, 'Tổng hóa đơn')
     invoice.save(update_fields=['total_amount'])
     invoice.update_status()
+    InvoiceDraft.objects.filter(contract=contract, month=reading.month, year=reading.year,
+                                invoice__isnull=True).update(invoice=invoice)
     return invoice
 
 
@@ -107,28 +198,36 @@ def create_invoice_from_reading(reading):
     """Giữ luồng lập hóa đơn trong quản trị, cùng quy tắc lưu đơn giá."""
     Room.objects.select_for_update().get(pk=reading.room_id)
     _period(reading.month, reading.year)
+    if not reading.contract_id:
+        reading.contract = room_contract(reading.room_id, reading.month, reading.year)
+    if not reading.contract:
+        raise ValidationError(['Kỳ hóa đơn phải nằm trong thời gian thuê của hợp đồng còn hiệu lực.'])
+    _set_previous_reading(reading)
     reading.full_clean()
-    return _make_invoice(reading)
+    reading.save(update_fields=['old_electric', 'old_water', 'contract'])
+    return _make_invoice(reading, contract=reading.contract)
 
 
 @transaction.atomic
-def create_invoice(*, room, month, year, old_electric, new_electric, old_water, new_water,
+def create_invoice(*, room, month, year, new_electric, new_water, old_electric=None, old_water=None,
                    room_fee=None, due_date=None, note='', service_items=None):
     month, year = _period(month, year)
     room = Room.objects.select_for_update().get(pk=room.pk)
-    reading = UtilityReading(room=room, month=month, year=year, old_electric=old_electric,
+    contract = room_contract(room.pk, month, year)
+    if not contract:
+        raise ValidationError(['Phòng không có hợp đồng còn hiệu lực trong kỳ hóa đơn đã chọn.'])
+    contract = Contract.objects.select_for_update().get(pk=contract.pk)
+    reading = UtilityReading(room=room, contract=contract, month=month, year=year, old_electric=old_electric,
                              new_electric=new_electric, old_water=old_water, new_water=new_water)
+    _set_previous_reading(reading)
     reading.clean_fields()
     reading.clean()
-    if UtilityReading.objects.filter(room=room, month=month, year=year, invoices__isnull=False).exists():
+    if Invoice.objects.filter(contract=contract, month=month, year=year).exists():
         raise ValidationError(['Đã có hóa đơn sử dụng chỉ số của phòng trong tháng này.'])
-    reading, _ = UtilityReading.objects.update_or_create(
-        room=room, month=month, year=year,
-        defaults={key: getattr(reading, key) for key in
-                  ('old_electric', 'new_electric', 'old_water', 'new_water')})
+    reading = _store_reading(reading)
     try:
         with transaction.atomic():
-            return _make_invoice(reading, room_fee=room_fee, due_date=due_date,
+            return _make_invoice(reading, contract=contract, room_fee=room_fee, due_date=due_date,
                                  note=note, service_items=service_items)
     except IntegrityError:
         raise ValidationError(['Hóa đơn tháng này hoặc dịch vụ đã tồn tại. Vui lòng kiểm tra lại.'])
@@ -136,6 +235,8 @@ def create_invoice(*, room, month, year, old_electric, new_electric, old_water, 
 
 @transaction.atomic
 def record_payment(invoice, *, amount, paid_date=None, method=Payment.Method.TIEN_MAT, note=''):
+    if method not in (Payment.Method.TIEN_MAT, Payment.Method.CHUYEN_KHOAN):
+        raise ValidationError(['Khoản đối trừ cọc phải được ghi nhận qua chức năng đối trừ cọc.'])
     invoice = Invoice.objects.select_for_update().get(pk=invoice.pk)
     payment = Payment(invoice=invoice, amount=_money(amount, 'Số tiền thanh toán', positive=True),
                       paid_date=paid_date or timezone.localdate(), method=method, note=note)
@@ -146,6 +247,8 @@ def record_payment(invoice, *, amount, paid_date=None, method=Payment.Method.TIE
 
 @transaction.atomic
 def delete_payment(payment):
+    if payment.method == Payment.Method.TU_COC:
+        raise ValidationError(['Khoản đối trừ đang liên kết với sổ cọc, không được xóa độc lập.'])
     Invoice.objects.select_for_update().get(pk=payment.invoice_id)
     payment.delete()
 

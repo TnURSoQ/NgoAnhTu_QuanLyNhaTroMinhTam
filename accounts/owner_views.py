@@ -6,6 +6,8 @@ from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, UpdateView
+from django.db import transaction, DatabaseError
+from django.http import HttpResponseRedirect
 
 from billing.models import Invoice, Payment
 from rooms.models import Contract, ContractTenant
@@ -14,6 +16,7 @@ from .forms import TenantForm
 from .mixins import OwnerRequiredMixin
 from .models import Tenant
 from .text import normalize
+from .identity_capture import IdentityCapture
 
 # trạng thái hiển thị: (nhãn, màu)
 TENANT_STATE_UI = {
@@ -112,8 +115,21 @@ def tenant_detail(request, pk):
 class TenantFormMixin(OwnerRequiredMixin, SuccessMessageMixin):
     model = Tenant
     form_class = TenantForm
-    template_name = '_crud/form.html'
+    template_name = 'accounts/tenant_form.html'
     success_message = 'Đã lưu hồ sơ %(full_name)s.'
+
+    def form_valid(self, form):
+        try:
+            with IdentityCapture() as capture, transaction.atomic():
+                if self.object is not None:
+                    Tenant.objects.select_for_update().get(pk=self.object.pk)
+                self.object = form.save()
+                capture.save(form, self.request.user, self.object)
+        except (OSError, DatabaseError):
+            form.add_error(None, 'Chưa lưu được hồ sơ và ảnh giấy tờ. Vui lòng thử lại.')
+            return self.form_invalid(form)
+        messages.success(self.request, self.get_success_message(form.cleaned_data))
+        return HttpResponseRedirect(self.get_success_url())
 
     def safe_next(self):
         url = self.request.POST.get('next') or self.request.GET.get('next') or ''

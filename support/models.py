@@ -1,6 +1,17 @@
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+from django.core.files.storage import FileSystemStorage
+import uuid
+from pathlib import Path
+
+
+def maintenance_storage():
+    return FileSystemStorage(location=getattr(settings, 'PRIVATE_MEDIA_ROOT', settings.BASE_DIR / 'private-media'))
+
+
+def maintenance_photo_path(instance, filename):
+    return f'maintenance/{instance.maintenance_id}/{uuid.uuid4().hex}{Path(filename).suffix.lower()}'
 
 
 class MaintenanceRequest(models.Model):
@@ -22,7 +33,7 @@ class MaintenanceRequest(models.Model):
         TOI = 'toi', 'Buổi tối'
 
     class ContactMethod(models.TextChoices):
-        WEB = 'web', 'Qua web'
+        WEB = 'web', 'Qua ứng dụng (thông báo)'
         DIEN_THOAI = 'dien_thoai', 'Qua điện thoại'
 
     class Status(models.TextChoices):
@@ -44,6 +55,7 @@ class MaintenanceRequest(models.Model):
     owner_note = models.TextField('Lời nhắn của chủ trọ', blank=True)
     expected_done = models.DateField('Ngày dự kiến xong', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     resolved_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
@@ -68,10 +80,17 @@ class MaintenanceRequest(models.Model):
 
 
 class Announcement(models.Model):
+    class Audience(models.TextChoices):
+        ALL = 'all', 'Tất cả các phòng'
+        ROOMS = 'rooms', 'Chọn phòng cụ thể'
+
     title = models.CharField('Tiêu đề', max_length=200)
     content = models.TextField('Nội dung')
     is_active = models.BooleanField('Hiển thị cho người thuê', default=True)
+    audience = models.CharField('Phạm vi thông báo', max_length=10, choices=Audience.choices, default=Audience.ALL)
+    rooms = models.ManyToManyField('rooms.Room', blank=True, related_name='announcements', verbose_name='Phòng nhận thông báo')
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='announcements')
 
     class Meta:
@@ -79,3 +98,35 @@ class Announcement(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class MaintenancePhoto(models.Model):
+    maintenance = models.ForeignKey(MaintenanceRequest, on_delete=models.CASCADE, related_name='photos')
+    image = models.ImageField(upload_to=maintenance_photo_path, storage=maintenance_storage)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['pk']
+
+
+class NotificationRead(models.Model):
+    class Kind(models.TextChoices):
+        ANNOUNCEMENT = 'announcement', 'Thông báo từ chủ trọ'
+        MAINTENANCE = 'maintenance', 'Phản hồi sửa chữa'
+        OWNER_MAINTENANCE = 'owner_maintenance', 'Yêu cầu sửa chữa mới'
+        OWNER_APPOINTMENT = 'owner_appointment', 'Lịch hẹn xem phòng'
+        OWNER_TRANSFER = 'owner_transfer', 'Báo chuyển khoản'
+        OWNER_COOCCUPANT = 'owner_cooccupant', 'Hồ sơ người ở cùng chờ duyệt'
+        COOCCUPANT_DECISION = 'cooccupant_decision', 'Kết quả hồ sơ người ở cùng'
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notification_reads')
+    kind = models.CharField(max_length=24, choices=Kind.choices)
+    object_id = models.PositiveBigIntegerField()
+    version = models.DateTimeField()
+    read_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'kind', 'object_id'], name='unique_user_notification_read'),
+            models.CheckConstraint(condition=models.Q(object_id__gt=0), name='positive_notification_object_id'),
+        ]

@@ -7,7 +7,8 @@ from accounts.decorators import owner_required
 from accounts.text import normalize
 from . import services
 from .contract_forms import (ContractCheckoutForm, ContractCreateForm, ContractRenewForm,
-                             ContractTransferForm)
+                             ContractTransferForm, DepositApplyForm, DepositReceiptForm, DepositRefundForm)
+from billing.models import Invoice
 from .display import contract_status_ui, representative_of
 from .models import Contract, ViewingAppointment
 
@@ -75,7 +76,11 @@ def contract_create(request):
             try:
                 contract = services.create_contract(
                     data['room'], list(data['tenants']), data['representative'],
-                    data['start_date'], data['end_date'], data['deposit'])
+                    data['start_date'], data['end_date'], data['deposit'],
+                    monthly_rent=data.get('monthly_rent'), initial_electric=data.get('initial_electric'),
+                    initial_water=data.get('initial_water'), prorate_first_month=data['prorate_first_month'],
+                    service_ids=[s.pk for s in data['services']], deposit_paid=data.get('deposit_paid') or 0,
+                    deposit_method=data.get('deposit_method') or 'cash', created_by=request.user)
             except ValidationError as e:
                 form.add_error(None, e)
             else:
@@ -86,8 +91,9 @@ def contract_create(request):
                     msg += (f' Tài khoản đăng nhập của {rep.full_name}: tên đăng nhập và mật khẩu '
                             f'ban đầu đều là số CCCD ({rep.id_card_number}).')
                 messages.success(request, msg)
+                appointment_id = request.POST.get('appointment', '')
                 ViewingAppointment.objects.filter(
-                    pk=request.POST.get('appointment') or 0, room=contract.room,
+                    pk=int(appointment_id) if appointment_id.isdigit() else 0, room=contract.room,
                     status__in=['cho_xac_nhan', 'da_xac_nhan', 'da_xem']).update(status='da_chot')                
                 return redirect('contract_detail', pk=contract.pk)
     else:
@@ -138,11 +144,17 @@ def contract_detail(request, pk):
         'renewals': contract.renewals.all(), 'successors': contract.next_contracts.select_related('room'),
         'days_left': (contract.end_date - today).days,
         'active': contract.status == Contract.Status.HIEU_LUC,
+        'deposit_balance': contract.deposit_balance, 'deposit_entries': contract.deposit_entries.select_related('related_contract'),
+        'checkout_record': getattr(contract, 'checkout_record', None),
+        'settlement': services.settlement_summary(contract),
     })
 
 
 def _action_page(request, contract, template_context):
-    ctx = {'contract': contract, 'people': contract.contract_tenants.all()}
+    summary = services.settlement_summary(contract)
+    ctx = {'contract': contract, 'people': contract.contract_tenants.all(), 'deposit_balance': summary['held'],
+           'settlement': summary, 'unpaid': summary['unpaid'], 'unpaid_total': summary['debt'],
+           'pending_drafts': summary['pending_drafts']}
     ctx.update(template_context)
     return render(request, 'rooms/contracts/action.html', ctx)
 
@@ -169,16 +181,6 @@ def contract_renew(request, pk):
     })
 
 
-def _blocked_page(request, contract, title, subtitle):
-    unpaid = services.unpaid_invoices(contract)
-    if not unpaid:
-        return None
-    return _action_page(request, contract, {
-        'title': title, 'subtitle': subtitle, 'blocked': True,
-        'unpaid': unpaid, 'unpaid_total': sum(r for _, r in unpaid),
-    })
-
-
 @owner_required
 def contract_checkout(request, pk):
     contract = _get_contract(pk)
@@ -186,22 +188,26 @@ def contract_checkout(request, pk):
         messages.error(request, 'Hợp đồng này đã kết thúc.')
         return redirect('contract_detail', pk=pk)
     title, subtitle = 'Trả phòng', f'Hợp đồng {contract.display_code} · phòng {contract.room.room_number}'
-    blocked = _blocked_page(request, contract, title, subtitle)
-    if blocked:
-        return blocked
     form = ContractCheckoutForm(contract, request.POST or None)
     if request.method == 'POST' and form.is_valid():
         try:
-            services.checkout_contract(contract, form.cleaned_data['checkout_date'])
+            data = form.cleaned_data
+            services.checkout_contract(
+                contract, data['checkout_date'], deposit_deduction=data.get('deposit_deduction') or 0,
+                deduction_reason=data.get('deduction_reason', ''), accept_outstanding=data.get('accept_outstanding', False),
+                room_condition=data.get('room_condition') or 'trong',
+                expected_deposit_balance=data.get('expected_deposit_balance'), created_by=request.user)
         except ValidationError as e:
             form.add_error(None, e)
         else:
-            messages.success(request, f'Đã trả phòng {contract.room.room_number}. Phòng đã chuyển sang "Còn trống".')
+            messages.success(request, f'Đã trả phòng {contract.room.room_number} và lưu biên bản bàn giao. '
+                                      'Nợ cũ và cọc chưa hoàn tiếp tục được theo dõi trên hợp đồng này.')
             return redirect('contract_detail', pk=pk)
     return _action_page(request, contract, {
         'title': title, 'subtitle': subtitle, 'form': form, 'submit_label': 'Xác nhận trả phòng',
-        'danger': True,
-        'notice': 'Sau khi trả phòng, hợp đồng kết thúc và phòng chuyển sang "Còn trống". Không hoàn tác được.',
+        'danger': True, 'show_outstanding': True,
+        'notice': 'Xác nhận này ghi nhận bàn giao phòng và khoản khấu trừ có lý do. '
+                  'Tiền cọc còn giữ sẽ được xử lý sau; chỉ ghi nhận hoàn tiền khi đã thực sự trả cho người thuê.',
     })
 
 
@@ -212,15 +218,15 @@ def contract_transfer(request, pk):
         messages.error(request, 'Hợp đồng này đã kết thúc.')
         return redirect('contract_detail', pk=pk)
     title, subtitle = 'Chuyển phòng', f'Hợp đồng {contract.display_code} · phòng {contract.room.room_number}'
-    blocked = _blocked_page(request, contract, title, subtitle)
-    if blocked:
-        return blocked
     form = ContractTransferForm(contract, request.POST or None)
     if request.method == 'POST' and form.is_valid():
         data = form.cleaned_data
         try:
             new_contract = services.transfer_contract(
-                contract, data['new_room'], data['transfer_date'], data['new_end_date'])
+                contract, data['new_room'], data['transfer_date'], data['new_end_date'],
+                initial_electric=data.get('initial_electric'), initial_water=data.get('initial_water'),
+                accept_outstanding=data.get('accept_outstanding', False), transfer_deposit=data.get('transfer_deposit', False),
+                created_by=request.user)
         except ValidationError as e:
             form.add_error(None, e)
         else:
@@ -229,7 +235,79 @@ def contract_transfer(request, pk):
             return redirect('contract_detail', pk=new_contract.pk)
     return _action_page(request, contract, {
         'title': title, 'subtitle': subtitle, 'form': form, 'submit_label': 'Xác nhận chuyển phòng',
-        'danger': False,
+        'danger': False, 'show_outstanding': True,
         'notice': 'Hợp đồng hiện tại sẽ kết thúc và một hợp đồng mới được lập ở phòng mới cho đúng những người này. '
-                  'Tiền đặt cọc được giữ nguyên. Hóa đơn cũ vẫn thuộc phòng cũ.',
+                  'Giá thuê hợp đồng mới theo giá niêm yết của phòng được chọn. Mức cọc thỏa thuận giữ nguyên; '
+                  'chỉ phần cọc còn dư được chuyển nếu bạn chọn, phần bảo đảm nợ hoặc phí chưa chốt vẫn giữ ở hợp đồng cũ.',
+    })
+
+
+@owner_required
+def contract_deposit_receive(request, pk):
+    contract = _get_contract(pk)
+    form = DepositReceiptForm(request.POST if request.method == 'POST' else None,
+                               initial={'amount': max(contract.deposit - contract.deposit_balance, 0)})
+    if request.method == 'POST' and form.is_valid():
+        try:
+            services.receive_deposit(contract, **form.cleaned_data, created_by=request.user)
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            messages.success(request, 'Đã ghi nhận thu cọc. Tiền cọc được theo dõi riêng, không tính vào doanh thu tiền thuê.')
+            return redirect('contract_detail', pk=pk)
+    return _action_page(request, contract, {
+        'title': 'Ghi nhận thu cọc', 'subtitle': f'{contract.display_code} · P.{contract.room.room_number}',
+        'form': form, 'submit_label': 'Xác nhận đã nhận tiền cọc', 'danger': False,
+        'notice': 'Chỉ ghi nhận sau khi thực sự nhận tiền. Có thể thu nhiều lần đến đủ mức cọc thỏa thuận.',
+    })
+
+
+@owner_required
+def contract_deposit_refund(request, pk):
+    contract = _get_contract(pk)
+    if contract.status != Contract.Status.KET_THUC:
+        messages.error(request, 'Hãy ghi nhận bàn giao phòng trước khi hoàn cọc.')
+        return redirect('contract_detail', pk=pk)
+    summary = services.settlement_summary(contract)
+    form = DepositRefundForm(request.POST if request.method == 'POST' else None,
+        initial={'amount': summary['refundable'], 'expected_deposit_balance': summary['held']})
+    if request.method == 'POST' and form.is_valid():
+        data = {key: value for key, value in form.cleaned_data.items() if key != 'confirm_refund'}
+        try:
+            services.refund_deposit(contract, **data, created_by=request.user)
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            messages.success(request, 'Đã ghi nhận khoản tiền cọc thực tế đã hoàn cho người thuê.')
+            return redirect('contract_detail', pk=pk)
+    return _action_page(request, contract, {
+        'title': 'Ghi nhận đã hoàn cọc', 'subtitle': f'{contract.display_code} · P.{contract.room.room_number}',
+        'form': form, 'submit_label': 'Xác nhận khoản tiền đã hoàn', 'danger': False,
+        'notice': 'Chỉ ghi nhận sau khi đã trả tiền mặt hoặc chuyển tiền cho người thuê. Có thể hoàn nhiều lần. '
+                  'Cần chốt các phí còn lại và giữ đủ phần bảo đảm công nợ trước khi hoàn.',
+    })
+
+
+@owner_required
+def contract_deposit_apply(request, pk, invoice_pk):
+    contract = _get_contract(pk)
+    invoice = get_object_or_404(Invoice, pk=invoice_pk, contract=contract)
+    remaining = invoice.total_amount - invoice.total_paid()
+    form = DepositApplyForm(request.POST if request.method == 'POST' else None,
+        initial={'amount': min(remaining, contract.deposit_balance), 'expected_deposit_balance': contract.deposit_balance})
+    if request.method == 'POST' and form.is_valid():
+        data = {key: value for key, value in form.cleaned_data.items() if key != 'confirm_application'}
+        try:
+            services.apply_deposit_to_invoice(invoice, **data, created_by=request.user)
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            messages.success(request, 'Đã đối trừ cọc vào hóa đơn và cập nhật đồng thời sổ cọc, công nợ.')
+            return redirect('contract_detail', pk=pk)
+    return _action_page(request, contract, {
+        'title': 'Đối trừ cọc thanh toán hóa đơn',
+        'subtitle': f'{contract.display_code} · Hóa đơn #{invoice.pk}, tháng {invoice.month}/{invoice.year}',
+        'form': form, 'submit_label': 'Xác nhận đối trừ cọc', 'danger': False,
+        'notice': f'Hóa đơn còn nợ {services.money(remaining)} đ. Khoản này dùng tiền cọc đang giữ để thanh toán, '
+                  'không phải một lần nhận tiền mặt hay chuyển khoản mới.',
     })

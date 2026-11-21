@@ -9,7 +9,7 @@ from django.utils import timezone
 from accounts.models import Tenant, User
 from billing.models import Invoice, Payment
 from . import services
-from .models import Contract, ContractRenewal, ContractTenant, Room
+from .models import CheckoutRecord, Contract, ContractRenewal, ContractTenant, Room
 
 
 def make_tenant(cccd, name):
@@ -326,6 +326,7 @@ class ContractListViewTests(ContractViewBase):
         self.assertEqual(ids(self.c_late.display_code.lower()), {self.c_late.pk})
 
     def test_empty_state(self):
+        CheckoutRecord.objects.all().delete()
         Contract.objects.all().delete()
         self.assertContains(self.client.get(reverse('contract_list')), 'Chưa có hợp đồng nào.')
 
@@ -495,9 +496,9 @@ class ContractActionViewTests(ContractViewBase):
         add_invoice(self.contract, total='1000000', paid='250000', month=10, year=2026)
         url = reverse('contract_checkout', args=[self.contract.pk])
         r = self.client.get(url)
-        self.assertContains(r, 'Chưa thực hiện được')
+        self.assertContains(r, 'Các khoản cần tiếp tục theo dõi.')
         self.assertContains(r, '750.000 đ')
-        self.assertNotContains(r, 'Xác nhận trả phòng')
+        self.assertContains(r, 'Xác nhận trả phòng')
         self.client.post(url, {'checkout_date': self.today.isoformat()})
         self.contract.refresh_from_db()
         self.assertEqual(self.contract.status, Contract.Status.HIEU_LUC)

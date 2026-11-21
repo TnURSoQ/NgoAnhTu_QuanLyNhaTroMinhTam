@@ -2,6 +2,10 @@
 {% block title %}Hóa đơn · Nhà trọ Minh Tâm{% endblock %}
 {% block content %}
 <div class="page-head"><div><h1>Hóa đơn</h1><p class="text-muted mb-0">Theo dõi tiền thuê và công nợ tháng {{ month }}/{{ year }}</p></div><a class="btn btn-primary" href="{% url 'invoice_create' %}?month={{ month }}&amp;year={{ year }}"><i class="bi bi-plus-lg"></i> Tạo hóa đơn</a></div>
+<section class="soft-card p-3 mb-3 d-flex justify-content-between align-items-center gap-3 flex-wrap">
+  <div><strong>Điện nước tháng {{ month }}/{{ year }}</strong><p class="text-muted small mb-0">{{ draft_count }} bản nháp đang chờ. Nhập chỉ số và kiểm tra trước khi chốt cho người thuê.</p></div>
+  <form method="post" action="{% url 'invoice_generate_drafts' %}">{% csrf_token %}<input type="hidden" name="month" value="{{ month }}"><input type="hidden" name="year" value="{{ year }}"><button class="btn btn-outline-brand">Nhập điện nước / Chốt hóa đơn</button></form>
+</section>
 <form method="get" class="toolbar flex-wrap mb-3">
   {% for field in period_form %}<div><label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>{% endfor %}
   <div class="flex-grow-1"><label class="form-label" for="invoiceSearch">Tìm phòng hoặc người thuê</label><input id="invoiceSearch" class="form-control" name="q" value="{{ q }}" placeholder="Số phòng, tên người thuê..."></div>

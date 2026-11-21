@@ -18,6 +18,10 @@
 
 <div class="row g-4">
   <div class="col-12 col-xl-8">
+    <section class="soft-card p-3 p-md-4 mb-4"><div class="section-head"><h2>Ảnh phòng</h2></div>
+      {% if room.photos.all %}<div class="room-photo-gallery">{% for photo in room.photos.all %}<figure><a href="{{ photo.image.url }}" target="_blank" rel="noopener"><img src="{{ photo.image.url }}" alt="{{ photo.caption|default:'Ảnh phòng' }} {{ room.room_number }}" loading="lazy" width="900" height="600"></a>{% if photo.caption %}<figcaption>{{ photo.caption }}</figcaption>{% endif %}</figure>{% endfor %}</div>
+      {% else %}<div class="room-photo-placeholder"><i class="bi bi-images" aria-hidden="true"></i><p class="mb-2">Phòng này chưa có ảnh.</p><a href="{% url 'room_update' room.pk %}#roomPhotos">Thêm ảnh khi sửa thông tin phòng</a></div>{% endif %}
+    </section>
     <section class="soft-card p-4 mb-4">
       <div class="section-head"><h2>Thông tin cơ bản</h2></div>
       <div class="info-row"><span>Diện tích</span><strong>{% if room.area %}{{ room.area|floatformat:"-2" }} m²{% else %}-{% endif %}</strong></div>
@@ -25,10 +29,10 @@
       <div class="info-row"><span>Giá thuê (niêm yết)</span><strong>{{ room.price|floatformat:"0g" }} đ/tháng</strong></div>
       <div class="info-row"><span>Tình trạng</span><strong>{{ label }}</strong></div>
       <div class="info-row"><span>Vị trí</span><strong>Tầng {{ room.floor }}</strong></div>
-      {% if room.amenity_list %}<div class="info-row"><span>Tiện ích</span><strong>{{ room.amenities }}</strong></div>{% endif %}
       {% if room.description %}<div class="info-row"><span>Mô tả</span><strong>{{ room.description }}</strong></div>{% endif %}
     </section>
 
+    {% include 'rooms/_amenities.html' %}
     <section class="soft-card p-4 mb-4">
       <div class="section-head"><h2>Người thuê hiện tại</h2></div>
       {% for ct in people %}
@@ -51,7 +55,7 @@
       {% if contract %}
       <div class="info-row"><span>Mã hợp đồng</span><strong><a href="{% url 'contract_detail' contract.pk %}">{{ contract.display_code }}</a></strong></div>
       <div class="info-row"><span>Thời gian thuê</span><strong>{{ contract.start_date|date:"d/m/Y" }} – {{ contract.end_date|date:"d/m/Y" }}</strong></div>
-      <div class="info-row"><span>Tiền thuê</span><strong>{{ room.price|floatformat:"0g" }} đ/tháng</strong></div>
+      <div class="info-row"><span>Giá thuê theo hợp đồng</span><strong>{{ contract.agreed_rent|floatformat:"0g" }} đ/tháng</strong></div>
       <div class="info-row"><span>Đặt cọc</span><strong>{{ contract.deposit|floatformat:"0g" }} đ</strong></div>
       <div class="info-row"><span>Trạng thái</span><strong><span class="pill pill-mint">Đang hiệu lực</span></strong></div>
       {% else %}

@@ -1,4 +1,5 @@
 from .models import User
+from django.core.exceptions import ValidationError
 
 
 def create_account_for_tenant(tenant):
@@ -15,6 +16,9 @@ def create_account_for_tenant(tenant):
             'email': tenant.email or '',
         },
     )
+    if not created and (user.role != User.Role.TENANT or (
+            hasattr(user, 'tenant_profile') and user.tenant_profile.pk != tenant.pk)):
+        raise ValidationError('Tên đăng nhập này đang thuộc tài khoản khác. Không thể tự liên kết hồ sơ người thuê.')
     if created:
         #dùng set_password để mật khẩu đc mã hoá, k lưu chữ thô trong database
         user.set_password(tenant.id_card_number) 

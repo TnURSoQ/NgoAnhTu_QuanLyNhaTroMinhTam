@@ -1,0 +1,12 @@
+{% extends 'print/base.html' %}
+{% block content %}
+<h2>Thanh toán hóa đơn trong năm {{ year }}</h2>
+<table><tbody><tr><th>Tiền mới nhận để thanh toán hóa đơn</th><td class="number">{{ cash_received|floatformat:'0g' }} đ</td></tr><tr><th>Tiền cọc được đối trừ vào hóa đơn</th><td class="number">{{ deposit_applied|floatformat:'0g' }} đ</td></tr><tr><th>Tổng giá trị hóa đơn đã thanh toán</th><td class="number">{{ year_total|floatformat:'0g' }} đ</td></tr></tbody></table>
+<table><thead><tr><th>Tháng</th><th class="number">Giá trị thanh toán hóa đơn</th></tr></thead><tbody>{% for month in months %}<tr><td>{{ month.month }}/{{ year }}</td><td class="number">{{ month.total|floatformat:'0g' }} đ</td></tr>{% endfor %}</tbody><tfoot><tr><th>Cả năm</th><th class="number">{{ year_total|floatformat:'0g' }} đ</th></tr></tfoot></table>
+<h2>Tình hình tại ngày in</h2>
+<p>Phòng đang thuê: {{ room_stats.dang_thue }}/{{ room_stats.total }} · Phòng trống: {{ room_stats.trong }} · Đang sửa chữa: {{ room_stats.bao_tri }}</p>
+<p>Cọc thực tế đang giữ: <strong>{{ deposit_held|floatformat:'0g' }} đ</strong> · Tổng công nợ còn phải thu: <strong>{{ total_debt|floatformat:'0g' }} đ</strong></p>
+<h2>Công nợ hiện tại, gồm mọi kỳ chưa thanh toán đủ</h2>
+<table><thead><tr><th>Phòng / Hợp đồng</th><th>Kỳ hóa đơn</th><th>Người đại diện</th><th>Hạn thanh toán</th><th class="number">Còn phải thu</th></tr></thead><tbody>{% for debt in debts %}<tr><td>{{ debt.invoice.contract.room.room_number }} / {{ debt.invoice.contract.display_code }}{% if debt.invoice.contract.status == 'ket_thuc' %}<br>Đã bàn giao{% endif %}</td><td>{{ debt.invoice.month }}/{{ debt.invoice.year }}</td><td>{{ debt.tenant.full_name|default:'Chưa ghi nhận' }}</td><td>{{ debt.invoice.due_date|date:'d/m/Y' }}</td><td class="number">{{ debt.remaining|floatformat:'0g' }} đ</td></tr>{% empty %}<tr><td colspan="5">Không có công nợ.</td></tr>{% endfor %}</tbody></table>
+<p class="muted">Cọc đang giữ được theo dõi riêng. Giá trị thanh toán hóa đơn bao gồm tiền mới nhận và đối trừ cọc; báo cáo này chưa bao gồm chi phí vận hành để xác định lợi nhuận.</p>
+{% endblock %}

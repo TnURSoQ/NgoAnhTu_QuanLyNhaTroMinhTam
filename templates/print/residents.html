@@ -1,0 +1,10 @@
+{% extends 'print/base.html' %}
+{% block page_size %}A4 landscape{% endblock %}
+{% block paper_label %}A4 ngang{% endblock %}
+{% block content %}
+<p>Tổng số người trong danh sách: <strong>{{ people|length }}</strong></p>
+<table><thead><tr><th>STT</th><th>Phòng</th><th>Họ và tên</th><th>Ngày sinh</th><th>CCCD/CMND</th><th>Điện thoại</th><th>Quê quán</th><th>Hợp đồng / ngày bắt đầu</th><th>Vai trò</th></tr></thead><tbody>
+{% for person in people %}<tr><td>{{ forloop.counter }}</td><td>{{ person.contract.room.room_number }}</td><td>{{ person.tenant.full_name }}</td><td>{{ person.tenant.date_of_birth|date:'d/m/Y'|default:'—' }}</td><td>{{ person.tenant.id_card_number }}</td><td>{{ person.tenant.phone }}</td><td>{{ person.tenant.hometown|default:'—' }}</td><td>{{ person.contract.display_code }}<br>{{ person.contract.start_date|date:'d/m/Y' }}</td><td>{% if person.is_representative %}Đại diện{% else %}Ở cùng{% endif %}</td></tr>{% empty %}<tr><td colspan="9">Chưa có người thuộc hợp đồng đang hiệu lực.</td></tr>{% endfor %}
+</tbody></table>
+<p class="muted">Danh sách theo các hợp đồng đang hiệu lực. Ngày bắt đầu hợp đồng có thể khác ngày vào ở thực tế của từng người; hồ sơ hiện tại chưa ghi nhận tình trạng đăng ký tạm trú.</p>
+{% endblock %}

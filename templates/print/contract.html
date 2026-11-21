@@ -1,0 +1,21 @@
+{% extends 'print/base.html' %}
+{% block content %}
+<p><strong>Mã hợp đồng:</strong> {{ contract.display_code }} · <strong>Phòng:</strong> {{ contract.room.room_number }}</p>
+<table><tbody>
+<tr><th>Thời hạn ghi trên hợp đồng</th><td>{{ contract.start_date|date:'d/m/Y' }} – {{ contract.end_date|date:'d/m/Y' }}</td></tr>
+<tr><th>Giá thuê theo hợp đồng</th><td>{{ contract.agreed_rent|floatformat:'0g' }} đ/tháng</td></tr>
+<tr><th>Cọc thỏa thuận</th><td>{{ contract.deposit|floatformat:'0g' }} đ</td></tr>
+<tr><th>Cọc thực tế đang giữ</th><td>{{ contract.deposit_balance|floatformat:'0g' }} đ</td></tr>
+<tr><th>Thu tháng đầu</th><td>{% if contract.prorate_first_month %}Theo ngày ở và số ngày trong tháng{% else %}Trọn tháng theo thỏa thuận{% endif %}</td></tr>
+<tr><th>Chỉ số công tơ lúc nhận phòng</th><td>Điện: {{ contract.initial_electric|default_if_none:'Chưa ghi nhận' }} · Nước: {{ contract.initial_water|default_if_none:'Chưa ghi nhận' }}</td></tr>
+<tr><th>Dịch vụ ghi nhận</th><td>{% if contract.use_default_services %}Theo danh mục chung{% else %}{% for service in contract.services.all %}{{ service.name }}{% if not forloop.last %}, {% endif %}{% empty %}Không đăng ký{% endfor %}{% endif %}</td></tr>
+<tr><th>Trạng thái</th><td>{{ contract.get_status_display }}{% if contract.checkout_date %} · Trả phòng ngày {{ contract.checkout_date|date:'d/m/Y' }}{% endif %}</td></tr>
+</tbody></table>
+<h2>Những người thuộc hợp đồng</h2>
+<table><thead><tr><th>Họ tên</th><th>CCCD/CMND</th><th>Điện thoại</th><th>Vai trò</th></tr></thead><tbody>
+{% for person in people %}<tr><td>{{ person.tenant.full_name }}</td><td>{{ person.tenant.id_card_number }}</td><td>{{ person.tenant.phone }}</td><td>{% if person.is_representative %}Đại diện{% else %}Ở cùng{% endif %}</td></tr>{% empty %}<tr><td colspan="4">Chưa có người thuê được ghi nhận.</td></tr>{% endfor %}
+</tbody></table>
+{% if contract.renewals.all %}<h2>Lịch sử gia hạn</h2><table><thead><tr><th>Ngày ghi nhận</th><th>Hạn cũ</th><th>Hạn mới</th><th>Ghi chú</th></tr></thead><tbody>{% for renewal in contract.renewals.all %}<tr><td>{{ renewal.renewed_on|date:'d/m/Y' }}</td><td>{{ renewal.old_end_date|date:'d/m/Y' }}</td><td>{{ renewal.new_end_date|date:'d/m/Y' }}</td><td>{{ renewal.note|default:'—' }}</td></tr>{% endfor %}</tbody></table>{% endif %}
+<p class="muted">Bản tổng hợp thông tin đã lưu để đối chiếu với hợp đồng và phụ lục hai bên đã ký.</p>
+<div class="signatures"><div><strong>Người lập</strong><small>(Ký, ghi rõ họ tên)</small></div><div><strong>Người thuê đối chiếu</strong><small>(Ký, ghi rõ họ tên)</small></div></div>
+{% endblock %}

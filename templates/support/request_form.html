@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'base.html' %}{% load static %}
 {% block title %}Gửi yêu cầu sửa chữa · Nhà trọ Minh Tâm{% endblock %}
 {% block content %}
 <a class="back-link" href="{% url 'my_maintenance_requests' %}"><i class="bi bi-arrow-left"></i> Yêu cầu của tôi</a>
@@ -7,17 +7,25 @@
 <div class="row g-4">
   <div class="col-12 col-xl-8"><section class="soft-card p-3 p-md-4">
     <div class="section-head"><h2>Thông tin yêu cầu</h2></div>
-    <form method="post" novalidate>
+    <form method="post" enctype="multipart/form-data" novalidate>
       {% csrf_token %}
       {% for error in form.non_field_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
       <div class="mb-3"><label class="form-label" for="request-room">Phòng</label><input id="request-room" class="form-control" value="{% if contract %}P.{{ contract.room.room_number }} (tự động){% else %}Chưa có hợp đồng hiệu lực{% endif %}" disabled></div>
       <div class="row g-3">
-      {% for field in form %}
+      {% for field in form %}{% if field.name != 'preferred_date' and field.name != 'preferred_slot' and field.name != 'photos' and field.name != 'camera_photo' %}
         <div class="{% if field.name == 'title' or field.name == 'description' %}col-12{% else %}col-12 col-md-6{% endif %}">
           <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}</label>
           {{ field }}{% for error in field.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
         </div>
-      {% endfor %}
+      {% endif %}{% endfor %}
+      <fieldset class="col-12"><legend class="form-label fs-6">Thời gian thuận tiện</legend><div class="row g-3">
+        <div class="col-12 col-sm-6"><label class="form-label small text-muted" for="{{ form.preferred_date.id_for_label }}">Ngày</label>{{ form.preferred_date }}{{ form.preferred_date.errors }}</div>
+        <div class="col-12 col-sm-6"><label class="form-label small text-muted" for="{{ form.preferred_slot.id_for_label }}">Buổi</label>{{ form.preferred_slot }}{{ form.preferred_slot.errors }}</div>
+      </div></fieldset>
+      <div class="col-12"><label class="form-label" for="{{ form.photos.id_for_label }}">Tải ảnh sự cố</label>{{ form.photos }}{{ form.photos.errors }}<div class="form-text">{{ form.photos.help_text }}</div></div>
+      <div class="col-12"><label class="form-label" for="{{ form.camera_photo.id_for_label }}">Chụp ảnh bằng điện thoại</label>{{ form.camera_photo }}{{ form.camera_photo.errors }}<div class="form-text">Trên điện thoại có hỗ trợ, nút này mở camera. Bạn cũng có thể chọn ảnh có sẵn.</div></div>
+      <div class="col-12"><p class="small text-muted mb-2" id="maintenancePhotoCount" aria-live="polite"></p><div class="room-photo-editor" id="maintenancePhotoPreviews"></div><button type="button" class="btn btn-sm btn-outline-brand mt-2" id="clearMaintenancePhotos" hidden>Bỏ chọn ảnh</button></div>
+      {% if form.is_bound %}<div class="col-12 small text-warning">Nếu đã chọn ảnh, hãy chọn lại ảnh trước khi gửi lại biểu mẫu.</div>{% endif %}
       </div>
       <button class="btn btn-primary w-100 mt-4" type="submit" {% if not contract %}disabled{% endif %}><i class="bi bi-send"></i> Gửi yêu cầu sửa chữa</button>
     </form>
@@ -25,3 +33,4 @@
   <div class="col-12 col-xl-4"><section class="soft-card p-4"><span class="task-icon tone-amber mb-3"><i class="bi bi-tools"></i></span><h2 class="h5">Chủ trọ sẽ tiếp nhận yêu cầu</h2><p class="text-muted">Bạn có thể xem lời nhắn, ngày dự kiến sửa xong và trạng thái xử lý trong chi tiết yêu cầu.</p><p class="small text-muted mb-0">Ngày và buổi thuận tiện là tùy chọn. Bạn có thể hủy khi yêu cầu còn ở trạng thái đã gửi.</p></section></div>
 </div>
 {% endblock %}
+{% block scripts %}<script src="{% static 'js/maintenance-photos.js' %}"></script>{% endblock %}

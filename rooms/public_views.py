@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 
 from accounts.text import normalize
+from billing.models import Service, UtilityRate
 from . import services
 from .models import Room, ViewingAppointment
 from .public_forms import BookingForm
@@ -14,7 +15,7 @@ PRICE_RANGES = {
 
 
 def free_rooms():
-    return Room.objects.filter(status=Room.Status.TRONG).order_by('floor', 'room_number')
+    return Room.objects.filter(status=Room.Status.TRONG).exclude(contracts__status='hieu_luc').prefetch_related('photos').order_by('floor', 'room_number')
 
 
 def landing(request):
@@ -80,11 +81,12 @@ def _room_context(request):
         'q': q, 'amenity': amenity, 'amenities': amenities, 'capacities': capacities,
         'filtered_count': len(rooms), 'starting_price': starting_price,
         'has_filters': bool(q or price or floor is not None or people is not None or amenity or sort),
+        'utility_rate': UtilityRate.current(),
     }
 
 
 def room_detail(request, pk):
-    room = get_object_or_404(Room, pk=pk)
+    room = get_object_or_404(Room.objects.prefetch_related('photos'), pk=pk)
     available = services.is_free(room)
     form = BookingForm(request.POST or None, room=room)
     if request.method == 'POST':
@@ -97,7 +99,9 @@ def room_detail(request, pk):
                 room=room, visitor_name=data['visitor_name'].strip(), visitor_phone=data['visitor_phone'],
                 appointment_date=data['appointment_date'], slot=data['slot'], note=data['note'].strip())
             return redirect('appointment_status', code=appointment.code)
-    return render(request, 'public/room_detail.html', {'room': room, 'available': available, 'form': form})
+    return render(request, 'public/room_detail.html', {'room': room, 'available': available, 'form': form,
+                                                     'utility_rate': UtilityRate.current(),
+                                                     'public_services': Service.objects.order_by('name')})
 
 
 def appointment_status(request, code):

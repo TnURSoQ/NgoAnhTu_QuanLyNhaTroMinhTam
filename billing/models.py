@@ -29,6 +29,8 @@ class UtilityRate(models.Model):
 
 class UtilityReading(models.Model):
     room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='utility_readings')
+    contract = models.ForeignKey(Contract, on_delete=models.PROTECT, null=True, blank=True,
+                                  related_name='utility_readings')
     month = models.PositiveSmallIntegerField()
     year = models.PositiveSmallIntegerField()
     old_electric = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
@@ -38,7 +40,10 @@ class UtilityReading(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['room', 'month', 'year'], name='unique_room_month_year_reading'),
+            models.UniqueConstraint(fields=['contract', 'month', 'year'],
+                                    condition=models.Q(contract__isnull=False), name='unique_contract_period_reading'),
+            models.UniqueConstraint(fields=['room', 'month', 'year'],
+                                    condition=models.Q(contract__isnull=True), name='unique_legacy_room_period_reading'),
         ]
 
     def clean(self):
@@ -167,10 +172,84 @@ class InvoiceService(models.Model):
             kwargs['update_fields'] = set(kwargs['update_fields']) | {'unit_price', 'description', 'subtotal'}
         super().save(*args, **kwargs)
 
+
+class InvoiceDraft(models.Model):
+    """Bản nháp chưa phát hành; không tham gia công nợ hay thanh toán."""
+
+    contract = models.ForeignKey(Contract, on_delete=models.CASCADE, related_name='invoice_drafts')
+    month = models.PositiveSmallIntegerField()
+    year = models.PositiveSmallIntegerField()
+    room_fee = DongField()
+    electric_unit_price = DongField(null=True, blank=True)
+    water_unit_price = DongField(null=True, blank=True)
+    old_electric = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                       validators=[MinValueValidator(0)])
+    new_electric = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                       validators=[MinValueValidator(0)])
+    old_water = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                    validators=[MinValueValidator(0)])
+    new_water = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                    validators=[MinValueValidator(0)])
+    # Lưu tên, số lượng và đơn giá tại lúc tạo nháp, kể cả khi dịch vụ sau đó bị xóa.
+    service_items = models.JSONField(default=list, blank=True)
+    due_date = models.DateField(null=True, blank=True)
+    note = models.TextField(blank=True, default='')
+    invoice = models.OneToOneField(Invoice, on_delete=models.CASCADE, null=True, blank=True,
+                                   related_name='draft')
+    revision = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['contract', 'month', 'year'],
+                                    name='unique_contract_period_draft'),
+            models.CheckConstraint(condition=models.Q(month__gte=1, month__lte=12),
+                                   name='draft_valid_month'),
+            models.CheckConstraint(condition=models.Q(year__gte=2000, year__lte=2100),
+                                   name='draft_valid_year'),
+        ]
+        ordering = ['contract__room__room_number', 'pk']
+
+    def clean(self):
+        errors = {}
+        for utility, label in [('electric', 'điện'), ('water', 'nước')]:
+            old, new = getattr(self, f'old_{utility}'), getattr(self, f'new_{utility}')
+            if old is not None and new is not None and new < old:
+                errors[f'new_{utility}'] = f'Chỉ số {label} mới không được nhỏ hơn chỉ số cũ.'
+        if errors:
+            raise ValidationError(errors)
+
+    @property
+    def is_ready(self):
+        present = all(getattr(self, name) is not None for name in (
+            'old_electric', 'new_electric', 'old_water', 'new_water',
+            'electric_unit_price', 'water_unit_price'))
+        return (present and self.new_electric >= self.old_electric >= 0
+                and self.new_water >= self.old_water >= 0
+                and self.electric_unit_price > 0 and self.water_unit_price > 0)
+
+    @property
+    def services_total(self):
+        return sum((item['quantity'] * int(item['unit_price']) for item in self.service_items), 0)
+
+    @property
+    def estimated_total(self):
+        if not self.is_ready:
+            return None
+        return (self.room_fee + self.services_total
+                + whole_dong((self.new_electric - self.old_electric) * self.electric_unit_price)
+                + whole_dong((self.new_water - self.old_water) * self.water_unit_price))
+
+    def __str__(self):
+        return f'Nháp T{self.month}/{self.year} - {self.contract}'
+
+
 class Payment(models.Model):
     class Method(models.TextChoices):
         TIEN_MAT = 'tien_mat', 'Tiền mặt'
         CHUYEN_KHOAN = 'chuyen_khoan', 'Chuyển khoản'
+        TU_COC = 'tu_coc', 'Đối trừ từ tiền cọc'
 
     invoice = models.ForeignKey(Invoice, on_delete=models.PROTECT, related_name='payments')
     amount = DongField()
@@ -179,6 +258,16 @@ class Payment(models.Model):
     note = models.TextField(blank=True, default='')
 
     def clean(self):
+        from rooms.models import DepositEntry
+        entry = DepositEntry.objects.filter(payment_id=self.pk).first() if self.pk else None
+        if entry:
+            if (self.method != self.Method.TU_COC or self.amount != entry.amount
+                    or self.invoice.contract_id != entry.contract_id or self.paid_date != entry.occurred_on):
+                raise ValidationError('Khoản đối trừ cọc liên kết với sổ cọc, không được sửa độc lập.')
+        elif self.method == self.Method.TU_COC and not getattr(self, '_from_deposit', False):
+            raise ValidationError('Hãy sử dụng chức năng đối trừ cọc để ghi nhận đồng thời sổ cọc và hóa đơn.')
+        if self.paid_date and self.paid_date > timezone.localdate():
+            raise ValidationError('Ngày thu tiền không được ở tương lai.')
         if self.amount is None:
             return
         if self.amount <= 0:

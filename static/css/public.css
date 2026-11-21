@@ -175,6 +175,10 @@
   .catalog-heading h1 { font-size: 2.1rem; }
 }
 @media (max-width: 360px) {
+  .pub-nav .brand { gap: 8px; }
+  .pub-nav .brand-name { font-size: 1.2rem; }
+  .pub-nav .brand-tag { font-size: .6rem; letter-spacing: .3px; }
+  .pub-nav .logo { width: 32px; height: 32px; }
   .search-main { grid-template-columns: 1fr; }
   .search-field:nth-child(n) { border-right: 0; padding-inline: 0; }
   .search-submit { margin-left: 0; }

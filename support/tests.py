@@ -299,13 +299,13 @@ class AnnouncementTests(SupportBase):
         self.client.force_login(self.owner)
         self.assertRedirects(self.client.post(reverse('announcement_create'), {
             'title': 'Cúp nước', 'content': 'Bảo trì đường ống buổi sáng.', 'is_active': 'on',
-            'created_by': self.user.pk}), reverse('announcement_list'))
+            'created_by': self.user.pk, 'audience': 'all'}), reverse('announcement_list'))
         item = Announcement.objects.get()
         self.assertEqual(item.created_by, self.owner)
         self.assertTrue(item.is_active)
         self.client.post(reverse('announcement_update', args=[item.pk]), {
             'title': 'Đổi lịch bảo trì', 'content': 'Bảo trì buổi chiều.', 'is_active': 'on',
-            'created_by': self.user.pk})
+            'created_by': self.user.pk, 'audience': 'all'})
         item.refresh_from_db()
         self.assertEqual(item.title, 'Đổi lịch bảo trì')
         self.assertEqual(item.created_by, self.owner)

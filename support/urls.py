@@ -4,6 +4,13 @@ from . import views
 
 
 urlpatterns = [
+    path('thong-bao/chua-doc/', views.notification_count, name='notification_count'),
+    path('thong-bao/da-doc/', views.notification_mark_read, name='notification_mark_read'),
+    path('thong-bao-cua-toi/', views.my_notifications, name='my_notifications'),
+    path('thong-bao-cua-toi/bang/', views.my_notifications_panel, name='my_notifications_panel'),
+    path('thong-bao-cua-toi/<int:pk>/', views.my_announcement_detail, name='my_announcement_detail'),
+    path('thong-bao-chu-tro/bang/', views.owner_notifications_panel, name='owner_notifications_panel'),
+    path('anh-sua-chua/<int:pk>/', views.maintenance_photo, name='maintenance_photo'),
     path('sua-chua-cua-toi/', views.my_maintenance_requests, name='my_maintenance_requests'),
     path('sua-chua-cua-toi/gui/', views.maintenance_create, name='maintenance_create'),
     path('sua-chua-cua-toi/<int:pk>/da-gui/', views.maintenance_sent, name='maintenance_sent'),

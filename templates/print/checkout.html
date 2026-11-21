@@ -1,0 +1,17 @@
+{% extends 'print/base.html' %}
+{% block content %}
+<p><strong>Hợp đồng:</strong> {{ contract.display_code }} · <strong>Phòng:</strong> {{ contract.room.room_number }}</p>
+<p><strong>Người đại diện:</strong> {{ tenant.full_name|default:'Chưa ghi nhận' }}</p>
+<p><strong>Ngày bàn giao:</strong> {{ record.checkout_date|date:'d/m/Y' }}</p>
+<table><tbody>
+<tr><th>Tình trạng phòng khi bàn giao</th><td>{{ record.get_room_condition_display }}</td></tr>
+<tr><th>Cọc đang giữ tại lúc bàn giao</th><td class="number">{{ record.deposit_held|floatformat:'0g' }} đ</td></tr>
+<tr><th>Khấu trừ đã ghi nhận khi bàn giao</th><td class="number">{{ record.deposit_deducted|floatformat:'0g' }} đ</td></tr>
+<tr><th>Nợ hóa đơn tại lúc bàn giao</th><td class="number">{{ record.debt_at_checkout|floatformat:'0g' }} đ</td></tr>
+<tr><th>Hóa đơn nháp chưa chốt tại lúc bàn giao</th><td>{{ record.drafts_at_checkout }}</td></tr>
+<tr><th>Cọc dự kiến hoàn tại lúc bàn giao</th><td>{% if record.drafts_at_checkout or record.refund_due_at_checkout == None %}Chưa xác định; cần đối chiếu các khoản chưa chốt.{% else %}{{ record.refund_due_at_checkout|floatformat:'0g' }} đ{% endif %}</td></tr>
+<tr><th>Ghi nhận bàn giao</th><td>{{ record.note|default:'Không có ghi chú bổ sung.'|linebreaksbr }}</td></tr>
+</tbody></table>
+<p class="notice">Các số tiền trên là dữ liệu tại thời điểm bàn giao. Số cọc dự kiến hoàn không xác nhận đã trả tiền; việc hoàn thực tế được ghi nhận bằng giao dịch và phiếu hoàn cọc riêng.</p>
+<div class="signatures"><div><strong>Chủ trọ bàn giao</strong><small>(Ký, ghi rõ họ tên)</small></div><div><strong>Người thuê bàn giao</strong><small>(Ký, ghi rõ họ tên)</small></div></div>
+{% endblock %}

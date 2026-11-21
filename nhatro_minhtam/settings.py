@@ -11,21 +11,25 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+from urllib.parse import parse_qs, unquote, urlsplit
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+PRIVATE_MEDIA_ROOT = BASE_DIR / 'private-media'
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-da=$54_gmq(af$2%!=0+q5nkn(o+9!ov7y3aausg_!ftom)nr0'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-da=$54_gmq(af$2%!=0+q5nkn(o+9!ov7y3aausg_!ftom)nr0')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DJANGO_DEBUG', '1').lower() in ('1', 'true', 'yes')
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [host.strip() for host in os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(',') if host.strip()]
 
 
 # Application definition
@@ -68,6 +72,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                                 'accounts.context_processors.site_info',
+                'support.context_processors.notification_status',
             ],
         },
     },
@@ -85,6 +90,25 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+# Môi trường phát triển mặc định dùng SQLite; triển khai có thể dùng PostgreSQL.
+database_url = os.environ.get('DATABASE_URL', '')
+if database_url:
+    database_parts = urlsplit(database_url)
+    if database_parts.scheme not in ('postgres', 'postgresql'):
+        raise ImproperlyConfigured('DATABASE_URL chỉ chấp nhận PostgreSQL.')
+    DATABASES['default'] = {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': unquote(database_parts.path.lstrip('/')),
+        'USER': unquote(database_parts.username or ''),
+        'PASSWORD': unquote(database_parts.password or ''),
+        'HOST': database_parts.hostname or '',
+        'PORT': database_parts.port or 5432,
+        'CONN_MAX_AGE': 60,
+        'OPTIONS': {'sslmode': parse_qs(database_parts.query).get('sslmode', ['prefer'])[0]},
+    }
+    if not DATABASES['default']['NAME']:
+        raise ImproperlyConfigured('DATABASE_URL cần có tên cơ sở dữ liệu.')
 
 
 # Password validation
@@ -139,6 +163,8 @@ LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'home'
 NUMBER_GROUPING = 3  # hiện 2.392.500 thay vì 2392500
 STATICFILES_DIRS = [BASE_DIR / 'static']
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # Thông tin hiển thị cho khách ở trang công khai 
 SITE_NAME = 'Nhà trọ Minh Tâm'

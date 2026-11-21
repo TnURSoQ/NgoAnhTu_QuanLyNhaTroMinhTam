@@ -1,0 +1,16 @@
+{% extends 'print/base.html' %}
+{% block content %}
+<p><strong>Số phiếu:</strong> {{ code }} · <strong>Ngày giao dịch:</strong> {{ occurred_on|date:'d/m/Y' }}</p>
+<p><strong>Hợp đồng:</strong> {{ contract.display_code }} · <strong>Phòng:</strong> {{ contract.room.room_number }}</p>
+<p><strong>Người đại diện hợp đồng:</strong> {{ tenant.full_name|default:'Chưa ghi nhận' }}</p>
+<table><tbody>
+<tr><th>Số tiền</th><td class="number"><strong>{{ amount|floatformat:'0g' }} đ</strong></td></tr>
+<tr><th>Hình thức</th><td>{{ method }}</td></tr>
+{% if payment %}<tr><th>Hóa đơn liên quan</th><td>#{{ payment.invoice_id }} · Tháng {{ payment.invoice.month }}/{{ payment.invoice.year }}</td></tr>{% endif %}
+{% if entry.payment %}<tr><th>Hóa đơn đối trừ</th><td>#{{ entry.payment.invoice_id }} · Tháng {{ entry.payment.invoice.month }}/{{ entry.payment.invoice.year }}</td></tr>{% endif %}
+{% if entry.related_contract %}<tr><th>Hợp đồng liên quan</th><td>{{ entry.related_contract.display_code }} · Phòng {{ entry.related_contract.room.room_number }}</td></tr>{% endif %}
+<tr><th>Nội dung ghi nhận</th><td>{{ note|default:'Không có ghi chú bổ sung.'|linebreaksbr }}</td></tr>
+</tbody></table>
+{% if internal %}<p class="notice">Giao dịch điều chuyển, khấu trừ hoặc đối trừ trong sổ tiền cọc. Số tiền trên phiếu không phải khoản tiền mặt/chuyển khoản mới thu vào.</p>{% elif entry.kind == 'refund' %}<p>Phiếu ghi nhận khoản tiền cọc đã thực sự hoàn cho người thuê.</p>{% endif %}
+<div class="signatures"><div><strong>{% if entry.kind == 'refund' %}Người giao tiền{% elif internal %}Người lập phiếu{% else %}Người thu tiền{% endif %}</strong><small>(Ký, ghi rõ họ tên)</small></div><div><strong>{% if entry.kind == 'refund' %}Người nhận tiền{% else %}Người thuê{% endif %}</strong><small>(Ký, ghi rõ họ tên)</small></div></div>
+{% endblock %}

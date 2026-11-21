@@ -129,12 +129,65 @@ class InvoiceServiceTests(BillingBase):
         self.assertEqual(reading.new_electric, 150)
 
     def test_admin_creation_also_saves_prices(self):
-        reading = UtilityReading.objects.create(room=self.room, month=1, year=2025,
+        reading = UtilityReading.objects.create(room=self.room, month=self.today.month, year=self.today.year,
                                                 old_electric=0, new_electric=50, old_water=0, new_water=3)
         inv = services.create_invoice_from_reading(reading)
         self.assertEqual(inv.electric_unit_price, 3500)
         self.assertEqual(inv.water_unit_price, 15000)
         self.assertEqual(inv.total_amount, 2820000)
+
+    def test_create_uses_previous_final_readings_instead_of_submitted_old_values(self):
+        previous = self.today.replace(day=1) - timedelta(days=1)
+        UtilityReading.objects.create(room=self.room, month=previous.month, year=previous.year,
+                                      old_electric=100, new_electric=125, old_water=10, new_water=12)
+        inv = self.create(old_electric=0, old_water=0)
+        self.assertEqual(inv.utility_reading.old_electric, 125)
+        self.assertEqual(inv.utility_reading.old_water, 12)
+        self.assertEqual(inv.electric_fee, 87500)
+        self.assertEqual(inv.water_fee, 15000)
+
+    def test_create_only_needs_new_readings_when_previous_period_exists(self):
+        self.contract.start_date = self.today.replace(month=1, day=1)
+        self.contract.save()
+        UtilityReading.objects.create(room=self.room, month=12, year=self.today.year - 1,
+                                      old_electric=100, new_electric=125, old_water=10, new_water=12)
+        inv = services.create_invoice(room=self.room, month=1, year=self.today.year,
+                                       new_electric=150, new_water=13)
+        self.assertEqual(inv.utility_reading.old_electric, 125)
+        self.assertEqual(inv.utility_reading.old_water, 12)
+
+    def test_first_period_still_requires_initial_readings(self):
+        with self.assertRaises(ValidationError):
+            services.create_invoice(room=self.room, month=self.today.month, year=self.today.year,
+                                     new_electric=150, new_water=13)
+        self.assertFalse(Invoice.objects.exists())
+        self.assertFalse(UtilityReading.objects.exists())
+
+    def test_admin_creation_uses_previous_period_and_persists_derived_old_readings(self):
+        previous = self.today.replace(day=1) - timedelta(days=1)
+        UtilityReading.objects.create(room=self.room, month=previous.month, year=previous.year,
+                                      old_electric=100, new_electric=125, old_water=10, new_water=12)
+        reading = UtilityReading.objects.create(room=self.room, month=self.today.month, year=self.today.year,
+                                                 old_electric=0, new_electric=150, old_water=0, new_water=13)
+        inv = services.create_invoice_from_reading(reading)
+        reading.refresh_from_db()
+        self.assertEqual(reading.old_electric, 125)
+        self.assertEqual(reading.old_water, 12)
+        self.assertEqual(inv.electric_fee, 87500)
+
+    def test_previous_readings_ignore_future_period_and_other_rooms(self):
+        self.contract.start_date = self.today.replace(month=1, day=1)
+        self.contract.save()
+        UtilityReading.objects.create(room=self.room, month=12, year=self.today.year - 1,
+                                      old_electric=100, new_electric=125, old_water=10, new_water=12)
+        UtilityReading.objects.create(room=self.room, month=2, year=self.today.year,
+                                      old_electric=200, new_electric=500, old_water=20, new_water=50)
+        other_room = Room.objects.create(room_number='102', price=2000000)
+        UtilityReading.objects.create(room=other_room, month=12, year=self.today.year - 1,
+                                      old_electric=500, new_electric=999, old_water=50, new_water=99)
+        inv = self.create(month=1)
+        self.assertEqual(inv.utility_reading.old_electric, 125)
+        self.assertEqual(inv.utility_reading.old_water, 12)
 
 
 class PaymentStatusTests(BillingBase):
@@ -225,6 +278,8 @@ class OwnerBillingViewTests(BillingBase):
                 self.assertNotContains(r, 'href="/admin/')
 
     def test_list_defaults_filters_counts_and_search_without_accents(self):
+        self.contract.start_date = self.today.replace(month=1, day=1)
+        self.contract.save()
         inv = self.create()
         services.record_payment(inv, amount=1)
         other_month = 1 if self.today.month != 1 else 2
@@ -341,13 +396,44 @@ class OwnerBillingViewTests(BillingBase):
     def test_previous_meter_defaults_and_first_period_blank(self):
         r = self.client.get(reverse('invoice_create'), {'room': self.room.pk})
         self.assertEqual(r.context['form'].initial['old_electric'], '')
+        self.assertFalse(r.context['form'].fields['old_electric'].disabled)
         self.assertEqual(r.context['form'].initial['room_fee'], '2500000')
         UtilityReading.objects.create(room=self.room, month=12, year=self.today.year - 1,
                                         old_electric=1, new_electric=123, old_water=1, new_water=12)
         r = self.client.get(reverse('invoice_create'), {'room': self.room.pk})
         self.assertEqual(r.context['form'].initial['old_electric'], '123.00')
         self.assertEqual(r.context['form'].initial['old_water'], '12.00')
+        self.assertTrue(r.context['form'].fields['old_electric'].disabled)
+        self.assertTrue(r.context['form'].fields['old_water'].disabled)
+        self.assertIsNone(r.context['form']['new_electric'].value())
+        self.assertIsNone(r.context['form']['new_water'].value())
         self.assertEqual(r.context['lines'].forms[0].initial['quantity'], 1)
+
+    def test_create_without_posting_old_readings_uses_room_history(self):
+        previous = self.today.replace(day=1) - timedelta(days=1)
+        UtilityReading.objects.create(room=self.room, month=previous.month, year=previous.year,
+                                      old_electric=100, new_electric=125, old_water=10, new_water=12)
+        data = self.post_data()
+        del data['old_electric']
+        del data['old_water']
+        response = self.client.post(reverse('invoice_create'), data)
+        self.assertEqual(response.status_code, 302)
+        inv = Invoice.objects.get()
+        self.assertEqual(inv.utility_reading.old_electric, 125)
+        self.assertEqual(inv.utility_reading.old_water, 12)
+        self.assertEqual(inv.utility_reading.new_electric, 150)
+        self.assertEqual(inv.utility_reading.new_water, 13)
+
+    def test_create_validates_new_readings_against_automatic_old_readings(self):
+        previous = self.today.replace(day=1) - timedelta(days=1)
+        UtilityReading.objects.create(room=self.room, month=previous.month, year=previous.year,
+                                      old_electric=100, new_electric=125, old_water=10, new_water=12)
+        data = self.post_data()
+        data.update(old_electric='0', old_water='0', new_electric='120')
+        response = self.client.post(reverse('invoice_create'), data)
+        self.assertContains(response, 'Chỉ số điện mới không được nhỏ hơn chỉ số cũ.')
+        self.assertEqual(response.context['form']['old_electric'].value(), '125.00')
+        self.assertFalse(Invoice.objects.exists())
 
     def test_settings_appends_rates_and_keeps_history(self):
         r = self.client.post(reverse('billing_settings'), {

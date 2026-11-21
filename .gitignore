@@ -4,3 +4,7 @@ __pycache__/
 .env
 db.sqlite3
 *.log
+.backups/
+media/
+private-media/
+static/vendor/identity-ocr/

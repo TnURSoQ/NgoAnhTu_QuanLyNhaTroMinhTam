@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}{{ announcement.title }} · Thông báo{% endblock %}
+{% block content %}
+<a class="back-link" href="{% url 'my_notifications' %}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Thông báo của tôi</a>
+<article class="soft-card p-3 p-md-4 form-card">
+  <h1 class="h4 fw-bold text-break">{{ announcement.title }}</h1>
+  <time class="small text-muted" datetime="{{ announcement.created_at|date:'c' }}">{{ announcement.created_at|date:'d/m/Y H:i' }}</time>
+  <div class="mt-4 text-break">{{ announcement.content|linebreaksbr }}</div>
+</article>
+{% endblock %}

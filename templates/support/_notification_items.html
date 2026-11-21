@@ -1,0 +1,11 @@
+{% for item in notifications %}{% if item.url %}<a class="notification-item{% if item.is_unread %} is-unread{% endif %}" href="{{ item.url }}" data-read-token="{{ item.read_token }}" data-unread="{{ item.is_unread|yesno:'true,false' }}">{% else %}<article class="notification-item{% if item.is_unread %} is-unread{% endif %}">{% endif %}
+  {% if item.is_unread %}<span class="visually-hidden" data-unread-label>Chưa đọc. </span>{% endif %}
+  <p class="notification-title">{{ item.title }}{% if item.status_label %} · {{ item.status_label }}{% endif %}</p>
+  {% if item.preview %}<p class="notification-item-content">{{ item.preview|truncatechars:140 }}</p>{% endif %}
+  <time datetime="{{ item.notification_time|date:'c' }}">{{ item.notification_time|date:'d/m/Y H:i' }}</time>
+{% if item.url %}</a>{% else %}</article>{% endif %}{% empty %}<p class="notification-empty">Không có thông báo</p>{% endfor %}
+{% if notifications.has_other_pages %}<nav class="notification-pagination" aria-label="Trang thông báo">
+  {% if notifications.has_previous %}<a data-notification-page href="{{ notification_panel_url }}?page={{ notifications.previous_page_number }}">Trước</a>{% else %}<span></span>{% endif %}
+  <span>{{ notifications.number }}/{{ notifications.paginator.num_pages }}</span>
+  {% if notifications.has_next %}<a data-notification-page href="{{ notification_panel_url }}?page={{ notifications.next_page_number }}">Tiếp</a>{% else %}<span></span>{% endif %}
+</nav>{% endif %}

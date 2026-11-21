@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}Thông báo của tôi · Nhà trọ Minh Tâm{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Thông báo</h1><p class="text-muted mb-0">Thông tin từ chủ trọ và phản hồi yêu cầu sửa chữa.</p></div></div>
+<div class="row g-4">
+  <div class="col-12 col-xl-7"><section class="soft-card p-3 p-md-4">
+    <div class="section-head"><h2>Thông báo từ chủ trọ</h2></div>
+    {% for item in announcements %}<article class="border-bottom pb-3 mb-3"><h3 class="h5">{{ item.title }}</h3><small class="text-muted">{{ item.created_at|date:'d/m/Y H:i' }}</small><div class="mt-2 text-break">{{ item.content|linebreaksbr }}</div></article>{% empty %}<p class="text-muted">Chưa có thông báo dành cho bạn.</p>{% endfor %}
+    <div class="d-flex gap-3">{% if announcements.has_previous %}<a href="?page={{ announcements.previous_page_number }}&amp;replies_page={{ replies.number }}">Trước</a>{% endif %}{% if announcements.has_next %}<a href="?page={{ announcements.next_page_number }}&amp;replies_page={{ replies.number }}">Tiếp</a>{% endif %}</div>
+  </section></div>
+  <div class="col-12 col-xl-5"><section class="soft-card p-3 p-md-4">
+    <div class="section-head"><h2>Phản hồi sửa chữa</h2></div>
+    {% for item in replies %}<article class="border-bottom pb-3 mb-3"><a class="fw-semibold" href="{% url 'my_maintenance_detail' item.pk %}">{{ item.display_code }} · {{ item.title }}</a><div class="mt-2"><span class="pill pill-{{ item.status_tone }}">{{ item.get_status_display }}</span></div><small class="text-muted">{{ item.updated_at|date:'d/m/Y H:i' }}</small>{% if item.owner_note %}<p class="mt-2 mb-0 text-break">{{ item.owner_note|linebreaksbr }}</p>{% endif %}{% if item.expected_done %}<p class="small mt-2 mb-0">Dự kiến xong: {{ item.expected_done|date:'d/m/Y' }}</p>{% endif %}</article>{% empty %}<p class="text-muted">Chưa có cập nhật sửa chữa.</p>{% endfor %}
+    <div class="d-flex gap-3">{% if replies.has_previous %}<a href="?page={{ announcements.number }}&amp;replies_page={{ replies.previous_page_number }}">Trước</a>{% endif %}{% if replies.has_next %}<a href="?page={{ announcements.number }}&amp;replies_page={{ replies.next_page_number }}">Tiếp</a>{% endif %}</div>
+  </section></div>
+</div>
+{% endblock %}

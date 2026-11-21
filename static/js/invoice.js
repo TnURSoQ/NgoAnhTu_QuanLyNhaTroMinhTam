@@ -42,8 +42,19 @@
     field('room_fee').value = data ? moneyFmt(data.price) : '';
     for (const utility of ['electric', 'water']) {
       field('old_' + utility).value = data ? data['old_' + utility] : '';
+      field('old_' + utility).disabled = Boolean(data && data.has_previous_reading);
       field('new_' + utility).value = '';
     }
+    document.getElementById('invoiceLines').replaceChildren();
+    field('items-TOTAL_FORMS').value = '0';
+    (data ? data.service_items || [] : []).forEach((item, index) => {
+      const html = document.getElementById('emptyLine').innerHTML.replace(/__prefix__/g, String(index));
+      document.getElementById('invoiceLines').insertAdjacentHTML('beforeend', html);
+      for (const name of ['service', 'description', 'quantity', 'unit_price']) {
+        field('items-' + index + '-' + name).value = name === 'unit_price' ? moneyFmt(item[name]) : item[name];
+      }
+      field('items-TOTAL_FORMS').value = index + 1;
+    });
     preview();
   });
   for (const name of ['month', 'year']) field(name).addEventListener('change', () => {

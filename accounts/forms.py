@@ -4,6 +4,7 @@ from django import forms
 from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
 
 from .models import Tenant
+from .identity_forms import IdentityScanFormMixin
 
 
 class BootstrapFormMixin:
@@ -45,7 +46,7 @@ class ChangePasswordForm(BootstrapFormMixin, PasswordChangeForm):
     pass
 
 
-class TenantForm(BootstrapFormMixin, forms.ModelForm):
+class TenantForm(BootstrapFormMixin, IdentityScanFormMixin, forms.ModelForm):
     class Meta:
         model = Tenant
         fields = ['full_name', 'phone', 'id_card_number', 'email', 'date_of_birth',
@@ -68,7 +69,7 @@ class TenantForm(BootstrapFormMixin, forms.ModelForm):
                           'Đây cũng là tên đăng nhập của người đại diện hợp đồng.')
         if self.instance.pk and self.instance.user_id:
             cccd.disabled = True
-            cccd.help_text = 'Người này đã có tài khoản đăng nhập nên không đổi được số CCCD.'
+            cccd.help_text = 'Tại đây không đổi được số CCCD. Người thuê có thể cập nhật trong Thông tin cá nhân; tên đăng nhập hiện tại được giữ nguyên.'
 
     def clean_id_card_number(self):
         if self.fields['id_card_number'].disabled:
@@ -82,4 +83,27 @@ class TenantForm(BootstrapFormMixin, forms.ModelForm):
         value = (self.cleaned_data.get('phone') or '').strip()
         if not re.fullmatch(r'[0-9+\s]{9,15}', value):
             raise forms.ValidationError('Số điện thoại không hợp lệ (9 đến 15 chữ số).')
+        return value
+
+
+class TenantProfileForm(TenantForm):
+    class Meta(TenantForm.Meta):
+        fields = ['full_name', 'phone', 'email', 'date_of_birth', 'id_card_number', 'hometown', 'occupation']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['id_card_number'].disabled = False
+        self.fields['id_card_number'].help_text = 'CCCD gồm 12 chữ số, hoặc CMND cũ gồm 9 chữ số. Cập nhật số này không đổi tên đăng nhập.'
+
+    def clean_id_card_number(self):
+        value = (self.cleaned_data.get('id_card_number') or '').strip()
+        if not re.fullmatch(r'[0-9]{9}|[0-9]{12}', value):
+            raise forms.ValidationError('Số CCCD phải gồm 12 chữ số (hoặc 9 chữ số với CMND cũ).')
+        return value
+
+    def clean_date_of_birth(self):
+        from django.utils import timezone
+        value = self.cleaned_data.get('date_of_birth')
+        if value and value > timezone.localdate():
+            raise forms.ValidationError('Ngày sinh không được ở tương lai.')
         return value

@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block title %}Gửi hồ sơ người ở cùng · {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<a class="back-link" href="{% url 'my_cooccupants' %}"><i class="bi bi-arrow-left"></i> Người ở cùng</a>
+<div class="page-head"><div><h1>Gửi hồ sơ người ở cùng</h1><p class="text-muted mb-0">Phòng {{ contract.room.room_number }} · {{ contract.display_code }}</p></div></div>
+{% if previous.review_note %}<div class="alert alert-info">Phản hồi lần trước: {{ previous.review_note }}</div>{% endif %}
+<section class="soft-card p-3 p-md-4 form-card">
+  <p class="text-muted">Chủ trọ sẽ đối chiếu thông tin trước khi thêm người vào hợp đồng. Hồ sơ gửi lại được lưu thành một lần gửi mới để giữ lịch sử phản hồi.</p>
+  <form method="post" enctype="multipart/form-data" novalidate>{% csrf_token %}
+    {% for error in form.non_field_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
+    {% include 'accounts/_identity_scan.html' %}
+    <div class="row g-3">{% for field in form.profile_fields %}<div class="{% if field.name == 'note' or field.name == 'confirm_information' %}col-12{% else %}col-12 col-md-6{% endif %}">
+      {% if field.widget_type == 'checkbox' %}<label class="d-flex align-items-start gap-2">{{ field }} <span>{{ field.label }}</span></label>{% else %}<label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}</label>{{ field }}{% endif %}
+      {% for error in field.errors %}<div class="small text-danger mt-1">{{ error }}</div>{% endfor %}{% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+    </div>{% endfor %}</div>
+    <div class="d-flex gap-2 mt-4"><button class="btn btn-primary" type="submit">Gửi chủ trọ xác nhận</button><a class="btn btn-outline-brand" href="{% url 'my_cooccupants' %}">Quay lại</a></div>
+  </form>
+</section>
+{% endblock %}
+{% block scripts %}{% include 'accounts/_identity_scripts.html' %}{% endblock %}

@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Thông tin cá nhân · Nhà trọ Minh Tâm{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Thông tin cá nhân</h1><p class="text-muted mb-0">Cập nhật hồ sơ để chủ trọ có thông tin liên hệ chính xác.</p></div></div>
+<section class="soft-card p-3 p-md-4 form-card">
+  <p class="text-muted">Tên đăng nhập: <strong>{{ user.username }}</strong></p>
+  <form method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    {% for error in form.non_field_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
+    {% include 'accounts/_identity_scan.html' %}
+    <div class="row g-3">
+    {% for field in form.profile_fields %}<div class="col-12 col-md-6">
+      <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}</label>
+      {{ field }}{% for error in field.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+      {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+    </div>{% endfor %}
+    </div>
+    <button class="btn btn-primary mt-4" type="submit">Lưu thông tin cá nhân</button>
+  </form>
+</section>
+{% endblock %}
+{% block scripts %}{% include 'accounts/_identity_scripts.html' %}{% endblock %}

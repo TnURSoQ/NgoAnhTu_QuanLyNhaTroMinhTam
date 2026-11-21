@@ -1,4 +1,16 @@
-<div class="dropdown ms-auto">
+<div class="header-account-actions d-flex align-items-center flex-nowrap ms-auto">
+  {% if user.role == 'tenant' or user.role == 'owner' %}
+  <div class="dropdown header-notifications">
+    <button class="header-notification" id="notificationToggle" type="button" data-bs-toggle="dropdown" data-bs-display="static" data-bs-auto-close="outside" data-notifications-url="{% if user.role == 'owner' %}{% url 'owner_notifications_panel' %}{% else %}{% url 'my_notifications_panel' %}{% endif %}" data-notification-count-url="{% url 'notification_count' %}" data-notification-read-url="{% url 'notification_mark_read' %}" data-csrf-token="{{ csrf_token }}" data-user-id="{{ user.pk }}" aria-expanded="false" aria-controls="notificationPanel" aria-label="Thông báo{% if notification_unread_count %}, {{ notification_unread_count }} chưa đọc{% endif %}" title="Thông báo">
+      <i class="bi bi-bell" aria-hidden="true"></i>
+      <span class="notification-count" id="notificationUnreadCount" aria-hidden="true"{% if not notification_unread_count %} hidden{% endif %}>{% if notification_unread_count > 99 %}99+{% else %}{{ notification_unread_count|default:0 }}{% endif %}</span>
+    </button>
+    <section class="dropdown-menu dropdown-menu-end notification-panel" id="notificationPanel" aria-label="Thông báo">
+      <div class="notification-panel-body" id="notificationPanelBody" aria-live="polite" aria-busy="false"><p class="notification-empty">Đang tải thông báo…</p></div>
+    </section>
+  </div>
+  {% endif %}
+<div class="dropdown">
   <button class="user-chip dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Menu tài khoản">
     <span class="avatar">{{ user.first_name|default:user.username|slice:":1"|upper }}</span>
     <span class="d-none d-sm-block text-start lh-sm">
@@ -11,6 +23,7 @@
     {% if user.role == 'owner' %}
       <li><a class="dropdown-item" href="{% url 'owner_dashboard' %}"><i class="bi bi-grid-1x2 me-2"></i>Quản lý phòng trọ</a></li>
     {% elif user.role == 'tenant' %}
+      <li><a class="dropdown-item" href="{% url 'my_profile' %}"><i class="bi bi-person-circle me-2"></i>Thông tin cá nhân</a></li>
       <li><a class="dropdown-item" href="{% url 'my_room' %}"><i class="bi bi-door-open me-2"></i>Phòng của tôi</a></li>
     {% elif user.is_staff and not hide_admin_navigation %}
       <li><a class="dropdown-item" href="{% url 'admin:index' %}"><i class="bi bi-gear me-2"></i>Quản trị hệ thống</a></li>
@@ -24,4 +37,5 @@
       </form>
     </li>
   </ul>
+</div>
 </div>

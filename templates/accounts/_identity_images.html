@@ -1,0 +1,10 @@
+{% if document %}<section class="identity-existing mb-3">
+  <h3 class="h6">Ảnh CCCD đã lưu</h3>
+  <div class="identity-image-grid">
+    <a href="{% url 'identity_image' document.reference 'front' %}" target="_blank" rel="noopener"><img src="{% url 'identity_image' document.reference 'front' %}" alt="Mặt trước giấy tờ" loading="lazy"><span>Mặt trước</span></a>
+    {% if document.back %}<a href="{% url 'identity_image' document.reference 'back' %}" target="_blank" rel="noopener"><img src="{% url 'identity_image' document.reference 'back' %}" alt="Mặt sau giấy tờ" loading="lazy"><span>Mặt sau</span></a>{% endif %}
+  </div>
+  <p class="small text-muted mt-2 mb-0">Lưu ngày {{ document.created_at|date:'d/m/Y H:i' }} · Số trong hồ sơ khi lưu: {{ document.entered_id_number }}</p>
+  {% if document.number_corrected %}<p class="small text-warning mt-2 mb-0">Số đọc từ ảnh là {{ document.recognized_fields.id_card_number }}; người gửi đã kiểm tra và nhập lại số {{ document.entered_id_number }}. Cần đối chiếu trực tiếp trên ảnh.</p>{% endif %}
+  {% if current_id_number and current_id_number != document.entered_id_number %}<p class="small text-warning mt-2 mb-0">Số giấy tờ hiện tại {{ current_id_number }} khác số đã lưu kèm ảnh {{ document.entered_id_number }}. Cần đối chiếu lại ảnh trước khi xác nhận hồ sơ.</p>{% endif %}
+</section>{% endif %}

@@ -57,6 +57,8 @@ class WholeDongPaymentTests(BillingBase):
         self.assertEqual(self.notice.status, PaymentNotice.Status.CHO_XAC_NHAN)
 
     def test_fractional_readings_produce_truncated_integer_fees(self):
+        self.contract.start_date = self.today.replace(month=1, day=1)
+        self.contract.save()
         UtilityRate.objects.filter(pk=self.rate.pk).update(electric_price=3501, water_price=15001)
         invoice = self.create(month=1 if self.today.month != 1 else 2,
                               old_electric=0, new_electric=Decimal('0.50'),

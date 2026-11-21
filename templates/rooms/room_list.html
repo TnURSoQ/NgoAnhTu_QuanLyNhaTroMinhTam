@@ -6,7 +6,8 @@
     <h1>Phòng</h1>
     <p class="text-muted mb-0">Quản lý danh sách phòng, tình trạng thuê và thông tin chi tiết.</p>
   </div>
-  <a class="btn btn-primary" href="{% url 'room_create' %}"><i class="bi bi-plus-lg"></i> Thêm phòng</a>
+<div class="d-flex gap-2 flex-wrap"><a class="btn btn-outline-brand" href="{% url 'rooms_print' %}" target="_blank" rel="noopener"><i class="bi bi-printer"></i> In toàn bộ phòng</a>
+  <a class="btn btn-primary" href="{% url 'room_create' %}"><i class="bi bi-plus-lg"></i> Thêm phòng</a></div>
 </div>
 
 <form method="get" class="toolbar">

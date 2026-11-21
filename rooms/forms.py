@@ -2,14 +2,29 @@ from django import forms
 
 from accounts.form_fields import FlexibleDecimalField, MoneyField, PlainDecimalInput
 from accounts.forms import BootstrapFormMixin
-from .models import Contract, Room
+from accounts.images import MultipleImagesField, MultipleImageInput
+from .models import Contract, Room, RoomPhoto
+
+MAX_ROOM_PHOTOS = 10
+ROOM_AMENITIES = [
+    'Điều hòa', 'Bình nóng lạnh', 'Wifi', 'Gác lửng', 'Nhà vệ sinh riêng',
+    'Khu bếp riêng', 'Ban công', 'Cửa sổ', 'Giường', 'Tủ quần áo', 'Tủ lạnh', 'Máy giặt',
+]
 
 
 class RoomForm(BootstrapFormMixin, forms.ModelForm):
+    amenity_choices = forms.MultipleChoiceField(label='Tiện ích trong phòng', required=False,
+        choices=[(name, name) for name in ROOM_AMENITIES], widget=forms.CheckboxSelectMultiple)
     price = MoneyField(label='Giá thuê (đ/tháng)', max_digits=8, decimal_places=0, min_value=1)
     area = FlexibleDecimalField(
         label='Diện tích (m²)', max_digits=5, decimal_places=2, required=False, min_value=1,
         widget=PlainDecimalInput(attrs={'placeholder': 'VD: 20'}))
+    photos = MultipleImagesField(label='Tải ảnh phòng', required=False, max_images=MAX_ROOM_PHOTOS,
+                                     widget=MultipleImageInput(attrs={'accept': 'image/jpeg,image/png,image/webp'}),
+                                     help_text='Có thể chọn nhiều ảnh cùng lúc. JPG, PNG hoặc WebP, tối đa 5 MB/ảnh và 10 ảnh/phòng. Ảnh được hiển thị công khai.')
+    delete_photos = forms.ModelMultipleChoiceField(label='Xóa ảnh', queryset=RoomPhoto.objects.none(), required=False)
+    cover_photo = forms.ModelChoiceField(label='Ảnh đại diện', queryset=RoomPhoto.objects.none(), required=False)
+    new_cover_index = forms.IntegerField(label='Ảnh đại diện mới', min_value=0, required=False, widget=forms.HiddenInput)
 
     class Meta:
         model = Room
@@ -17,14 +32,24 @@ class RoomForm(BootstrapFormMixin, forms.ModelForm):
         labels = {
             'room_number': 'Số phòng', 'floor': 'Tầng',
             'max_occupants': 'Sức chứa tối đa (người)', 'status': 'Tình trạng',
-            'amenities': 'Tiện ích', 'description': 'Mô tả phòng',
+            'amenities': 'Tiện ích khác', 'description': 'Mô tả phòng',
         }
-        help_texts = {'amenities': 'Cách nhau bằng dấu phẩy, ví dụ: Điều hòa, Bình nóng lạnh, Wifi, Gác lửng'}
+        help_texts = {'amenities': 'Nhập các tiện ích chưa có trong danh sách, cách nhau bằng dấu phẩy. Chỉ ghi những tiện ích thực tế có trong phòng.'}
         widgets = {'description': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Giới thiệu ngắn để khách xem phòng'})}
         error_messages = {'room_number': {'unique': 'Số phòng này đã tồn tại.'}}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['amenity_choices'].widget.attrs['class'] = ''
+        amenities = self.instance.amenity_list if self.instance.pk else []
+        self.initial.setdefault('amenity_choices', [name for name in amenities if name in ROOM_AMENITIES])
+        self.initial['amenities'] = ', '.join(name for name in amenities if name not in ROOM_AMENITIES)
+        self.existing_photos = list(self.instance.photos.all()) if self.instance.pk else []
+        photo_choices = RoomPhoto.objects.filter(room=self.instance) if self.instance.pk else RoomPhoto.objects.none()
+        self.fields['delete_photos'].queryset = photo_choices
+        self.fields['cover_photo'].queryset = photo_choices
+        if self.existing_photos:
+            self.initial.setdefault('cover_photo', self.existing_photos[0].pk)
         status = self.fields['status']
         has_contract = bool(self.instance.pk) and self.instance.contracts.filter(
             status=Contract.Status.HIEU_LUC).exists()
@@ -38,4 +63,34 @@ class RoomForm(BootstrapFormMixin, forms.ModelForm):
         value = self.cleaned_data['max_occupants']
         if value < 1:
             raise forms.ValidationError('Sức chứa tối đa phải từ 1 người trở lên.')
+        if self.instance.pk:
+            people = self.instance.contracts.filter(status=Contract.Status.HIEU_LUC).values_list('contract_tenants__tenant_id', flat=True)
+            count = len({pk for pk in people if pk is not None})
+            if value < count:
+                raise forms.ValidationError(f'Phòng đang có {count} người ở, không thể giảm sức chứa xuống {value}.')
         return value
+
+
+    def clean(self):
+        data = super().clean()
+        if 'amenities' in data:
+            names = data.get('amenity_choices', []) + data['amenities'].replace('\n', ',').split(',')
+            seen, unique = set(), []
+            for name in names:
+                name = name.strip()
+                if name and name.casefold() not in seen:
+                    seen.add(name.casefold())
+                    unique.append(name)
+            combined = ', '.join(unique)
+            if len(combined) > 255:
+                self.add_error('amenities', 'Danh sách tiện ích tối đa 255 ký tự. Vui lòng rút gọn tiện ích khác.')
+            else:
+                data['amenities'] = combined
+        images = data.get('photos', [])
+        removed = data.get('delete_photos', [])
+        if len(self.existing_photos) - len(removed) + len(images) > MAX_ROOM_PHOTOS:
+            self.add_error('photos', 'Mỗi phòng tối đa 10 ảnh. Hãy đánh dấu xóa ảnh cũ trước khi thêm.')
+        index = data.get('new_cover_index')
+        if index is not None and 'photos' in data and index >= len(images):
+            self.add_error('new_cover_index', 'Hãy chọn ảnh đại diện trong các ảnh mới đã tải lên.')
+        return data

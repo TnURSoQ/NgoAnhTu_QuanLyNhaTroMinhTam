@@ -1,0 +1,30 @@
+* { box-sizing: border-box; }
+body { max-width: 1000px; margin: 24px auto; padding: 0 20px; color: #222; background: #fff; font: 11pt/1.5 Arial, sans-serif; }
+h1 { margin: 24px 0; text-align: center; font-size: 16pt; line-height: 1.4; }
+h2 { margin: 22px 0 10px; font-size: 12pt; }
+p { margin: 8px 0; }
+table { width: 100%; border-collapse: collapse; margin: 14px 0; }
+th, td { padding: 8px; text-align: left; vertical-align: top; border: 1px solid #bbb; overflow-wrap: anywhere; }
+th { background: #f3f3f3; font-weight: 700; }
+.number { text-align: right; white-space: nowrap; }
+.muted { color: #666; font-size: 9pt; }
+.document-header { border-bottom: 1px solid #bbb; padding-bottom: 12px; }
+.document-header strong { font-size: 13pt; }
+.document-header div { font-size: 10pt; }
+.document-footer { margin-top: 28px; padding-top: 10px; border-top: 1px solid #ccc; font-size: 9pt; color: #666; }
+.print-toolbar { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding: 12px; background: #f8f4ee; border-radius: 8px; }
+.print-toolbar button { padding: 10px 16px; border: 0; border-radius: 6px; background: #b9563a; color: #fff; font-weight: 700; cursor: pointer; }
+.print-toolbar span { color: #665; font-size: 10pt; }
+.signatures { display: grid; grid-template-columns: repeat(2, 1fr); gap: 40px; margin-top: 36px; text-align: center; min-height: 110px; }
+.signatures small { display: block; font-size: 9pt; }
+.notice { border-left: 3px solid #aaa; padding: 8px 12px; background: #fafafa; }
+.photo-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.photo-grid img { width: 100%; max-height: 180px; object-fit: contain; border: 1px solid #ddd; }
+@media print {
+  body { max-width: none; margin: 0; padding: 0; }
+  .print-toolbar { display: none; }
+  h1, h2 { break-after: avoid; }
+  tr, .signatures, .photo-grid img { break-inside: avoid; }
+  thead { display: table-header-group; }
+  a { color: inherit; text-decoration: none; }
+}

@@ -6,7 +6,8 @@
     <h1>Người thuê</h1>
     <p class="text-muted mb-0">Quản lý thông tin người thuê tại nhà trọ.</p>
   </div>
-  <a class="btn btn-primary" href="{% url 'tenant_create' %}"><i class="bi bi-plus-lg"></i> Thêm người thuê</a>
+<div class="d-flex gap-2 flex-wrap"><a class="btn btn-outline-brand" href="{% url 'cooccupant_review_list' %}"><i class="bi bi-person-check"></i> Duyệt người ở cùng</a><a class="btn btn-outline-brand" href="{% url 'residents_print' %}" target="_blank" rel="noopener"><i class="bi bi-printer"></i> In danh sách đang ở</a>
+  <a class="btn btn-primary" href="{% url 'tenant_create' %}"><i class="bi bi-plus-lg"></i> Thêm người thuê</a></div>
 </div>
 
 <div class="row g-3 mb-4">

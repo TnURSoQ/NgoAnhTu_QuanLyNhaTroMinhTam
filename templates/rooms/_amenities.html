@@ -1,0 +1,5 @@
+<section class="soft-card p-3 p-md-4 mb-4">
+  <div class="section-head"><h2>Tiện ích trong phòng</h2></div>
+  {% if room.amenity_list %}<div class="chips">{% for amenity in room.amenity_list %}<span class="chip chip-lg"><i class="bi bi-check2-circle"></i> {{ amenity }}</span>{% endfor %}</div>
+  {% else %}<p class="text-muted mb-0">Chưa cập nhật tiện ích của phòng.</p>{% endif %}
+</section>

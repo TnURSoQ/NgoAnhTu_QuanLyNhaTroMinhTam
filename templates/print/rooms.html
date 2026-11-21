@@ -1,0 +1,9 @@
+{% extends 'print/base.html' %}
+{% block page_size %}A4 landscape{% endblock %}
+{% block paper_label %}A4 ngang{% endblock %}
+{% block content %}
+<p>Tổng số phòng: <strong>{{ rooms|length }}</strong></p>
+<table><thead><tr><th>Phòng</th><th>Tầng</th><th>Diện tích</th><th>Sức chứa</th><th>Người đang ở</th><th>Giá niêm yết / tháng</th><th>Trạng thái</th><th>Tiện ích</th></tr></thead><tbody>
+{% for room in rooms %}<tr><td>{{ room.room_number }}</td><td>{{ room.floor }}</td><td>{% if room.area %}{{ room.area|floatformat:'-2' }} m²{% else %}—{% endif %}</td><td>{{ room.max_occupants }}</td><td>{{ room.people_count }}</td><td class="number">{{ room.price|floatformat:'0g' }} đ</td><td>{{ room.get_status_display }}</td><td>{{ room.amenities|default:'Chưa cập nhật' }}</td></tr>{% empty %}<tr><td colspan="8">Chưa có phòng.</td></tr>{% endfor %}
+</tbody></table>
+{% endblock %}

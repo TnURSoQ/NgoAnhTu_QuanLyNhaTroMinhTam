@@ -1,0 +1,21 @@
+{% load static %}
+<fieldset class="identity-scan mb-4" data-library-path="{% static 'vendor/identity-ocr/tesseract.min.js' %}" data-worker-path="{% static 'vendor/identity-ocr/worker.min.js' %}" data-core-path="{% static 'vendor/identity-ocr/core/' %}" data-lang-path="{% static 'vendor/identity-ocr/lang' %}" data-existing-number="{{ form.existing_identity_document.entered_id_number|default:'' }}">
+  <legend class="h5 mb-2">Đọc thông tin từ CCCD</legend>
+  <p class="small text-muted">Chọn ảnh rõ, đủ góc giấy tờ và không bị lóa. Thông tin đọc được sẽ điền vào các ô đang trống; hãy kiểm tra lại trước khi lưu hoặc gửi chủ trọ.</p>
+  {% include 'accounts/_identity_images.html' with document=form.existing_identity_document current_id_number=form.id_card_number.value %}
+  <div class="row g-3">
+    <div class="col-12 col-md-6"><label class="form-label" for="{{ form.identity_front.id_for_label }}">Mặt trước có số giấy tờ, họ tên</label>{{ form.identity_front }}{{ form.identity_front_camera }}<button class="btn btn-sm btn-outline-brand mt-2" type="button" data-identity-camera="{{ form.identity_front_camera.id_for_label }}"><i class="bi bi-camera"></i> Chụp mặt trước</button><div class="identity-local-preview mt-2" data-identity-preview="front"></div>{{ form.identity_front.errors }}{{ form.identity_front_camera.errors }}</div>
+    <div class="col-12 col-md-6"><label class="form-label" for="{{ form.identity_back.id_for_label }}">Mặt sau (nếu có)</label>{{ form.identity_back }}{{ form.identity_back_camera }}<button class="btn btn-sm btn-outline-brand mt-2" type="button" data-identity-camera="{{ form.identity_back_camera.id_for_label }}"><i class="bi bi-camera"></i> Chụp mặt sau</button><div class="identity-local-preview mt-2" data-identity-preview="back"></div>{{ form.identity_back.errors }}{{ form.identity_back_camera.errors }}</div>
+  </div>
+  <div class="form-text mt-2">JPG, PNG hoặc WebP, tối đa 5 MB/ảnh. Ảnh đọc trên thiết bị của bạn; khi lưu hồ sơ, ảnh được lưu riêng tư để đối chiếu.</div>
+  <div class="d-flex gap-2 flex-wrap mt-3"><button class="btn btn-outline-brand" type="button" data-identity-read><i class="bi bi-card-text"></i> Đọc CCCD và điền thông tin</button><button class="btn btn-sm btn-outline-brand" type="button" data-identity-clear>Bỏ ảnh mới</button></div>
+  <p class="small text-muted mt-2 mb-0" data-identity-status role="status" aria-live="polite"></p>
+  <div class="identity-results mt-3" data-identity-results hidden></div>
+  <button class="btn btn-sm btn-outline-brand mt-2" type="button" data-identity-apply hidden>Dùng thông tin đọc được thay cho nội dung đang nhập</button>
+  {{ form.identity_recognition }}{{ form.identity_recognition.errors }}
+  <div class="identity-comparison mt-3" data-identity-comparison data-server-error="{% if form.confirm_identity_correction.errors %}1{% endif %}"{% if not form.confirm_identity_correction.errors and not form.confirm_identity_correction.value %} hidden{% endif %}>
+    <p class="small mb-2" data-identity-comparison-text>Số giấy tờ đang nhập khác với thông tin đọc được hoặc hồ sơ ảnh trước đó. Hãy đối chiếu kỹ trên ảnh.</p>
+    <label class="d-flex gap-2 align-items-start">{{ form.confirm_identity_correction }} <span class="small">{{ form.confirm_identity_correction.label }}</span></label>{{ form.confirm_identity_correction.errors }}
+  </div>
+  {% if form.is_bound %}<p class="small text-warning mt-2 mb-0">Nếu đã chọn ảnh mới nhưng chưa lưu được, hãy chọn lại ảnh trước khi gửi lại.</p>{% endif %}
+</fieldset>

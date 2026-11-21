@@ -76,6 +76,16 @@
     </div>
   </section>
 
+  <section class="soft-card p-4 mb-3"><h2 class="h5">Giá thuê và bàn giao ban đầu</h2><div class="row g-3">
+    <div class="col-12"><label class="form-label" for="{{ form.monthly_rent.id_for_label }}">{{ form.monthly_rent.label }}</label>{{ form.monthly_rent }}{{ form.monthly_rent.errors }}<small class="text-muted">{{ form.monthly_rent.help_text }}</small></div>
+    <div class="col-12 col-md-6"><label class="form-label" for="{{ form.initial_electric.id_for_label }}">{{ form.initial_electric.label }}</label>{{ form.initial_electric }}{{ form.initial_electric.errors }}</div>
+    <div class="col-12 col-md-6"><label class="form-label" for="{{ form.initial_water.id_for_label }}">{{ form.initial_water.label }}</label>{{ form.initial_water }}{{ form.initial_water.errors }}</div>
+    <div class="col-12"><label class="d-flex gap-2 align-items-center">{{ form.prorate_first_month }} {{ form.prorate_first_month.label }}</label><small class="text-muted">{{ form.prorate_first_month.help_text }}</small></div>
+    <div class="col-12"><label class="form-label">{{ form.services.label }}</label>{{ form.services }}{{ form.services.errors }}<small class="text-muted">{{ form.services.help_text }}</small></div>
+    <div class="col-12 col-md-6"><label class="form-label" for="{{ form.deposit_paid.id_for_label }}">{{ form.deposit_paid.label }}</label>{{ form.deposit_paid }}{{ form.deposit_paid.errors }}<small class="text-muted">{{ form.deposit_paid.help_text }}</small></div>
+    <div class="col-12 col-md-6"><label class="form-label" for="{{ form.deposit_method.id_for_label }}">{{ form.deposit_method.label }}</label>{{ form.deposit_method }}{{ form.deposit_method.errors }}</div>
+  </div></section>
+
   <div class="d-flex gap-2">
     <button type="submit" class="btn btn-primary px-4" {% if not has_free_rooms %}disabled{% endif %}>Lập hợp đồng</button>
     <a class="btn btn-outline-brand" href="{% url 'contract_list' %}">Hủy</a>

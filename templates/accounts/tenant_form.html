@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}{{ page_title }} · {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<a class="back-link" href="{{ back_url }}"><i class="bi bi-arrow-left"></i> Quay lại</a>
+<div class="page-head"><div><h1>{{ page_title }}</h1>{% if subtitle %}<p class="text-muted mb-0">{{ subtitle }}</p>{% endif %}</div></div>
+<section class="soft-card p-3 p-md-4 form-card"><form method="post" enctype="multipart/form-data" novalidate>{% csrf_token %}
+{% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+{% for error in form.non_field_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
+{% include 'accounts/_identity_scan.html' %}
+<div class="row g-3">{% for field in form.profile_fields %}<div class="{% if field.widget_type == 'textarea' %}col-12{% else %}col-12 col-md-6{% endif %}"><label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}</label>{{ field }}{{ field.errors }}{% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}</div>{% endfor %}</div>
+<div class="d-flex gap-2 mt-4"><button class="btn btn-primary" type="submit">{{ submit_label|default:'Lưu hồ sơ' }}</button><a class="btn btn-outline-brand" href="{{ back_url }}">Hủy</a></div>
+</form></section>
+{% endblock %}
+{% block scripts %}{% include 'accounts/_identity_scripts.html' %}{% endblock %}
