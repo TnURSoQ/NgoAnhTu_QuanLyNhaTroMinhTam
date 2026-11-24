@@ -98,7 +98,7 @@ class TenantPortalTests(TestCase):
         Payment.objects.create(invoice=self.inv_b, amount=Decimal('777000'), paid_date=date(2026, 10, 6))
         self.login_a()
         r = self.client.get(reverse('my_payments'))
-        self.assertContains(r, '1.000.000đ')
+        self.assertContains(r, '1.000.000 đ')
         self.assertNotContains(r, '777.000')
 
     def test_contracts_only_own(self):

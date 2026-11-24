@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}{{ payment.display_code }} · Chi tiết giao dịch{% endblock %}
+{% block content %}
+<a class="back-link" href="{% url 'my_payments' %}"><i class="bi bi-arrow-left"></i> Lịch sử thanh toán</a>
+<div class="page-head"><div><h1>Chi tiết giao dịch</h1><p class="text-muted mb-0">{{ payment.display_code }} · Phòng {{ contract.room.room_number }}</p></div>
+  <div class="d-flex flex-wrap gap-2"><a class="btn btn-primary" href="{% url 'my_payment_print' payment.pk %}" target="_blank" rel="noopener"><i class="bi bi-printer"></i> {% if payment.is_voided %}In lịch sử hủy{% else %}In phiếu thanh toán{% endif %}</a><a class="btn btn-outline-brand" href="{% url 'my_invoice_print' invoice.pk %}" target="_blank" rel="noopener"><i class="bi bi-receipt"></i> In hóa đơn</a></div>
+</div>
+<div class="row g-4">
+  <div class="col-12 col-xl-8"><section class="soft-card p-3 p-md-4 mb-4">
+    {% include 'billing/_payment_void.html' %}
+    {% if payment.replacement %}<p>Giao dịch thay thế: <a href="{% url 'my_payment_detail' payment.replacement.pk %}">{{ payment.replacement.display_code }}</a>.</p>{% endif %}
+    {% if payment.replaces %}<p>Điều chỉnh từ giao dịch <a href="{% url 'my_payment_detail' payment.replaces_id %}">{{ payment.replaces.display_code }}</a>.</p>{% endif %}
+    <div class="d-flex justify-content-between gap-3 flex-wrap align-items-center mb-4"><div><span class="text-muted">{% if payment.is_voided %}Số tiền gốc đã hủy{% elif internal %}Số tiền đối trừ{% else %}Số tiền thanh toán{% endif %}</span><strong class="d-block fs-2{% if payment.is_voided %} text-decoration-line-through text-muted{% endif %}">{{ payment.amount|floatformat:'0g' }} đ</strong></div>{% if not payment.is_voided %}<span class="pill pill-mint"><i class="bi bi-check-circle me-1"></i> Đã ghi nhận</span>{% endif %}</div>
+    <div class="info-row"><span>Mã giao dịch nội bộ</span><strong>{{ payment.display_code }}</strong></div>
+    <div class="info-row"><span>Phương thức thanh toán</span><strong>{{ payment.get_method_display }}</strong></div>
+    <div class="info-row"><span>{% if internal %}Ngày đối trừ{% else %}Ngày thu tiền{% endif %}</span><strong>{{ payment.paid_date|date:'d/m/Y' }}</strong></div>
+    <div class="info-row"><span>Thời điểm ghi nhận</span><strong>{% if payment.recorded_at %}{{ payment.recorded_at|date:'d/m/Y H:i:s' }}{% else %}Giao dịch cũ chưa lưu giờ ghi nhận{% endif %}</strong></div>
+    <div class="info-row"><span>Người ghi nhận</span><strong>{% if recorder %}{{ recorder.get_full_name|default:'Chủ trọ' }}{% else %}Chưa có thông tin{% endif %}</strong></div>
+    <div class="info-row"><span>Hợp đồng</span><strong>{{ contract.display_code }}</strong></div>
+    <div class="info-row"><span>Phòng</span><strong>P.{{ contract.room.room_number }}</strong></div>
+    <div class="info-row"><span>Người đại diện hợp đồng</span><strong>{{ tenant.full_name|default:'Chưa có đại diện' }}</strong></div>
+    <h2 class="h6 mt-4">Ghi chú giao dịch</h2><p class="text-break mb-0">{{ payment.note|default:'Không có ghi chú bổ sung.'|linebreaksbr }}</p>
+  </section>
+  {% if notice %}<section class="soft-card p-3 p-md-4 mb-4"><div class="section-head"><h2>Thông tin đối chiếu chuyển khoản</h2></div>
+    <div class="info-row"><span>Báo chuyển khoản</span><strong>#{{ notice.pk }}</strong></div>
+    <div class="info-row"><span>Người gửi thông báo</span><strong>{{ notice.tenant.full_name }}</strong></div>
+    <div class="info-row"><span>Đã báo lúc</span><strong>{{ notice.created_at|date:'d/m/Y H:i:s' }}</strong></div>
+    <div class="info-row"><span>Số tiền đã báo</span><strong>{% if notice.amount %}{{ notice.amount|floatformat:'0g' }} đ{% else %}Chưa khai báo số tiền{% endif %}</strong></div>
+    <div class="info-row"><span>Chủ trọ xác nhận lúc</span><strong>{{ notice.processed_at|date:'d/m/Y H:i:s'|default:'Chưa có thông tin' }}</strong></div>
+    <p class="small text-muted mt-3 mb-0">{% if payment.is_voided %}Khoản ghi nhận gốc này đã hủy và không còn tính vào thanh toán.{% else %}Số tiền được tính thanh toán là {{ payment.amount|floatformat:'0g' }} đ theo khoản chủ trọ đã ghi nhận.{% endif %}</p>
+  </section>{% endif %}
+  {% if internal %}<div class="alert alert-info">Khoản này được đối trừ từ tiền cọc đang giữ theo thỏa thuận, không phát sinh thêm tiền mặt hoặc chuyển khoản.{% if deposit_entry %} Mã sổ cọc: COC-{{ deposit_entry.pk|stringformat:'06d' }}.{% endif %}</div>{% endif %}
+  </div>
+  <div class="col-12 col-xl-4"><section class="soft-card p-3 p-md-4"><div class="section-head"><h2>Hóa đơn liên quan</h2></div>
+    <p class="fw-bold">#{{ invoice.pk }} · Tháng {{ invoice.month }}/{{ invoice.year }}</p>
+    {% include 'billing/_status_badge.html' %}
+    <div class="info-row mt-3"><span>Tổng hóa đơn</span><strong>{{ invoice.total_amount|floatformat:'0g' }} đ</strong></div>
+    <div class="info-row"><span>Tổng đã thanh toán</span><strong>{{ paid|floatformat:'0g' }} đ</strong></div>
+    <div class="info-row"><span>Còn phải thanh toán</span><strong>{{ remaining|floatformat:'0g' }} đ</strong></div>
+    <p class="small text-muted mt-3">Đây là công nợ hiện tại của hóa đơn, gồm tất cả các lần thanh toán đã ghi nhận.</p>
+    <a class="btn btn-outline-brand w-100" href="{% url 'my_invoice_detail' invoice.pk %}">Xem chi tiết hóa đơn</a>
+  </section><p class="small text-muted mt-3">Mã TT là mã giao dịch trong ứng dụng. Thời điểm ghi nhận là lúc hệ thống lưu khoản thanh toán.</p></div>
+</div>
+{% endblock %}

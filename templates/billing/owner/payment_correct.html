@@ -1,0 +1,26 @@
+{% extends 'base.html' %}{% load static %}
+{% block title %}Điều chỉnh / hủy {{ payment.display_code }}{% endblock %}
+{% block content %}
+<a class="back-link" href="{{ back_url }}"><i class="bi bi-arrow-left"></i> Quay lại hóa đơn</a>
+<div class="page-head"><div><h1>Điều chỉnh / hủy khoản thu</h1><p class="text-muted mb-0">{{ payment.display_code }} · Hóa đơn #{{ payment.invoice_id }} · Phòng {{ payment.invoice.contract.room.room_number }}</p></div></div>
+<div class="row g-4"><div class="col-12 col-xl-7"><section class="soft-card p-3 p-md-4">
+  {% include 'billing/_payment_void.html' %}
+  <div class="info-row"><span>Số tiền gốc</span><strong>{{ payment.amount|floatformat:'0g' }} đ</strong></div>
+  <div class="info-row"><span>Ngày thu</span><strong>{{ payment.paid_date|date:'d/m/Y' }}</strong></div>
+  <div class="info-row"><span>Phương thức</span><strong>{{ payment.get_method_display }}</strong></div>
+  {% if payment.note %}<p class="mt-3 text-break">Ghi chú gốc: {{ payment.note|linebreaksbr }}</p>{% endif %}
+  {% if payment.replaces %}<p class="small mt-3">Điều chỉnh từ <a href="{% url 'payment_correct' payment.replaces_id %}">{{ payment.replaces.display_code }}</a>.</p>{% endif %}
+  {% if payment.replacement %}<p class="mt-3">Giao dịch thay thế: <a href="{% url 'payment_correct' payment.replacement.pk %}">{{ payment.replacement.display_code }}</a> · {{ payment.replacement.amount|floatformat:'0g' }} đ{% if payment.replacement.is_voided %} · Đã hủy{% endif %}.</p>{% endif %}
+  {% if payment.method == 'tu_coc' %}<div class="alert alert-info mt-3 mb-0">Khoản đối trừ liên kết với sổ cọc, không được hủy hoặc điều chỉnh độc lập.</div>
+  {% elif not blocked %}
+  <form method="post" class="mt-4" data-payment-correction novalidate>{% csrf_token %}
+    {% for error in form.non_field_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
+    {% for field in form %}{% if field.name == 'action' or field.name == 'reason' %}<div class="mb-3"><label class="form-label" for="{{ field.id_for_label }}">{{ field.label }} <span class="text-danger">*</span></label>{{ field }}{{ field.errors }}</div>{% endif %}{% endfor %}
+    <fieldset data-replacement-fields{% if form.action.value != 'adjust' %} hidden{% endif %}><legend class="h5">Thông tin giao dịch thay thế</legend>
+      {% for field in form %}{% if field.name != 'action' and field.name != 'reason' %}<div class="mb-3"><label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}</label>{{ field }}{{ field.errors }}</div>{% endif %}{% endfor %}
+    </fieldset>
+    <button class="btn btn-primary w-100 mt-2" type="submit">Xác nhận lưu thay đổi</button>
+  </form>{% endif %}
+</section></div><div class="col-12 col-xl-5"><section class="soft-card p-3 p-md-4"><h2 class="h5">Giữ lịch sử để đối chiếu</h2><p>Giao dịch gốc được giữ nguyên mã, số tiền và ngày thu. Lý do, người thực hiện và thời điểm thay đổi được lưu lại.</p><p>Điều chỉnh tạo giao dịch mới thay thế bản gốc. Chỉ các giao dịch còn hiệu lực được tính vào thanh toán và công nợ.</p><p class="small text-muted mb-0">Hủy ghi nhận dùng để sửa thông tin nhập nhầm hoặc đối chiếu sai; thao tác này không thực hiện hoàn tiền cho người thuê.</p></section></div></div>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/payment-correction.js' %}?v=20261124"></script>{% endblock %}

@@ -1,0 +1,6 @@
+{% if payment.is_voided %}<div class="alert alert-danger payment-void-notice">
+  <strong>Giao dịch đã hủy{% if payment.replacement %} · Đã có giao dịch thay thế{% endif %}</strong>
+  <p class="mt-2 mb-1">Lý do: {{ payment.void_reason|linebreaksbr }}</p>
+  <small>{% if payment.voided_by %}{{ payment.voided_by.get_full_name|default:payment.voided_by.username }} · {% endif %}{{ payment.voided_at|date:'d/m/Y H:i:s' }}</small>
+  <p class="small mt-2 mb-0">Khoản này không còn được tính vào số đã thanh toán của hóa đơn.</p>
+</div>{% endif %}

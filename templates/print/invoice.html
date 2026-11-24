@@ -1,0 +1,24 @@
+{% extends 'print/base.html' %}
+{% block content %}
+<p><strong>Mã hóa đơn:</strong> #{{ invoice.pk }} · <strong>Hợp đồng:</strong> {{ invoice.contract.display_code }}</p>
+<p><strong>Phòng:</strong> {{ invoice.contract.room.room_number }} · <strong>Người đại diện:</strong> {{ tenant.full_name|default:'Chưa có đại diện' }}</p>
+<p>Ngày lập: {{ invoice.created_at|date:'d/m/Y' }} · Hạn thanh toán: {{ invoice.due_date|date:'d/m/Y' }} · <strong>{{ invoice.get_status_display }}</strong></p>
+<table><thead><tr><th>Khoản thu</th><th>Chi tiết</th><th class="number">Thành tiền</th></tr></thead><tbody>
+<tr><td>Tiền phòng</td><td>Theo kỳ hóa đơn và thỏa thuận</td><td class="number">{{ invoice.room_fee|floatformat:'0g' }} đ</td></tr>
+<tr><td>Điện</td><td>{% if reading %}{{ reading.old_electric }} → {{ reading.new_electric }} · {{ reading.electric_usage }} kWh{% if invoice.electric_calculation_matches %} × {{ invoice.electric_unit_price|floatformat:'0g' }} đ{% else %} · Số tiền kỳ đã lập{% endif %}{% else %}Theo số tiền đã lập{% endif %}</td><td class="number">{{ invoice.electric_fee|floatformat:'0g' }} đ</td></tr>
+<tr><td>Nước</td><td>{% if reading %}{{ reading.old_water }} → {{ reading.new_water }} · {{ reading.water_usage }} m³{% if invoice.water_calculation_matches %} × {{ invoice.water_unit_price|floatformat:'0g' }} đ{% else %} · Số tiền kỳ đã lập{% endif %}{% else %}Theo số tiền đã lập{% endif %}</td><td class="number">{{ invoice.water_fee|floatformat:'0g' }} đ</td></tr>
+{% for item in invoice_services %}<tr><td>{% if item.description %}{{ item.description }}{% elif item.service %}{{ item.service.name }}{% endif %}</td><td>{{ item.quantity }}{% if item.calculation_matches %} × {{ item.unit_price|floatformat:'0g' }} đ{% else %} · Số tiền kỳ đã lập{% endif %}</td><td class="number">{{ item.subtotal|floatformat:'0g' }} đ</td></tr>{% endfor %}
+</tbody><tfoot>
+<tr><th colspan="2">Tổng hóa đơn</th><th class="number">{{ invoice.total_amount|floatformat:'0g' }} đ</th></tr>
+<tr><td colspan="2">Đã thu bằng tiền mặt / chuyển khoản</td><td class="number">{{ cash_paid|floatformat:'0g' }} đ</td></tr>
+<tr><td colspan="2">Đã đối trừ từ tiền cọc</td><td class="number">{{ deposit_applied|floatformat:'0g' }} đ</td></tr>
+<tr><td colspan="2">Tổng đã thanh toán</td><td class="number">{{ paid|floatformat:'0g' }} đ</td></tr>
+<tr><th colspan="2">Còn phải thanh toán</th><th class="number">{{ remaining|floatformat:'0g' }} đ</th></tr>
+</tfoot></table>
+{% if invoice.note %}<p><strong>Ghi chú hóa đơn:</strong> {{ invoice.note|linebreaksbr }}</p>{% endif %}
+<h2>Các giao dịch đã ghi nhận</h2>
+{% if payments %}<table><thead><tr><th>Mã giao dịch</th><th>Ngày thu / đối trừ</th><th>Phương thức</th><th class="number">Số tiền</th></tr></thead><tbody>
+{% for payment in payments %}<tr><td>{{ payment.display_code }}{% if payment.is_voided %}<br><small>Đã hủy · Không tính vào thanh toán</small>{% elif payment.replaces %}<br><small>Thay thế {{ payment.replaces.display_code }}</small>{% endif %}</td><td>{{ payment.paid_date|date:'d/m/Y' }}</td><td>{{ payment.get_method_display }}</td><td class="number">{% if payment.is_voided %}<s>{{ payment.amount|floatformat:'0g' }} đ</s>{% else %}{{ payment.amount|floatformat:'0g' }} đ{% endif %}</td></tr>{% endfor %}
+</tbody></table>{% else %}<p>Chưa ghi nhận thanh toán.</p>{% endif %}
+<p class="notice">Bản in thể hiện các khoản thu và công nợ tại thời điểm in. Hóa đơn còn nợ không xác nhận đã thanh toán đủ. Báo chuyển khoản đang chờ xác nhận chưa được tính vào số đã thanh toán.</p>
+{% endblock %}

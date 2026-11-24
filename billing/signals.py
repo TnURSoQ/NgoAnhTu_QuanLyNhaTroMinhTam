@@ -1,7 +1,13 @@
-from django.db.models.signals import post_delete, post_save
+from django.db.models.signals import post_delete, post_save, pre_delete
+from django.core.exceptions import ValidationError
 from django.dispatch import receiver
 
 from .models import Invoice, Payment
+
+
+@receiver(pre_delete, sender=Payment)
+def preserve_payment_history(sender, instance, **kwargs):
+    raise ValidationError('Không xóa giao dịch đã ghi nhận. Hãy dùng chức năng điều chỉnh / hủy có lý do.')
 
 
 @receiver([post_save, post_delete], sender=Payment)

@@ -3,7 +3,8 @@ from decimal import Decimal
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.cache import never_cache
 
 from accounts.decorators import tenant_required
 from rooms.models import Contract
@@ -12,6 +13,7 @@ from support.services import announcements_for
 from . import services
 from .forms import PaymentNoticeForm
 from .models import BankAccount, Invoice, Payment, PaymentNotice
+from .receipts import invoice_statement, payment_records, payment_receipt
 
 
 def _invoices_of(tenant):
@@ -25,7 +27,7 @@ def _invoices_of(tenant):
 
 
 def _transfer_context(invoice, remaining, notice_form=None):
-    notice = invoice.payment_notices.first() if invoice else None
+    notice = invoice.payment_notices.select_related('payment').first() if invoice else None
     return {
         'bank_account': BankAccount.objects.first(), 'transfer_invoice': invoice,
         'transfer_content': services.transfer_content(invoice) if invoice else '',
@@ -37,14 +39,9 @@ def _transfer_context(invoice, remaining, notice_form=None):
 
 
 def _detail_context(invoice, notice_form=None):
-    paid = invoice.total_paid()
-    remaining = invoice.total_amount - paid
+    context = invoice_statement(invoice)
     return {
-        'invoice': invoice, 'reading': invoice.utility_reading,
-        'invoice_services': invoice.invoice_services.select_related('service'),
-        'payments': invoice.payments.order_by('paid_date', 'id'),
-        'paid': paid, 'remaining': remaining,
-        **_transfer_context(invoice, remaining, notice_form),
+        **context, **_transfer_context(invoice, context['remaining'], notice_form),
     }
 
 
@@ -55,7 +52,7 @@ def my_room(request):
                 .select_related('room').order_by('-start_date', '-pk').first())
     invoices = list(_invoices_of(request.tenant).prefetch_related('payments'))
     for invoice in invoices:
-        invoice.paid = sum((p.amount for p in invoice.payments.all()), Decimal('0'))
+        invoice.paid = sum((p.amount for p in invoice.payments.all() if not p.is_voided), Decimal('0'))
         invoice.remaining = invoice.total_amount - invoice.paid
     latest_invoice = invoices[0] if invoices else None
     unpaid_invoice = next((i for i in invoices if i.remaining > 0), None)
@@ -90,6 +87,7 @@ def my_invoices(request):
 
 
 @tenant_required
+@never_cache
 def my_invoice_detail(request, pk):
     invoice = get_object_or_404(_invoices_of(request.tenant), pk=pk)
     return render(request, 'billing/invoice_detail.html', _detail_context(invoice))
@@ -112,10 +110,40 @@ def report_transfer(request, pk):
 
 
 @tenant_required
+@never_cache
+@require_GET
 def my_payments(request):
     payments = (
         Payment.objects.filter(invoice__contract__contract_tenants__tenant=request.tenant)
-        .select_related('invoice__contract__room')
+        .select_related('invoice__contract__room', 'replaces', 'replacement')
         .order_by('-paid_date', '-id')
     )
     return render(request, 'billing/payment_list.html', {'payments': payments})
+
+
+def _payment_of(tenant, pk):
+    return get_object_or_404(payment_records().filter(invoice__contract__contract_tenants__tenant=tenant), pk=pk)
+
+
+@tenant_required
+@never_cache
+@require_GET
+def my_payment_detail(request, pk):
+    payment = _payment_of(request.tenant, pk)
+    return render(request, 'billing/payment_detail.html', payment_receipt(payment))
+
+
+@tenant_required
+@never_cache
+@require_GET
+def my_payment_print(request, pk):
+    payment = _payment_of(request.tenant, pk)
+    return render(request, 'print/transaction.html', payment_receipt(payment))
+
+
+@tenant_required
+@never_cache
+@require_GET
+def my_invoice_print(request, pk):
+    invoice = get_object_or_404(_invoices_of(request.tenant), pk=pk)
+    return render(request, 'print/invoice.html', invoice_statement(invoice))

@@ -5,13 +5,18 @@ from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.cache import never_cache
+from django.db import DatabaseError
 
 from accounts.decorators import owner_required
 from accounts.text import normalize
 from rooms.display import representative_of
 from rooms.models import Contract
 from . import drafts, services
+from .receipts import invoice_statement
+from .receipts import payment_records
+from .forms import PaymentCorrectionForm
 from .forms import (BankAccountForm, InvoiceCreateForm, InvoiceLineFormSet, PaymentForm,
                     PaymentNoticeConfirmForm, PaymentNoticeRejectForm, PeriodForm,
                     ServiceForm, UtilityRateForm, InvoiceDraftForm)
@@ -56,7 +61,7 @@ def invoice_list(request):
                 inv.contract.room.room_number,
                 *[ct.tenant.full_name for ct in inv.contract.contract_tenants.all()]])):
             continue
-        paid = sum((p.amount for p in inv.payments.all()), Decimal('0'))
+        paid = sum((p.amount for p in inv.payments.all() if not p.is_voided), Decimal('0'))
         days = (inv.due_date - today).days
         rows.append({'invoice': inv, 'tenant': tenant, 'paid': paid,
                      'remaining': inv.total_amount - paid,
@@ -199,7 +204,7 @@ def invoice_detail(request, pk):
                        initial={'amount': inv.total_amount - paid})
     if request.method == 'POST' and form.is_valid():
         try:
-            services.record_payment(inv, **form.cleaned_data)
+            services.record_payment(inv, **form.cleaned_data, recorded_by=request.user)
         except ValidationError as e:
             form.add_error(None, e.messages)
         else:
@@ -208,20 +213,17 @@ def invoice_detail(request, pk):
     return _render(request, 'billing/owner/detail.html', {
         'invoice': inv, 'tenant': representative_of(inv.contract), 'reading': inv.utility_reading,
         'invoice_services': inv.invoice_services.select_related('service'),
-        'payments': inv.payments.order_by('-paid_date', '-pk'), 'paid': paid,
+        'payments': inv.payments.select_related('voided_by', 'replacement', 'replaces').order_by('-paid_date', '-pk'), 'paid': paid,
         'payment_notices': inv.payment_notices.select_related('tenant', 'payment', 'processed_by'),
         'remaining': inv.total_amount - paid, 'form': form})
 
 
 @owner_required
+@never_cache
+@require_GET
 def invoice_print(request, pk):
     invoice = get_object_or_404(_invoices(), pk=pk)
-    paid = invoice.total_paid()
-    return render(request, 'billing/owner/print.html', {
-        'invoice': invoice, 'tenant': representative_of(invoice.contract),
-        'reading': invoice.utility_reading, 'paid': paid, 'remaining': invoice.total_amount - paid,
-        'invoice_services': invoice.invoice_services.all(), 'payments': invoice.payments.order_by('paid_date', 'pk'),
-    })
+    return render(request, 'print/invoice.html', invoice_statement(invoice))
 
 
 @owner_required
@@ -243,21 +245,36 @@ def invoice_delete(request, pk):
 
 @owner_required
 def payment_delete(request, pk):
-    payment = get_object_or_404(Payment.objects.select_related('invoice'), pk=pk)
+    # Old bookmarks also use the audited correction form; they never delete a row.
+    return payment_correct(request, pk)
+
+
+@owner_required
+@never_cache
+def payment_correct(request, pk):
+    payment = get_object_or_404(payment_records(), pk=pk)
     back_url = reverse('invoice_detail', args=[payment.invoice_id])
-    if request.method == 'POST':
+    blocked = payment.is_voided or payment.method == Payment.Method.TU_COC
+    form = PaymentCorrectionForm(request.POST if request.method == 'POST' else None, initial={
+        'amount': payment.amount, 'paid_date': payment.paid_date, 'method': payment.method, 'note': payment.note})
+    if request.method == 'POST' and not blocked and form.is_valid():
+        data = form.cleaned_data
         try:
-            services.delete_payment(payment)
+            if data['action'] == 'adjust':
+                services.adjust_payment(payment, actor=request.user, reason=data['reason'],
+                    **{name: data[name] for name in ('amount', 'paid_date', 'method', 'note')})
+            else:
+                services.void_payment(payment, actor=request.user, reason=data['reason'])
         except ValidationError as exc:
-            messages.error(request, '; '.join(exc.messages))
+            form.add_error(None, exc)
+        except DatabaseError:
+            form.add_error(None, 'Chưa lưu được thay đổi hoặc giao dịch đang được xử lý. Vui lòng tải lại và thử lại.')
         else:
-            messages.success(request, 'Đã xóa khoản thanh toán và tính lại công nợ.')
-        return redirect(back_url)
-    return _render(request, '_crud/confirm_delete.html', {
-        'title': 'Xóa khoản thanh toán', 'message': 'Xác nhận xóa khoản thu này để sửa nhầm?',
-        'blocked': payment.method == Payment.Method.TU_COC,
-        'blocked_message': 'Khoản đối trừ cọc gắn với sổ cọc, không được xóa độc lập.',
-        'back_url': back_url})
+            messages.success(request, 'Đã điều chỉnh khoản thu, giữ giao dịch gốc trong lịch sử.' if data['action'] == 'adjust'
+                             else 'Đã hủy ghi nhận khoản thu và tính lại công nợ. Giao dịch gốc vẫn được giữ trong lịch sử.')
+            return redirect(back_url)
+    return _render(request, 'billing/owner/payment_correct.html', {
+        'payment': payment, 'form': form, 'blocked': blocked, 'back_url': back_url})
 
 
 @owner_required

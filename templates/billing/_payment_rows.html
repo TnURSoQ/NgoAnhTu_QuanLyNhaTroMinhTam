@@ -1,0 +1,8 @@
+{% if payments %}<section class="soft-card payment-ledger" aria-label="Các giao dịch đã ghi nhận">
+<div class="payment-row payment-row-head" aria-hidden="true"><span>Giao dịch / Hóa đơn</span><span>Ngày thu / đối trừ</span><span>Phương thức</span><span class="text-end">Số tiền</span><span></span></div>
+{% for p in payments %}<a class="payment-row payment-row-link{% if p.is_voided %} payment-row-voided{% endif %}" href="{% url 'my_payment_detail' p.pk %}" aria-label="Xem giao dịch {{ p.display_code }}">
+  <span class="payment-row-main"><strong>{{ p.display_code }}</strong>{% if p.is_voided %}<small class="d-block text-danger">Đã hủy{% if p.replacement %} · Có giao dịch thay thế{% endif %}</small>{% elif p.replaces %}<small class="d-block text-muted">Thay thế {{ p.replaces.display_code }}</small>{% endif %}<small class="d-block text-muted">Tháng {{ p.invoice.month }}/{{ p.invoice.year }} · P.{{ p.invoice.contract.room.room_number }}</small></span>
+  <span class="payment-row-date"><small class="payment-mobile-label text-muted">Ngày thu / đối trừ</small>{{ p.paid_date|date:'d/m/Y' }}</span>
+  <span class="payment-row-method">{{ p.get_method_display }}</span>
+  <strong class="payment-row-amount{% if p.is_voided %} text-decoration-line-through text-muted{% endif %}">{{ p.amount|floatformat:'0g' }} đ</strong><i class="bi bi-chevron-right payment-row-arrow" aria-hidden="true"></i>
+</a>{% endfor %}</section>{% else %}<div class="soft-card p-4 text-muted">Chưa có khoản thanh toán nào được ghi nhận.</div>{% endif %}

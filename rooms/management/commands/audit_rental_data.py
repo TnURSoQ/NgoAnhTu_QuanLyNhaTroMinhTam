@@ -44,7 +44,7 @@ class Command(BaseCommand):
                 add('warning', 'drafts', contract.display_code, 'Còn hóa đơn nháp chờ nhập chỉ số hoặc chốt.')
             if contract.end_date < timezone.localdate():
                 add('warning', 'expiry', contract.display_code, 'Hết thời hạn hợp đồng; cần gia hạn hoặc làm thủ tục trả phòng.')
-        if Payment.objects.filter(paid_date__gt=timezone.localdate()).exists():
+        if Payment.objects.active().filter(paid_date__gt=timezone.localdate()).exists():
             add('error', 'payment_date', 'PAYMENT', 'Có giao dịch thu tiền mang ngày ở tương lai.')
         summary = {'rooms': Room.objects.count(), 'contracts': Contract.objects.count(),
                    'errors': sum(item['level'] == 'error' for item in issues),

@@ -114,6 +114,24 @@ class PaymentForm(BootstrapFormMixin, forms.Form):
     note = forms.CharField(label='Ghi chú', required=False, widget=forms.Textarea(attrs={'rows': 2}))
 
 
+class PaymentCorrectionForm(PaymentForm):
+    action = forms.ChoiceField(label='Thao tác', choices=[('void', 'Hủy ghi nhận khoản thu'),
+        ('adjust', 'Điều chỉnh bằng giao dịch thay thế')], initial='void')
+    reason = forms.CharField(label='Lý do hủy / điều chỉnh', max_length=1000,
+        widget=forms.Textarea(attrs={'rows': 3, 'placeholder': 'Ghi rõ thông tin bị nhầm và nội dung cần sửa…'}),
+        error_messages={'required': 'Hãy nhập lý do hủy / điều chỉnh khoản thu.'})
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.order_fields(['action', 'reason', 'amount', 'paid_date', 'method', 'note'])
+        action = self.data.get(self.add_prefix('action')) if self.is_bound else self.initial.get('action', 'void')
+        for name in ('amount', 'paid_date', 'method', 'note'):
+            self.fields[name].disabled = action == 'void'
+            if action == 'void':
+                # A legacy amount above today's entry limit must still be voidable.
+                self.fields[name].validators = []
+
+
 class UtilityRateForm(BootstrapFormMixin, forms.Form):
     electric_price = MoneyField(label='Giá điện (đ/kWh)', min_value=1,
                                 max_digits=8, decimal_places=0)

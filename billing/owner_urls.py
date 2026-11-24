@@ -11,6 +11,7 @@ urlpatterns = [
     path('<int:pk>/in/', views.invoice_print, name='invoice_print'),
     path('<int:pk>/xoa/', views.invoice_delete, name='invoice_delete'),
     path('thanh-toan/<int:pk>/xoa/', views.payment_delete, name='payment_delete'),
+    path('thanh-toan/<int:pk>/dieu-chinh/', views.payment_correct, name='payment_correct'),
     path('bao-chuyen-khoan/<int:pk>/xac-nhan/', views.payment_notice_confirm, name='payment_notice_confirm'),
     path('bao-chuyen-khoan/<int:pk>/tu-choi/', views.payment_notice_reject, name='payment_notice_reject'),
 ]

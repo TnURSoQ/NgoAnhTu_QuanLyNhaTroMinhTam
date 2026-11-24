@@ -234,12 +234,12 @@ def create_invoice(*, room, month, year, new_electric, new_water, old_electric=N
 
 
 @transaction.atomic
-def record_payment(invoice, *, amount, paid_date=None, method=Payment.Method.TIEN_MAT, note=''):
+def record_payment(invoice, *, amount, paid_date=None, method=Payment.Method.TIEN_MAT, note='', recorded_by=None, replaces=None):
     if method not in (Payment.Method.TIEN_MAT, Payment.Method.CHUYEN_KHOAN):
         raise ValidationError(['Khoản đối trừ cọc phải được ghi nhận qua chức năng đối trừ cọc.'])
     invoice = Invoice.objects.select_for_update().get(pk=invoice.pk)
     payment = Payment(invoice=invoice, amount=_money(amount, 'Số tiền thanh toán', positive=True),
-                      paid_date=paid_date or timezone.localdate(), method=method, note=note)
+                      paid_date=paid_date or timezone.localdate(), method=method, note=note, recorded_by=recorded_by, replaces=replaces)
     payment.full_clean()
     payment.save()
     return payment
@@ -247,10 +247,46 @@ def record_payment(invoice, *, amount, paid_date=None, method=Payment.Method.TIE
 
 @transaction.atomic
 def delete_payment(payment):
-    if payment.method == Payment.Method.TU_COC:
-        raise ValidationError(['Khoản đối trừ đang liên kết với sổ cọc, không được xóa độc lập.'])
-    Invoice.objects.select_for_update().get(pk=payment.invoice_id)
-    payment.delete()
+    raise ValidationError(['Không xóa giao dịch đã ghi nhận. Hãy dùng chức năng điều chỉnh / hủy có lý do.'])
+
+
+def _void_payment_locked(payment, *, reason, actor):
+    if actor is None or not is_owner(actor):
+        raise ValidationError(['Chỉ chủ trọ mới được điều chỉnh / hủy khoản thu.'])
+    invoice_id = Payment.objects.values_list('invoice_id', flat=True).get(pk=payment.pk)
+    invoice = Invoice.objects.select_for_update().get(pk=invoice_id)
+    payment = Payment.objects.select_for_update().get(pk=payment.pk)
+    if payment.is_voided:
+        raise ValidationError(['Giao dịch này đã được hủy hoặc điều chỉnh. Hãy tải lại trang để xem lịch sử.'])
+    if payment.method == Payment.Method.TU_COC or hasattr(payment, 'deposit_entry'):
+        raise ValidationError(['Khoản đối trừ cọc liên kết với sổ cọc, không được hủy hoặc điều chỉnh độc lập.'])
+    reason = (reason or '').strip()
+    if not reason or len(reason) > 1000:
+        raise ValidationError(['Cần nhập lý do hủy / điều chỉnh, tối đa 1000 ký tự.'])
+    payment.voided_at, payment.voided_by, payment.void_reason = timezone.now(), actor, reason
+    updated = Payment.objects.filter(pk=payment.pk, voided_at__isnull=True).update(
+        voided_at=payment.voided_at, voided_by=actor, void_reason=reason)
+    if not updated:
+        raise ValidationError(['Giao dịch đã thay đổi. Hãy tải lại trang để xem lịch sử.'])
+    return payment, invoice
+
+
+@transaction.atomic
+def void_payment(payment, *, reason, actor):
+    payment, invoice = _void_payment_locked(payment, reason=reason, actor=actor)
+    invoice.update_status()
+    return payment
+
+
+@transaction.atomic
+def adjust_payment(payment, *, amount, paid_date, method, note='', reason, actor):
+    payment, invoice = _void_payment_locked(payment, reason=reason, actor=actor)
+    if (payment.amount, payment.paid_date, payment.method, payment.note) == (
+            _money(amount, 'Số tiền thanh toán', positive=True), paid_date, method, note):
+        raise ValidationError(['Thông tin thanh toán chưa thay đổi. Hãy sửa thông tin cần điều chỉnh.'])
+    replacement = record_payment(invoice, amount=amount, paid_date=paid_date, method=method, note=note,
+                                 recorded_by=actor, replaces=payment)
+    return replacement
 
 
 @transaction.atomic
@@ -344,7 +380,7 @@ def _pending_notice_for_owner(notice, owner):
 def confirm_payment_notice(notice, *, processed_by, amount, paid_date=None, note=''):
     notice = _pending_notice_for_owner(notice, processed_by)
     payment = record_payment(notice.invoice, amount=amount, paid_date=paid_date,
-                             method=Payment.Method.CHUYEN_KHOAN, note=note)
+                             method=Payment.Method.CHUYEN_KHOAN, note=note, recorded_by=processed_by)
     notice.payment = payment
     notice.status = PaymentNotice.Status.DA_XAC_NHAN
     notice.processed_by = processed_by

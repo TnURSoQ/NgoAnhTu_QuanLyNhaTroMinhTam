@@ -2,11 +2,13 @@
   <div class="section-head"><h2>Thông tin chuyển khoản</h2></div>
   {% if transfer_invoice %}<p class="text-muted small">Phòng {{ transfer_invoice.contract.room.room_number }} · Hóa đơn tháng {{ transfer_invoice.month }}/{{ transfer_invoice.year }}</p>{% endif %}
   {% if latest_notice %}
-    <div class="alert {% if latest_notice.status == 'cho_xac_nhan' %}alert-warning{% elif latest_notice.status == 'da_xac_nhan' %}alert-success{% else %}alert-danger{% endif %}">
-      {% if latest_notice.status == 'cho_xac_nhan' %}<strong>Đang chờ chủ trọ xác nhận</strong>
+    <div class="alert {% if latest_notice.payment.is_voided %}alert-warning{% elif latest_notice.status == 'cho_xac_nhan' %}alert-warning{% elif latest_notice.status == 'da_xac_nhan' %}alert-success{% else %}alert-danger{% endif %}">
+      {% if latest_notice.payment.is_voided %}<strong>Khoản thu đã hủy ghi nhận</strong><p class="small mb-1">Khoản gốc không còn được tính thanh toán. <a href="{% url 'my_payment_detail' latest_notice.payment_id %}">Xem lý do và lịch sử</a>{% if latest_notice.payment.replacement %} · Giao dịch thay thế: <a href="{% url 'my_payment_detail' latest_notice.payment.replacement.pk %}">{{ latest_notice.payment.replacement.display_code }}</a>{% endif %}</p>
+      {% elif latest_notice.status == 'cho_xac_nhan' %}<strong>Đang chờ chủ trọ xác nhận</strong>
       {% elif latest_notice.status == 'da_xac_nhan' %}<strong>Đã xác nhận</strong>
       {% else %}<strong>Bị từ chối:</strong> {{ latest_notice.reject_reason }}{% endif %}
-      <small class="d-block mt-1">Báo lúc {{ latest_notice.created_at|date:"H:i d/m/Y" }}{% if latest_notice.amount %} · {{ latest_notice.amount|floatformat:"0g" }} đ{% endif %}</small>
+      <small class="d-block mt-1">Báo lúc {{ latest_notice.created_at|date:"H:i d/m/Y" }}{% if latest_notice.amount %} · Số tiền đã báo: {{ latest_notice.amount|floatformat:"0g" }} đ{% endif %}</small>
+      {% if latest_notice.status == 'da_xac_nhan' and latest_notice.payment and not latest_notice.payment.is_voided %}<small class="d-block mt-1">Đã ghi nhận {{ latest_notice.payment.amount|floatformat:"0g" }} đ · <a href="{% url 'my_payment_detail' latest_notice.payment_id %}">Xem giao dịch {{ latest_notice.payment.display_code }}</a></small>{% endif %}
     </div>
   {% endif %}
   {% if notice_form.is_bound %}{% for error in notice_form.non_field_errors %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endfor %}{% endif %}

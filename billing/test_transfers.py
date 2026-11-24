@@ -378,15 +378,15 @@ class OwnerNoticeViewTests(TransferBase):
         self.assertContains(self.client.get(reverse('invoice_detail', args=[self.invoice.pk])),
                              'Sai tài khoản nhận')
 
-    def test_deleting_confirmed_payment_keeps_notice_history_and_allows_reporting_again(self):
+    def test_voiding_confirmed_payment_keeps_notice_link_and_allows_reporting_again(self):
         notice = services.report_payment(self.invoice, self.tenant)
         notice = services.confirm_payment_notice(notice, processed_by=self.owner, amount=1000000)
-        services.delete_payment(notice.payment)
+        services.void_payment(notice.payment, actor=self.owner, reason='Đối chiếu lại, khoản thu bị ghi nhận nhầm')
         notice.refresh_from_db()
-        self.assertIsNone(notice.payment)
+        self.assertTrue(notice.payment.is_voided)
         self.assertEqual(notice.status, PaymentNotice.Status.DA_XAC_NHAN)
         self.assertContains(self.client.get(reverse('invoice_detail', args=[self.invoice.pk])),
-                             'Khoản thanh toán đã được xóa.')
+                             'đã hủy và không còn tính vào thanh toán.')
         services.report_payment(self.invoice, self.tenant)
         self.assertEqual(PaymentNotice.objects.count(), 2)
 

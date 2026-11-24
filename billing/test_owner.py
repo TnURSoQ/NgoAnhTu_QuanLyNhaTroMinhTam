@@ -191,19 +191,18 @@ class InvoiceServiceTests(BillingBase):
 
 
 class PaymentStatusTests(BillingBase):
-    def test_partial_paid_edit_full_and_delete_recalculate_status(self):
+    def test_partial_paid_adjust_full_and_void_recalculate_status(self):
         inv = self.create()
         payment = services.record_payment(inv, amount=1000000, note='Lần 1')
         self.assertEqual(payment.note, 'Lần 1')
         self.assert_status(inv, Invoice.Status.THU_MOT_PHAN)
-        payment.amount = inv.total_amount
-        payment.full_clean()
-        payment.save()
+        payment = services.adjust_payment(payment, amount=inv.total_amount, paid_date=payment.paid_date,
+            method=payment.method, note=payment.note, reason='Sửa số tiền theo đối chiếu', actor=self.owner)
         self.assert_status(inv, Invoice.Status.DA_THANH_TOAN)
-        payment.amount = Decimal('1000000')
-        payment.save()
+        payment = services.adjust_payment(payment, amount=1000000, paid_date=payment.paid_date,
+            method=payment.method, note=payment.note, reason='Điều chỉnh lại số thực nhận', actor=self.owner)
         self.assert_status(inv, Invoice.Status.THU_MOT_PHAN)
-        services.delete_payment(payment)
+        services.void_payment(payment, reason='Ghi nhận trùng', actor=self.owner)
         self.assert_status(inv, Invoice.Status.CHUA_THANH_TOAN)
 
     def test_overdue_has_priority_over_partial_and_paid_has_priority_over_overdue(self):
@@ -212,7 +211,7 @@ class PaymentStatusTests(BillingBase):
         self.assert_status(inv, Invoice.Status.QUA_HAN)
         services.record_payment(inv, amount=inv.total_amount - p.amount)
         self.assert_status(inv, Invoice.Status.DA_THANH_TOAN)
-        services.delete_payment(p)
+        services.void_payment(p, reason='Nhập nhầm khoản thu', actor=self.owner)
         self.assert_status(inv, Invoice.Status.QUA_HAN)
 
     def test_rejects_zero_negative_and_excess_payment(self):
@@ -318,13 +317,16 @@ class OwnerBillingViewTests(BillingBase):
                               'method': 'tien_mat'})
         self.assert_status(inv, Invoice.Status.DA_THANH_TOAN)
 
-    def test_payment_deletion_requires_post_and_recalculates(self):
+    def test_legacy_delete_url_requires_void_reason_and_keeps_the_record(self):
         inv = self.create()
         payment = services.record_payment(inv, amount=inv.total_amount)
         url = reverse('payment_delete', args=[payment.pk])
         self.assertContains(self.client.get(url), 'Xác nhận')
         self.assertTrue(Payment.objects.filter(pk=payment.pk).exists())
-        self.assertRedirects(self.client.post(url), reverse('invoice_detail', args=[inv.pk]))
+        self.assertEqual(self.client.post(url).status_code, 200)
+        self.assert_status(inv, Invoice.Status.DA_THANH_TOAN)
+        self.assertRedirects(self.client.post(url, {'action': 'void', 'reason': 'Ghi nhận nhầm'}), reverse('invoice_detail', args=[inv.pk]))
+        self.assertTrue(Payment.objects.get(pk=payment.pk).is_voided)
         self.assert_status(inv, Invoice.Status.CHUA_THANH_TOAN)
 
     def test_invoice_deletion_removes_unused_reading(self):

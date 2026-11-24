@@ -33,7 +33,7 @@ def overview(request):
     month_unpaid = Decimal('0')
     overdue = []
     for inv in unpaid:
-        paid = sum((p.amount for p in inv.payments.all()), Decimal('0'))
+        paid = sum((p.amount for p in inv.payments.all() if not p.is_voided), Decimal('0'))
         remaining = inv.total_amount - paid
         if remaining <= 0:
             continue
@@ -182,7 +182,7 @@ def _dashboard_context(request):
         year = today.year
 
     rows = (
-        Payment.objects.filter(paid_date__year=year)
+        Payment.objects.active().filter(paid_date__year=year)
         .annotate(m=ExtractMonth('paid_date'))
         .values('m')
         .annotate(total=Sum('amount'))
@@ -214,7 +214,7 @@ def _dashboard_context(request):
     debts = []
     total_debt = Decimal('0')
     for inv in invoices:
-        paid = sum((p.amount for p in inv.payments.all()), Decimal('0'))
+        paid = sum((p.amount for p in inv.payments.all() if not p.is_voided), Decimal('0'))
         remaining = inv.total_amount - paid
         if remaining <= 0:
             continue
@@ -241,9 +241,9 @@ def _dashboard_context(request):
         'deposit_held': (DepositEntry.objects.filter(kind__in=['receive', 'transfer_in']).aggregate(
             total=Sum('amount'))['total'] or 0) - (DepositEntry.objects.filter(
                 kind__in=['refund', 'deduct', 'transfer_out', 'pay_invoice']).aggregate(total=Sum('amount'))['total'] or 0),
-        'cash_received': Payment.objects.filter(paid_date__year=year).exclude(method=Payment.Method.TU_COC).aggregate(
+        'cash_received': Payment.objects.active().filter(paid_date__year=year).exclude(method=Payment.Method.TU_COC).aggregate(
             total=Sum('amount'))['total'] or 0,
-        'deposit_applied': Payment.objects.filter(paid_date__year=year, method=Payment.Method.TU_COC).aggregate(
+        'deposit_applied': Payment.objects.active().filter(paid_date__year=year, method=Payment.Method.TU_COC).aggregate(
             total=Sum('amount'))['total'] or 0,
     }
 
@@ -268,6 +268,12 @@ def cashbook_csv(request):
     writer.writerow(['Ngày', 'Nhóm', 'Nội dung', 'Hợp đồng', 'Phòng', 'Số tiền (đ)',
                      'Thu tiền mới (đ)', 'Chi tiền thực tế (đ)', 'Biến động nội bộ (đ)', 'Hình thức', 'Ghi chú'])
     for payment in Payment.objects.filter(paid_date__year=year).select_related('invoice__contract__room').order_by('paid_date', 'pk'):
+        if payment.is_voided:
+            writer.writerow([payment.paid_date.isoformat(), 'Khoản thu đã hủy (không cộng tiền)', payment.display_code,
+                payment.invoice.contract.display_code, _csv_cell(payment.invoice.contract.room.room_number),
+                0, 0, 0, 0, payment.get_method_display(), _csv_cell(
+                    f'Số tiền gốc {payment.amount}; hủy lúc {timezone.localtime(payment.voided_at).isoformat()}; lý do: {payment.void_reason}')])
+            continue
         internal = payment.method == Payment.Method.TU_COC
         writer.writerow([payment.paid_date.isoformat(), 'Đối trừ cọc vào hóa đơn' if internal else 'Thực thu hóa đơn', f'Phiếu thu #{payment.pk}',
                          payment.invoice.contract.display_code, _csv_cell(payment.invoice.contract.room.room_number),

@@ -86,7 +86,7 @@ def room_detail(request, pk):
     )
     invoice_info = None
     if last_invoice:
-        payments = list(last_invoice.payments.all())
+        payments = [p for p in last_invoice.payments.all() if not p.is_voided]
         paid = sum((p.amount for p in payments), 0)
         invoice_info = {
             'invoice': last_invoice, 'paid': paid,

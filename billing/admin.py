@@ -45,7 +45,18 @@ class InvoiceServiceInline(admin.TabularInline):
 
 class PaymentInline(admin.TabularInline):
     model = Payment
-    extra = 1
+    extra = 0
+    readonly_fields = ('amount', 'paid_date', 'method', 'note', 'recorded_at', 'recorded_by',
+                      'voided_at', 'voided_by', 'void_reason', 'replaces')
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(Invoice)
@@ -73,3 +84,10 @@ class InvoiceAdmin(admin.ModelAdmin):
         super().save_related(request, form, formsets, change)
         # Sửa/xóa dòng dịch vụ xong thì tổng tiền tự cập nhật lại
         form.instance.recalculate_total()
+
+    def save_formset(self, request, form, formset, change):
+        if formset.model == Payment:
+            for payment_form in formset.forms:
+                if not payment_form.instance.pk and payment_form.has_changed():
+                    payment_form.instance.recorded_by = request.user
+        super().save_formset(request, form, formset, change)

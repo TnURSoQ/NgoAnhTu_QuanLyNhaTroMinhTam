@@ -2,11 +2,12 @@
 <h3 class="h6 mb-3">Báo chuyển khoản từ người thuê</h3>
 {% for notice in payment_notices %}
 <div class="border rounded p-3 mb-3">
-  <div class="d-flex flex-wrap justify-content-between gap-2 mb-2"><strong>{{ notice.tenant.full_name }}</strong><span class="pill {% if notice.status == 'cho_xac_nhan' %}pill-amber{% elif notice.status == 'da_xac_nhan' %}pill-mint{% else %}pill-rose{% endif %}">{{ notice.get_status_display }}</span></div>
+  <div class="d-flex flex-wrap justify-content-between gap-2 mb-2"><strong>{{ notice.tenant.full_name }}</strong><span class="pill {% if notice.payment.is_voided %}pill-rose{% elif notice.status == 'cho_xac_nhan' %}pill-amber{% elif notice.status == 'da_xac_nhan' %}pill-mint{% else %}pill-rose{% endif %}">{% if notice.payment.is_voided %}Đã hủy ghi nhận{% else %}{{ notice.get_status_display }}{% endif %}</span></div>
   <p class="small text-muted mb-2">Báo lúc {{ notice.created_at|date:"H:i d/m/Y" }} · {% if notice.amount %}Khai đã chuyển {{ notice.amount|floatformat:"0g" }} đ{% else %}Chưa khai số tiền{% endif %}</p>
   {% if notice.note %}<p class="mb-2 text-break">{{ notice.note|linebreaksbr }}</p>{% endif %}
   {% if notice.status == 'cho_xac_nhan' %}<div class="d-flex flex-wrap gap-2"><a class="btn btn-sm btn-primary" href="{% url 'payment_notice_confirm' notice.pk %}">Xác nhận</a><a class="btn btn-sm btn-outline-danger" href="{% url 'payment_notice_reject' notice.pk %}">Từ chối</a></div>
   {% elif notice.status == 'tu_choi' %}<p class="text-danger mb-1">Lý do từ chối: {{ notice.reject_reason }}</p>
+  {% elif notice.payment.is_voided %}<p class="mb-1">Khoản gốc {{ notice.payment.display_code }} đã hủy và không còn tính vào thanh toán. <a href="{% url 'payment_correct' notice.payment_id %}">Xem lịch sử</a></p>
   {% elif notice.payment %}<p class="mb-1">Đã ghi nhận {{ notice.payment.amount|floatformat:"0g" }} đ · Chuyển khoản</p>
   {% else %}<p class="text-muted mb-1">Khoản thanh toán đã được xóa.</p>{% endif %}
   {% if notice.processed_at %}<small class="text-muted">{% if notice.processed_by %}{{ notice.processed_by.get_full_name|default:notice.processed_by.username }}{% else %}Tài khoản đã xóa{% endif %} · {{ notice.processed_at|date:"H:i d/m/Y" }}</small>{% endif %}

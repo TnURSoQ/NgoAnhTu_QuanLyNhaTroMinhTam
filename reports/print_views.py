@@ -1,9 +1,11 @@
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_GET
+from django.views.decorators.cache import never_cache
 
 from accounts.decorators import owner_required
 from billing.models import Payment
+from billing.receipts import payment_records, payment_receipt
 from rooms.display import representative_of
 from rooms.models import CheckoutRecord, Contract, ContractTenant, DepositEntry, Room
 from support.models import MaintenanceRequest
@@ -23,16 +25,11 @@ def contract_print(request, pk):
 
 
 @owner_required
+@never_cache
 @require_GET
 def payment_print(request, pk):
-    payment = get_object_or_404(Payment.objects.select_related('invoice__contract__room').prefetch_related(
-        'invoice__contract__contract_tenants__tenant'), pk=pk)
-    internal = payment.method == Payment.Method.TU_COC
-    return render(request, 'print/transaction.html', {'payment': payment,
-        'contract': payment.invoice.contract, 'tenant': representative_of(payment.invoice.contract),
-        'internal': internal, 'document_title': 'Phiếu đối trừ cọc thanh toán hóa đơn' if internal else 'Phiếu thu tiền phòng',
-        'code': f'TT-{payment.pk:06d}', 'amount': payment.amount, 'occurred_on': payment.paid_date,
-        'method': payment.get_method_display(), 'note': payment.note})
+    payment = get_object_or_404(payment_records(), pk=pk)
+    return render(request, 'print/transaction.html', payment_receipt(payment))
 
 
 @owner_required
