@@ -21,6 +21,8 @@ Cập nhật ngày 18/11/2026, dựa trên mã nguồn, đề cương `225122004
 | Có thể bỏ qua bản nháp khi trả/chuyển phòng | Chặn thao tác khi còn nháp; liên kết trực tiếp đến kỳ cần hoàn tất |
 | Lưu lại hợp đồng cũ có thể làm phòng đang thuê thành trống | Trạng thái phòng được tính theo hợp đồng còn hiệu lực; giữ phòng đang bảo trì |
 | Chưa có công cụ đối chiếu ngoài màn hình | Có bản in hóa đơn, lưu PDF bằng trình duyệt và xuất CSV sổ thực thu/cọc tách riêng |
+| Người thuê thiếu chi tiết từng lần trả và chứng từ | Lịch sử mở từng giao dịch có mã TT, phương thức, ngày thu/đối trừ và thời điểm ghi nhận. Người thuê được in hóa đơn/phiếu từng lần trong hợp đồng của mình; hóa đơn còn nợ ghi rõ số dư, chuyển khoản chờ xác nhận chưa tính đã trả, đối trừ cọc không tính là tiền mới thu |
+| Xóa hoặc sửa khoản thu làm mất dấu vết | Thay bằng hủy có lý do hoặc tạo giao dịch điều chỉnh liên kết bản gốc; giữ nguyên dữ liệu gốc, lưu người/thời điểm. Các khoản đã hủy không cộng vào số dư và báo cáo; người thuê được thông báo, xem lịch sử và bản in có trạng thái hủy rõ ràng. Đối trừ cọc vẫn cần xử lý đồng bộ sổ cọc, không được hủy độc lập |
 | Thiếu kiểm tra dữ liệu vận hành | Bổ sung lệnh audit_rental_data chỉ đọc và công việc nhắc chốt điện nước trên Tổng quan |
 
 ## Quyết định nghiệp vụ cần ghi rõ khi bảo vệ
@@ -45,7 +47,7 @@ Cập nhật ngày 18/11/2026, dựa trên mã nguồn, đề cương `225122004
 - Chỉ số bàn giao cũ còn thiếu không được tự suy đoán. Kỳ có lịch sử chỉ số vẫn được lấy tiếp từ kỳ trước; kỳ đầu cần đối chiếu số ban đầu.
 - Khi trả phòng, chủ trọ cần chốt các khoản cuối kỳ. Chưa có hóa đơn bổ sung cho phần sử dụng sau khi hóa đơn tháng đó đã được chốt; trường hợp này cần luồng điều chỉnh/hủy và lập lại có lưu vết trong giai đoạn tiếp theo.
 - Chưa có nhật ký đầy đủ cho việc sửa/xóa mọi nghiệp vụ, chưa có phân hệ chi phí, công nợ nhà cung cấp, đa nhà trọ, thanh toán tự động hoặc ứng dụng di động.
-- Chưa kiểm tra trình duyệt bằng công cụ tự động trong môi trường này; phần giao diện có kiểm tra phản hồi Django và logic JavaScript, cần nghiệm thu màn hình trên thiết bị thực theo checklist.
+- Đã kiểm tra Chrome với dữ liệu riêng cho các luồng được ghi trong `verification.md`, gồm thông báo, lịch hẹn, hồ sơ, sửa chữa, thanh toán và bản in. Vẫn cần nghiệm thu trên thiết bị thực theo checklist.
 
 ## Phần có thể thừa hoặc nên để giai đoạn sau
 
@@ -60,7 +62,7 @@ Cập nhật ngày 18/11/2026, dựa trên mã nguồn, đề cương `225122004
 
 ## Ưu tiên tiếp theo trước khi sử dụng vận hành lâu dài
 
-1. Lưu vết chỉnh sửa, hủy và điều chỉnh hóa đơn/phiếu thu thay vì xóa khỏi lịch sử; xử lý hóa đơn bổ sung cuối kỳ.
+1. Bổ sung luồng điều chỉnh/hủy hóa đơn đã phát hành và hóa đơn bổ sung cuối kỳ. Khoản thanh toán đã có hủy/điều chỉnh giữ lịch sử; còn cần thiết kế nghiệp vụ đảo đối trừ cọc và hoàn tiền thực tế cho hóa đơn khi có phát sinh.
 2. Bổ sung sổ chi phí sửa chữa, điện nước đầu vào, vệ sinh để đối chiếu dòng tiền và tính kết quả kinh doanh.
 3. Cải thiện cấp mật khẩu ban đầu, quy trình đổi/reset mật khẩu và phục hồi tài khoản.
 4. Kết nối PostgreSQL thật, chuyển dữ liệu có kiểm tra và diễn tập phục hồi cả dữ liệu lẫn ảnh trước khi triển khai.
