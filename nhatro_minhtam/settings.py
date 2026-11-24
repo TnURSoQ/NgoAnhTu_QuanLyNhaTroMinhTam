@@ -14,9 +14,11 @@ from pathlib import Path
 import os
 from urllib.parse import parse_qs, unquote, urlsplit
 from django.core.exceptions import ImproperlyConfigured
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / '.env', override=False)
 PRIVATE_MEDIA_ROOT = BASE_DIR / 'private-media'
 
 
@@ -154,9 +156,21 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'accounts.User'
 
-# Email: khi phát triển, in nội dung email ra terminal thay vì gửi thật
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-DEFAULT_FROM_EMAIL = 'Nhà trọ Minh Tâm <no-reply@minhtam.local>'
+# Có thể cấu hình trong .env; biến môi trường hệ điều hành được ưu tiên.
+EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend'
+                               if DEBUG else 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = os.environ.get('EMAIL_HOST', '')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', '1').lower() in ('1', 'true', 'yes')
+EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', '0').lower() in ('1', 'true', 'yes')
+EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', '10'))
+if EMAIL_USE_TLS and EMAIL_USE_SSL:
+    raise ImproperlyConfigured('Chỉ bật một trong EMAIL_USE_TLS hoặc EMAIL_USE_SSL.')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'Nhà trọ Minh Tâm <no-reply@minhtam.local>')
+EMAIL_REPLY_TO = os.environ.get('EMAIL_REPLY_TO', EMAIL_HOST_USER).strip()
+PUBLIC_SITE_URL = os.environ.get('PUBLIC_SITE_URL', 'http://127.0.0.1:8000' if DEBUG else '').rstrip('/')
 
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'home'
@@ -168,5 +182,5 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 # Thông tin hiển thị cho khách ở trang công khai 
 SITE_NAME = 'Nhà trọ Minh Tâm'
-SITE_ADDRESS = 'Đà Nẵng'
-SITE_PHONE = ''
+SITE_ADDRESS = os.environ.get('SITE_ADDRESS', 'Đà Nẵng')
+SITE_PHONE = os.environ.get('SITE_PHONE', '')
