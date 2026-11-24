@@ -42,7 +42,7 @@ class TenantMaintenanceTests(SupportBase):
     def test_create_uses_active_contract_and_sender_despite_tampered_post(self):
         response = self.client.post(reverse('maintenance_create'), {
             'title': 'Mất điện', 'category': 'dien', 'description': 'Ổ điện không hoạt động.',
-            'priority': 'rat_khan_cap', 'contact_method': 'dien_thoai',
+            'priority': 'rat_khan_cap', 'contact_method': 'dien_thoai', 'contact_phone': '0901234567',
             'preferred_date': (timezone.localdate() + timedelta(days=1)).isoformat(), 'preferred_slot': 'sang',
             'room': self.other_room.pk, 'tenant': self.other_tenant.pk,
             'status': 'hoan_thanh', 'owner_note': 'Giả mạo', 'resolved_at': timezone.now().isoformat(),
@@ -65,6 +65,66 @@ class TenantMaintenanceTests(SupportBase):
         self.assertEqual(response.status_code, 302)
         self.assertIsNone(MR.objects.get().preferred_date)
         self.assertEqual(MR.objects.get().preferred_slot, '')
+
+    def contact_request(self, **changes):
+        return self.client.post(reverse('maintenance_create'), {
+            'title': 'Sự cố thử', 'category': 'khac', 'description': 'Cần hỗ trợ kiểm tra.',
+            'priority': 'binh_thuong', 'contact_method': 'dien_thoai', **changes})
+
+    def test_contact_phone_prefills_from_profile_but_is_editable(self):
+        response = self.client.get(reverse('maintenance_create'))
+        field = response.context['form'].fields['contact_phone']
+        self.assertEqual(response.context['form']['contact_phone'].value(), self.tenant.phone)
+        self.assertFalse(field.disabled)
+        self.assertFalse(field.required)
+        self.assertEqual(field.widget.input_type, 'tel')
+        self.assertContains(response, 'id="maintenanceContactPhone" class="mt-3" hidden')
+
+    def test_phone_contact_requires_number_and_keeps_field_visible_on_error(self):
+        response = self.contact_request()
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('contact_phone', response.context['form'].errors)
+        self.assertTrue(response.context['form'].fields['contact_phone'].required)
+        self.assertContains(response, 'Hãy nhập số điện thoại để chủ trọ liên hệ.')
+        self.assertNotContains(response, 'id="maintenanceContactPhone" class="mt-3" hidden')
+        self.assertFalse(MR.objects.exists())
+
+    def test_invalid_phone_contact_does_not_create_request(self):
+        for number in ('abc', '123', '0123456789012345', '++84912345678', '090<script>'):
+            with self.subTest(number=number):
+                response = self.contact_request(contact_phone=number)
+                self.assertEqual(response.status_code, 200)
+                self.assertIn('contact_phone', response.context['form'].errors)
+                self.assertEqual(response.context['form']['contact_phone'].value(), number)
+                self.assertFalse(MR.objects.exists())
+
+    def test_phone_contact_is_saved_per_request_and_shown_in_detail_and_print(self):
+        response = self.contact_request(contact_phone='+84 912 345 678')
+        self.assertEqual(response.status_code, 302)
+        item = MR.objects.get()
+        self.assertEqual(item.contact_phone, '+84912345678')
+        self.tenant.refresh_from_db()
+        self.assertEqual(self.tenant.phone, '0901234567')
+        page = self.client.get(reverse('my_maintenance_detail', args=[item.pk]))
+        self.assertContains(page, 'href="tel:+84912345678"')
+        self.client.force_login(self.owner)
+        for name in ('maintenance_detail', 'maintenance_print'):
+            page = self.client.get(reverse(name, args=[item.pk]))
+            self.assertContains(page, '+84912345678')
+
+    def test_app_contact_does_not_require_or_store_stale_phone(self):
+        for extra in ({}, {'contact_phone': 'abc'}, {'contact_phone': '0909999888'}):
+            with self.subTest(extra=extra):
+                response = self.contact_request(contact_method='web', **extra)
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(MR.objects.first().contact_phone, '')
+
+    def test_old_phone_request_without_saved_number_still_opens(self):
+        item = self.make_request(contact_method=MR.ContactMethod.DIEN_THOAI)
+        self.assertEqual(item.contact_phone, '')
+        self.client.force_login(self.owner)
+        response = self.client.get(reverse('maintenance_detail', args=[item.pk]))
+        self.assertContains(response, 'Chưa cung cấp số liên hệ')
 
     def test_invalid_submission_shows_errors_without_creating(self):
         response = self.client.post(reverse('maintenance_create'), {

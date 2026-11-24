@@ -34,7 +34,8 @@ def my_maintenance_requests(request):
 @tenant_required
 def maintenance_create(request):
     contract = active_contract(request.tenant)
-    form = MaintenanceRequestForm(request.POST if request.method == 'POST' else None, request.FILES or None)
+    form = MaintenanceRequestForm(request.POST if request.method == 'POST' else None, request.FILES or None,
+                                  initial={'contact_phone': request.tenant.phone})
     if request.method == 'POST':
         if not contract:
             form.add_error(None, 'Bạn cần có hợp đồng hiệu lực để gửi yêu cầu sửa chữa.')
@@ -243,11 +244,12 @@ def _notification_panel_response(request, feed, owner=False):
         if owner:
             kind = item['notification_kind']
             routes = {'owner_maintenance': 'maintenance_detail', 'owner_appointment': 'appointment_detail',
+                      'owner_appointment_cancel': 'appointment_detail',
                       'owner_transfer': 'invoice_detail', 'owner_cooccupant': 'cooccupant_review'}
             item['url'] = reverse(routes[kind], args=[item['target_id']])
             if kind == 'owner_maintenance':
                 item['title'] = f'Yêu cầu sửa chữa: {item["title"]}'
-            if kind == 'owner_appointment':
+            if kind in ('owner_appointment', 'owner_appointment_cancel'):
                 item['expected_label'] = 'Ngày xem phòng'
         else:
             item['status_label'] = labels.get(item['notification_status'], '')
@@ -257,6 +259,8 @@ def _notification_panel_response(request, feed, owner=False):
             item['url'] = reverse('my_announcement_detail', args=[item['id']])
         elif not owner and item['notification_kind'] == 'cooccupant_decision':
             item['url'] = reverse('my_cooccupant_detail', args=[item['id']])
+        elif not owner and item['notification_kind'] == 'payment_correction':
+            item['url'] = reverse('my_payment_detail', args=[item['id']])
         preview = [' '.join(item.get('notification_content', '').split())]
         if item.get('notification_expected'):
             label = item.get('expected_label', 'Dự kiến xong')

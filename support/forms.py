@@ -1,3 +1,5 @@
+import re
+
 from django import forms
 
 from accounts.forms import BootstrapFormMixin
@@ -15,11 +17,28 @@ class MaintenanceRequestForm(BootstrapFormMixin, forms.ModelForm):
 
     class Meta:
         model = MaintenanceRequest
-        fields = ['title', 'category', 'description', 'priority', 'preferred_date', 'preferred_slot', 'contact_method']
+        fields = ['title', 'category', 'description', 'priority', 'preferred_date', 'preferred_slot', 'contact_method', 'contact_phone']
         widgets = {
             'description': forms.Textarea(attrs={'rows': 5, 'placeholder': 'Mô tả tình trạng và vị trí xảy ra sự cố…'}),
             'preferred_date': forms.DateInput(format='%Y-%m-%d', attrs={'type': 'date'}),
+            'contact_phone': forms.TextInput(attrs={'type': 'tel', 'inputmode': 'tel', 'autocomplete': 'tel',
+                'placeholder': 'Nhập số điện thoại để chủ trọ liên hệ'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        method = self.data.get(self.add_prefix('contact_method')) if self.is_bound else self.initial.get('contact_method')
+        self.fields['contact_phone'].required = method == MaintenanceRequest.ContactMethod.DIEN_THOAI
+        self.fields['contact_phone'].help_text = 'Có thể dùng số khác với số trong hồ sơ cho yêu cầu này.'
+        self.fields['contact_phone'].error_messages['required'] = 'Hãy nhập số điện thoại để chủ trọ liên hệ.'
+
+    def clean_contact_phone(self):
+        if self.cleaned_data.get('contact_method') != MaintenanceRequest.ContactMethod.DIEN_THOAI:
+            return ''
+        value = re.sub(r'[\s.()\-]', '', self.cleaned_data.get('contact_phone', ''))
+        if not re.fullmatch(r'\+?[0-9]{9,15}', value):
+            raise forms.ValidationError('Nhập số điện thoại hợp lệ gồm 9–15 chữ số, có thể bắt đầu bằng +.')
+        return value
 
     def clean_camera_photo(self):
         image = self.cleaned_data.get('camera_photo')

@@ -27,7 +27,7 @@ def _with_unread_state(queryset, user_id, kind, time_field, unread_only):
 
 
 def notification_feed_for(tenant, unread_only=False):
-    from django.db.models import CharField, DateField, F, Value
+    from django.db.models import Case, CharField, DateField, F, TextField, Value, When
     fields = ('id', 'title', 'notification_kind', 'notification_time',
               'notification_content', 'notification_status', 'notification_expected', 'is_unread')
     announcements = _with_unread_state(announcements_for(tenant), tenant.user_id,
@@ -52,7 +52,17 @@ def notification_feed_for(tenant, unread_only=False):
         notification_time=F('reviewed_at'), notification_content=F('review_note'),
         notification_status=F('status'), notification_expected=Value(None, output_field=DateField()),
     ).values(*fields)
-    return announcements.union(replies, decisions, all=True).order_by('-notification_time', '-id', 'notification_kind')
+    from billing.models import Payment
+    from django.db.models.functions import Cast
+    corrections = _with_unread_state(Payment.objects.filter(invoice__contract__contract_tenants__tenant=tenant,
+        voided_at__isnull=False), tenant.user_id, 'payment_correction', 'voided_at', unread_only).order_by().annotate(
+        title=Case(When(replacement__isnull=False, then=Value('Khoản thanh toán đã được điều chỉnh')),
+                   default=Value('Khoản thanh toán đã hủy ghi nhận'), output_field=CharField()),
+        notification_kind=Value('payment_correction', output_field=CharField()), notification_time=F('voided_at'),
+        notification_content=Concat(Value('Giao dịch #'), Cast('pk', CharField()), Value(' · '), F('void_reason'), output_field=TextField()),
+        notification_status=Value('', output_field=CharField()), notification_expected=Value(None, output_field=DateField()),
+    ).values(*fields)
+    return announcements.union(replies, decisions, corrections, all=True).order_by('-notification_time', '-id', 'notification_kind')
 
 
 TRANSITIONS = {
@@ -62,7 +72,7 @@ TRANSITIONS = {
 
 
 def owner_notification_feed(user, unread_only=False):
-    from django.db.models import CharField, DateField, F, TextField, Value
+    from django.db.models import Case, CharField, DateField, F, TextField, Value, When
     from django.db.models.functions import Concat
     from billing.models import PaymentNotice
     from rooms.models import ViewingAppointment
@@ -87,6 +97,17 @@ def owner_notification_feed(user, unread_only=False):
                                     F('visitor_name'), output_field=TextField()),
         notification_expected=F('appointment_date'), target_id=F('pk'),
     ).values(*fields)
+    cancellations = _with_unread_state(ViewingAppointment.objects.filter(status=ViewingAppointment.Status.HUY,
+        cancelled_by=ViewingAppointment.CancelledBy.GUEST, cancelled_at__isnull=False), user.pk,
+        'owner_appointment_cancel', 'cancelled_at', unread_only).order_by().annotate(
+        title=Value('Khách đã hủy lịch xem phòng', output_field=CharField()),
+        notification_kind=Value('owner_appointment_cancel', output_field=CharField()),
+        notification_time=F('cancelled_at'),
+        notification_content=Concat(Value('Phòng '), F('room__room_number'), Value(' · '), F('visitor_name'),
+            Value(' · '), Case(When(cancellation_reason='', then=Value('Không ghi lý do')),
+                               default=F('cancellation_reason'), output_field=TextField()), output_field=TextField()),
+        notification_expected=F('appointment_date'), target_id=F('pk'),
+    ).values(*fields)
     transfers = _with_unread_state(
         PaymentNotice.objects.filter(status=PaymentNotice.Status.CHO_XAC_NHAN), user.pk,
         'owner_transfer', 'created_at', unread_only).order_by().annotate(
@@ -106,7 +127,7 @@ def owner_notification_feed(user, unread_only=False):
                                     F('submitted_by__full_name'), output_field=TextField()),
         notification_expected=Value(None, output_field=DateField()), target_id=F('pk'),
     ).values(*fields)
-    return repairs.union(appointments, transfers, cooccupants, all=True).order_by('-notification_time', '-id', 'notification_kind')
+    return repairs.union(appointments, cancellations, transfers, cooccupants, all=True).order_by('-notification_time', '-id', 'notification_kind')
 
 
 def active_contract(tenant):

@@ -12,6 +12,7 @@
     <div class="info-row"><span>Ngày gửi</span><strong>{{ maintenance.created_at|date:"d/m/Y H:i" }}</strong></div>
     <div class="info-row"><span>Thời gian thuận tiện</span><strong>{{ maintenance.preferred_date|date:"d/m/Y"|default:'Không yêu cầu ngày' }} · {{ maintenance.get_preferred_slot_display|default:'Không yêu cầu buổi' }}</strong></div>
     <div class="info-row"><span>Liên hệ khi cần</span><strong>{{ maintenance.get_contact_method_display }}</strong></div>
+    {% if maintenance.contact_method == 'dien_thoai' %}<div class="info-row"><span>Số điện thoại liên hệ</span><strong>{% if maintenance.contact_phone %}<a href="tel:{{ maintenance.contact_phone }}">{{ maintenance.contact_phone }}</a>{% else %}Chưa cung cấp số liên hệ{% endif %}</strong></div>{% endif %}
     <h3 class="h6 mt-4">Mô tả chi tiết</h3><div class="text-break">{{ maintenance.description|linebreaksbr }}</div>
     {% if maintenance.photos.all %}<h3 class="h6 mt-4">Ảnh sự cố</h3><div class="room-photo-gallery">{% for photo in maintenance.photos.all %}<figure><a href="{% url 'maintenance_photo' photo.pk %}" target="_blank" rel="noopener"><img src="{% url 'maintenance_photo' photo.pk %}" alt="Ảnh sự cố {{ forloop.counter }} của {{ maintenance.display_code }}" loading="lazy" width="900" height="600"></a></figure>{% endfor %}</div>{% endif %}
   </section>

@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
 from accounts.permissions import is_owner
-from billing.models import PaymentNotice
+from billing.models import Payment, PaymentNotice
 from rooms.models import ViewingAppointment, CoOccupantRequest
 from .models import MaintenanceRequest as MR, NotificationRead
 from .services import announcements_for, notification_feed_for, owner_notification_feed
@@ -40,6 +40,10 @@ def _read_target(user, kind, object_id):
         if kind == NotificationRead.Kind.OWNER_APPOINTMENT:
             item = get_object_or_404(ViewingAppointment, pk=object_id, status=ViewingAppointment.Status.CHO_XAC_NHAN)
             return item.created_at, reverse('appointment_detail', args=[item.pk])
+        if kind == NotificationRead.Kind.OWNER_APPOINTMENT_CANCEL:
+            item = get_object_or_404(ViewingAppointment, pk=object_id, status=ViewingAppointment.Status.HUY,
+                cancelled_by=ViewingAppointment.CancelledBy.GUEST, cancelled_at__isnull=False)
+            return item.cancelled_at, reverse('appointment_detail', args=[item.pk])
         if kind == NotificationRead.Kind.OWNER_TRANSFER:
             item = get_object_or_404(PaymentNotice, pk=object_id, status=PaymentNotice.Status.CHO_XAC_NHAN)
             return item.created_at, reverse('invoice_detail', args=[item.invoice_id])
@@ -59,6 +63,10 @@ def _read_target(user, kind, object_id):
             item = get_object_or_404(CoOccupantRequest, pk=object_id, submitted_by=tenant,
                 status__in=[CoOccupantRequest.Status.APPROVED, CoOccupantRequest.Status.REJECTED], reviewed_at__isnull=False)
             return item.reviewed_at, reverse('my_cooccupant_detail', args=[item.pk])
+        if kind == NotificationRead.Kind.PAYMENT_CORRECTION:
+            item = get_object_or_404(Payment.objects.filter(invoice__contract__contract_tenants__tenant=tenant,
+                voided_at__isnull=False), pk=object_id)
+            return item.voided_at, reverse('my_payment_detail', args=[item.pk])
     raise PermissionDenied
 
 
