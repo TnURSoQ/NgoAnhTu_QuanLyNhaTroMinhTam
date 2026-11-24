@@ -12,6 +12,7 @@
   <div class="info-row"><span>Email</span><strong>{{ proposal.email|default:'Chưa cung cấp' }}</strong></div>
   <div class="info-row"><span>Ngày sinh</span><strong>{{ proposal.date_of_birth|date:'d/m/Y'|default:'Chưa cung cấp' }}</strong></div>
   <div class="info-row"><span>Quê quán</span><strong>{{ proposal.hometown|default:'Chưa cung cấp' }}</strong></div>
+  {% include 'accounts/_identity_details.html' with person=proposal %}
   <div class="info-row"><span>Nghề nghiệp</span><strong>{{ proposal.occupation|default:'Chưa cung cấp' }}</strong></div>
   {% if proposal.note %}<h3 class="h6 mt-3">Lời nhắn</h3><p class="text-break mb-0">{{ proposal.note|linebreaksbr }}</p>{% endif %}
   <div class="mt-4">{% include 'accounts/_identity_images.html' with document=proposal.identity_document current_id_number=proposal.id_card_number %}</div>

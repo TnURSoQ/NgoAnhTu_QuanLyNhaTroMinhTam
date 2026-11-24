@@ -5,6 +5,7 @@ from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
 
 from .models import Tenant
 from .identity_forms import IdentityScanFormMixin
+from .identity_profile import DETAIL_FIELDS
 
 
 class BootstrapFormMixin:
@@ -50,7 +51,7 @@ class TenantForm(BootstrapFormMixin, IdentityScanFormMixin, forms.ModelForm):
     class Meta:
         model = Tenant
         fields = ['full_name', 'phone', 'id_card_number', 'email', 'date_of_birth',
-                  'hometown', 'occupation', 'note']
+                  'hometown', 'occupation', *DETAIL_FIELDS, 'note']
         labels = {
             'full_name': 'Họ và tên', 'phone': 'Số điện thoại', 'id_card_number': 'Số CCCD',
             'email': 'Email', 'date_of_birth': 'Ngày sinh', 'hometown': 'Quê quán',
@@ -59,6 +60,9 @@ class TenantForm(BootstrapFormMixin, IdentityScanFormMixin, forms.ModelForm):
         widgets = {
             'date_of_birth': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
             'note': forms.Textarea(attrs={'rows': 3}),
+            'permanent_address': forms.Textarea(attrs={'rows': 2}),
+            'identity_issued_on': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+            'identity_expires_on': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
         }
         error_messages = {'id_card_number': {'unique': 'Số CCCD này đã có trong hệ thống.'}}
 
@@ -88,7 +92,7 @@ class TenantForm(BootstrapFormMixin, IdentityScanFormMixin, forms.ModelForm):
 
 class TenantProfileForm(TenantForm):
     class Meta(TenantForm.Meta):
-        fields = ['full_name', 'phone', 'email', 'date_of_birth', 'id_card_number', 'hometown', 'occupation']
+        fields = ['full_name', 'phone', 'email', 'date_of_birth', 'id_card_number', 'hometown', 'occupation', *DETAIL_FIELDS]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

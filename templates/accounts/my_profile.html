@@ -8,13 +8,7 @@
     {% csrf_token %}
     {% for error in form.non_field_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
     {% include 'accounts/_identity_scan.html' %}
-    <div class="row g-3">
-    {% for field in form.profile_fields %}<div class="col-12 col-md-6">
-      <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}</label>
-      {{ field }}{% for error in field.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
-      {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
-    </div>{% endfor %}
-    </div>
+    {% include 'accounts/_profile_fields.html' %}
     <button class="btn btn-primary mt-4" type="submit">Lưu thông tin cá nhân</button>
   </form>
 </section>

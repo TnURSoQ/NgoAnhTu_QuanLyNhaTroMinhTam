@@ -40,6 +40,9 @@ def _submit_request(contract, sender, data, previous_request, identity_form, cap
             raise ValidationError('Chỉ gửi lại hồ sơ đã bị từ chối hoặc đã hủy.')
     values = {key: data.get(key, '') for key in PROFILE_FIELDS}
     values['date_of_birth'] = data.get('date_of_birth') or None
+    values['identity_issued_on'] = data.get('identity_issued_on') or None
+    values['identity_expires_on'] = data.get('identity_expires_on') or None
+    values['identity_no_expiry'] = data.get('identity_no_expiry') is True
     values = {key: value.strip() if isinstance(value, str) else value for key, value in values.items()}
     proposal = Request(contract=contract, submitted_by=sender, previous_request=previous_request, **values)
     proposal.full_clean()

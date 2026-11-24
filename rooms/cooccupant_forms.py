@@ -2,10 +2,11 @@ from django import forms
 
 from accounts.forms import BootstrapFormMixin
 from accounts.identity_forms import IdentityScanFormMixin
+from accounts.identity_profile import DETAIL_FIELDS
 from .models import CoOccupantRequest
 
 
-PROFILE_FIELDS = ('full_name', 'id_card_number', 'phone', 'email', 'date_of_birth', 'hometown', 'occupation', 'note')
+PROFILE_FIELDS = ('full_name', 'id_card_number', 'phone', 'email', 'date_of_birth', 'hometown', 'occupation', *DETAIL_FIELDS, 'note')
 
 
 class CoOccupantRequestForm(BootstrapFormMixin, IdentityScanFormMixin, forms.ModelForm):
@@ -17,6 +18,9 @@ class CoOccupantRequestForm(BootstrapFormMixin, IdentityScanFormMixin, forms.Mod
         widgets = {
             'date_of_birth': forms.DateInput(format='%Y-%m-%d', attrs={'type': 'date'}),
             'note': forms.Textarea(attrs={'rows': 3}),
+            'permanent_address': forms.Textarea(attrs={'rows': 2}),
+            'identity_issued_on': forms.DateInput(format='%Y-%m-%d', attrs={'type': 'date'}),
+            'identity_expires_on': forms.DateInput(format='%Y-%m-%d', attrs={'type': 'date'}),
         }
         help_texts = {'id_card_number': 'Nhập số trên giấy tờ của người ở cùng. Hồ sơ được gửi để chủ trọ đối chiếu trước khi xác nhận.'}
 

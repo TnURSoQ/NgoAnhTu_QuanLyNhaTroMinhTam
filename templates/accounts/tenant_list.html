@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'base.html' %}{% load static %}
 {% block title %}Người thuê · Nhà trọ Minh Tâm{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -28,7 +28,7 @@
 <form method="get" class="toolbar">
   <div class="input-icon flex-grow-1">
     <i class="bi bi-search"></i>
-    <input type="search" name="q" value="{{ q }}" class="form-control" placeholder="Tìm tên hoặc số điện thoại...">
+    <input type="search" name="q" value="{{ q }}" class="form-control" placeholder="Tìm tên, điện thoại hoặc số CCCD...">
   </div>
   <select name="status" class="form-select w-auto" onchange="this.form.submit()" aria-label="Lọc theo trạng thái">
     <option value="">Tất cả trạng thái</option>
@@ -38,15 +38,23 @@
 </form>
 
 {% if rows %}
+<form method="post" action="{% url 'identity_export' %}" data-identity-selection>{% csrf_token %}
+<input type="hidden" name="q" value="{{ q }}"><input type="hidden" name="status" value="{{ status }}">
+<div class="soft-card p-3 mb-3 identity-selection-toolbar">
+  <div><label class="d-flex align-items-center gap-2"><input type="checkbox" class="form-check-input" data-select-all> <strong>Chọn tất cả {{ rows|length }} kết quả đang hiển thị</strong></label><p class="small text-muted mt-2 mb-0" data-selection-count>Chọn một hoặc nhiều hồ sơ để in ảnh hai mặt CCCD hoặc xuất thông tin Excel.</p></div>
+  <div class="d-flex gap-2 flex-wrap"><button class="btn btn-outline-brand" type="submit" name="action" value="images" formtarget="_blank" data-selection-action><i class="bi bi-images"></i> In ảnh CCCD</button><button class="btn btn-outline-brand" type="submit" name="action" value="excel" data-selection-action><i class="bi bi-file-earmark-excel"></i> Xuất Excel</button></div>
+</div>
 <div class="soft-card p-2 d-none d-md-block">
   <div class="table-responsive">
     <table class="table table-modern align-middle mb-0">
-      <thead><tr><th>#</th><th>Người thuê</th><th>Số điện thoại</th><th>Phòng</th><th>Ngày vào ở</th><th>Hợp đồng</th><th>Trạng thái</th><th></th></tr></thead>
+      <thead><tr><th>Chọn</th><th>#</th><th>Người thuê</th><th>Số CCCD/CMND</th><th>Số điện thoại</th><th>Phòng</th><th>Ngày vào ở</th><th>Hợp đồng</th><th>Trạng thái</th><th></th></tr></thead>
       <tbody>
         {% for r in rows %}
         <tr>
+          <td><input type="checkbox" name="ids" value="{{ r.tenant.pk }}" class="form-check-input" aria-label="Chọn hồ sơ {{ r.tenant.full_name }}"></td>
           <td class="text-muted">{{ forloop.counter }}</td>
           <td><a class="person-link" href="{% url 'tenant_detail' r.tenant.pk %}"><span class="avatar avatar-sm">{{ r.tenant.full_name|slice:":1"|upper }}</span><strong>{{ r.tenant.full_name }}</strong></a></td>
+          <td><span class="fw-semibold text-nowrap">{{ r.tenant.id_card_number }}</span><small class="d-block text-muted">{% if r.document %}{% if r.document.back %}Có ảnh hai mặt{% else %}Thiếu ảnh mặt sau{% endif %}{% else %}Chưa có ảnh{% endif %}</small>{% if r.identity_mismatch %}<small class="text-warning d-block">Cần đối chiếu số</small>{% endif %}</td>
           <td>{{ r.tenant.phone }}</td>
           <td>{% if r.room %}<span class="pill pill-mint">P.{{ r.room.room_number }}</span>{% else %}-{% endif %}</td>
           <td>{% if r.contract %}{{ r.contract.start_date|date:"d/m/Y" }}{% else %}-{% endif %}</td>
@@ -61,12 +69,14 @@
 </div>
 <div class="d-md-none">
   {% for r in rows %}
-  <a class="soft-card person-card d-block text-decoration-none mb-3" href="{% url 'tenant_detail' r.tenant.pk %}">
+  <article class="soft-card person-card d-block mb-3">
     <div class="d-flex align-items-center gap-3">
+      <input type="checkbox" name="ids" value="{{ r.tenant.pk }}" class="form-check-input flex-shrink-0" aria-label="Chọn hồ sơ {{ r.tenant.full_name }}">
       <span class="avatar">{{ r.tenant.full_name|slice:":1"|upper }}</span>
       <span class="flex-grow-1">
-        <strong class="d-block">{{ r.tenant.full_name }}</strong>
+        <a class="d-block fw-bold text-decoration-none" href="{% url 'tenant_detail' r.tenant.pk %}">{{ r.tenant.full_name }}</a>
         <small class="text-muted"><i class="bi bi-telephone"></i> {{ r.tenant.phone }}</small>
+        <small class="d-block text-muted">CCCD: {{ r.tenant.id_card_number }}</small>
       </span>
       <span class="pill pill-{{ r.tone }}">{{ r.label }}</span>
     </div>
@@ -74,9 +84,10 @@
       <span>{% if r.room %}P.{{ r.room.room_number }}{% else %}Chưa có phòng{% endif %}</span>
       <span>{% if r.contract %}Vào ở {{ r.contract.start_date|date:"d/m/Y" }}{% endif %}</span>
     </div>
-  </a>
+  </article>
   {% endfor %}
 </div>
+</form>
 {% else %}
 <div class="soft-card p-5 text-center text-muted">
   <div class="fs-1">🔍</div>
@@ -85,3 +96,4 @@
 </div>
 {% endif %}
 {% endblock %}
+{% block scripts %}<script src="{% static 'js/identity-selection.js' %}?v=20261124-1" defer></script>{% endblock %}

@@ -1,0 +1,15 @@
+{% extends 'print/base.html' %}
+{% block content %}
+<div class="print-toolbar identity-back-toolbar"><a href="{{ back_url }}">Quay lại danh sách người thuê</a><span>{{ selected_count }} hồ sơ đã chọn</span></div>
+{% for group in groups %}
+<h2 class="identity-room-heading">{% if group.state == 'da_tra' %}PHÒNG CŨ {% elif group.room %}PHÒNG {% endif %}{% if group.room %}P.{{ group.room.room_number }}{% else %}CHƯA CÓ PHÒNG{% endif %} — {{ group.people|length }} HỒ SƠ ĐƯỢC CHỌN{% if group.state == 'da_tra' %} · ĐÃ TRẢ PHÒNG{% endif %}</h2>
+{% for row in group.people %}<section class="identity-print-person">
+  <h3>{{ forloop.counter }}. {{ row.tenant.full_name|upper }} <small>· {{ row.tenant.id_card_number }}</small></h3>
+  {% if row.identity_mismatch %}<p class="notice">Số trong hồ sơ và thông tin lưu kèm ảnh cần được đối chiếu lại trước khi sử dụng.</p>{% endif %}
+  <div class="identity-print-pair">
+    <figure>{% if row.has_front %}<img src="{% url 'identity_image' row.document.reference 'front' %}" alt="Mặt trước giấy tờ của {{ row.tenant.full_name }}">{% else %}<div class="identity-print-empty">Chưa có ảnh mặt trước truy cập được</div>{% endif %}<figcaption>Mặt trước</figcaption></figure>
+    <figure>{% if row.has_back %}<img src="{% url 'identity_image' row.document.reference 'back' %}" alt="Mặt sau giấy tờ của {{ row.tenant.full_name }}">{% else %}<div class="identity-print-empty">Chưa có ảnh mặt sau truy cập được</div>{% endif %}<figcaption>Mặt sau</figcaption></figure>
+  </div>
+</section>{% endfor %}
+{% empty %}<p>Chưa chọn hồ sơ để in.</p>{% endfor %}
+{% endblock %}

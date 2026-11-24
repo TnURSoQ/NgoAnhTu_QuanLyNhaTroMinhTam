@@ -1,6 +1,5 @@
 from django.contrib import messages
 from django.contrib.messages.views import SuccessMessageMixin
-from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -15,43 +14,12 @@ from .decorators import owner_required
 from .forms import TenantForm
 from .mixins import OwnerRequiredMixin
 from .models import Tenant
-from .text import normalize
 from .identity_capture import IdentityCapture
-
-# trạng thái hiển thị: (nhãn, màu)
-TENANT_STATE_UI = {
-    'dang_thue': ('Đang thuê', 'mint'),
-    'da_tra': ('Đã trả phòng', 'gray'),
-    'chua_thue': ('Chưa thuê', 'sky'),
-}
-
-
-def _state_of(contract_tenants):
-    """contract_tenants đã sắp xếp mới nhất trước. Trả về (trạng thái, liên kết hợp đồng hiển thị)."""
-    current = next((ct for ct in contract_tenants if ct.contract.status == Contract.Status.HIEU_LUC), None)
-    if current:
-        return 'dang_thue', current
-    if contract_tenants:
-        return 'da_tra', contract_tenants[0]
-    return 'chua_thue', None
-
+from .tenant_records import TENANT_STATE_UI, state_of as _state_of, tenant_rows, filtered_rows
 
 @owner_required
 def tenant_list(request):
-    cts = ContractTenant.objects.select_related('contract__room').order_by(
-        '-contract__start_date', '-contract__id')
-    tenants = Tenant.objects.select_related('user').prefetch_related(
-        Prefetch('contract_tenants', queryset=cts, to_attr='cts')).order_by('full_name')
-
-    rows = []
-    for t in tenants:
-        state, ct = _state_of(t.cts)
-        label, tone = TENANT_STATE_UI[state]
-        rows.append({
-            'tenant': t, 'state': state, 'label': label, 'tone': tone,
-            'contract': ct.contract if ct else None,
-            'room': ct.contract.room if ct else None,
-        })
+    rows = tenant_rows()
 
     total = len(rows)
     counts = {k: sum(1 for r in rows if r['state'] == k) for k in TENANT_STATE_UI}
@@ -61,17 +29,7 @@ def tenant_list(request):
     if status not in TENANT_STATE_UI:
         status = ''
     q = request.GET.get('q', '').strip()
-    shown = rows
-    if status:
-        shown = [r for r in shown if r['state'] == status]
-    if q:
-        nq = normalize(q)
-        digits = ''.join(c for c in q if c.isdigit())
-        shown = [
-            r for r in shown
-            if nq in normalize(r['tenant'].full_name)
-            or (digits and digits in ''.join(c for c in r['tenant'].phone if c.isdigit()))
-        ]
+    shown = filtered_rows(rows, status, q)
 
     return render(request, 'accounts/tenant_list.html', {
         'rows': shown, 'total': total, 'counts': counts,
@@ -101,7 +59,7 @@ def tenant_detail(request, pk):
     for inv in invoices:
         if inv.status == Invoice.Status.DA_THANH_TOAN:
             continue
-        remaining = inv.total_amount - sum((p.amount for p in inv.payments.all()), 0)
+        remaining = inv.total_amount - sum((p.amount for p in inv.payments.all() if not p.is_voided), 0)
         if remaining > 0:
             debt += remaining
             unpaid_count += 1

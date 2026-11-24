@@ -6,7 +6,9 @@ from .images import validate_uploaded_image
 
 IDENTITY_FIELDS = ('identity_front', 'identity_front_camera', 'identity_back', 'identity_back_camera',
                    'identity_recognition', 'confirm_identity_correction')
-RECOGNIZED_FIELDS = {'full_name': 100, 'id_card_number': 12, 'date_of_birth': 10, 'hometown': 255, 'back_id_card_number': 12}
+RECOGNIZED_FIELDS = {'full_name': 100, 'id_card_number': 12, 'date_of_birth': 10, 'hometown': 255, 'back_id_card_number': 12,
+    'gender': 8, 'nationality': 100, 'place_of_birth': 255, 'birth_registration_place': 255,
+    'permanent_address': 500, 'identity_issued_on': 10, 'identity_expires_on': 10, 'identity_issued_by': 255}
 
 
 class IdentityScanFormMixin(forms.Form):
@@ -18,7 +20,7 @@ class IdentityScanFormMixin(forms.Form):
         widget=forms.FileInput(attrs={'accept': 'image/jpeg,image/png,image/webp'}))
     identity_back_camera = forms.ImageField(required=False,
         widget=forms.FileInput(attrs={'accept': 'image/*', 'capture': 'environment', 'style': 'display:none'}))
-    identity_recognition = forms.CharField(required=False, max_length=2000, widget=forms.HiddenInput)
+    identity_recognition = forms.CharField(required=False, max_length=6000, widget=forms.HiddenInput)
     confirm_identity_correction = forms.BooleanField(required=False,
         label='Tôi đã đối chiếu số trên ảnh và kiểm tra lại số giấy tờ được nhập trong hồ sơ.')
 
@@ -33,6 +35,20 @@ class IdentityScanFormMixin(forms.Form):
     @property
     def profile_fields(self):
         return [self[name] for name in self.fields if name not in IDENTITY_FIELDS]
+
+    @property
+    def identity_field_groups(self):
+        groups = [
+            ('Thông tin người ở', ('full_name', 'date_of_birth', 'gender', 'nationality', 'place_of_birth',
+                                  'birth_registration_place', 'hometown', 'occupation')),
+            ('Giấy tờ căn cước', ('document_type', 'id_card_number', 'identity_issued_on', 'identity_expires_on',
+                                 'identity_no_expiry', 'identity_issued_by')),
+            ('Địa chỉ', ('permanent_address',)),
+            ('Thông tin liên hệ', ('phone', 'email')),
+            ('Ghi chú', ('note',)),
+        ]
+        return [(title, [self[name] for name in names if name in self.fields]) for title, names in groups
+                if any(name in self.fields for name in names)]
 
     def clean(self):
         data = super().clean()

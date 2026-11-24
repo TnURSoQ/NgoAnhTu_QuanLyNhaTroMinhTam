@@ -30,6 +30,7 @@
       </ul>
       <div class="tab-content">
         <div class="tab-pane fade show active" id="tab-info">
+          {% if tenant.identity_missing_labels %}<p class="small text-muted">Thông tin cần bổ sung để chuẩn bị hồ sơ: {{ tenant.identity_missing_labels|join:', ' }}.</p>{% endif %}
           {% include 'accounts/_identity_images.html' with document=tenant.identity_documents.first current_id_number=tenant.id_card_number %}
           <div class="info-row"><span>Họ và tên</span><strong>{{ tenant.full_name }}</strong></div>
           <div class="info-row"><span>Số điện thoại</span><strong>{{ tenant.phone }}</strong></div>
@@ -37,6 +38,7 @@
           <div class="info-row"><span>Email</span><strong>{{ tenant.email|default:"-" }}</strong></div>
           <div class="info-row"><span>Ngày sinh</span><strong>{% if tenant.date_of_birth %}{{ tenant.date_of_birth|date:"d/m/Y" }}{% else %}-{% endif %}</strong></div>
           <div class="info-row"><span>Quê quán</span><strong>{{ tenant.hometown|default:"-" }}</strong></div>
+          {% include 'accounts/_identity_details.html' with person=tenant %}
           <div class="info-row"><span>Nghề nghiệp</span><strong>{{ tenant.occupation|default:"-" }}</strong></div>
           <div class="info-row"><span>Ghi chú</span><strong>{{ tenant.note|default:"-" }}</strong></div>
         </div>
@@ -57,7 +59,7 @@
             <tbody>{% for p in payments %}<tr>
               <td>{{ p.paid_date|date:"d/m/Y" }}</td>
               <td>T{{ p.invoice.month }}/{{ p.invoice.year }} · P.{{ p.invoice.contract.room.room_number }}</td>
-              <td>{{ p.get_method_display }}</td><td class="text-end fw-bold">{{ p.amount|floatformat:"0g" }} đ</td></tr>{% endfor %}</tbody>
+              <td>{{ p.get_method_display }}{% if p.is_voided %}<small class="text-danger d-block">Đã hủy</small>{% endif %}</td><td class="text-end fw-bold{% if p.is_voided %} text-decoration-line-through text-muted{% endif %}">{{ p.amount|floatformat:"0g" }} đ</td></tr>{% endfor %}</tbody>
           </table></div>
           {% else %}<p class="text-muted mb-0">Chưa có khoản thanh toán nào.</p>{% endif %}
         </div>

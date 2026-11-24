@@ -1,0 +1,10 @@
+<div class="info-row"><span>Loại giấy tờ</span><strong>{{ person.get_document_type_display|default:'Chưa cung cấp' }}</strong></div>
+<div class="info-row"><span>Giới tính</span><strong>{{ person.get_gender_display|default:'Chưa cung cấp' }}</strong></div>
+<div class="info-row"><span>Quốc tịch</span><strong>{{ person.nationality|default:'Chưa cung cấp' }}</strong></div>
+<div class="info-row"><span>Nơi sinh</span><strong>{{ person.place_of_birth|default:'Chưa cung cấp' }}</strong></div>
+<div class="info-row"><span>Nơi đăng ký khai sinh</span><strong>{{ person.birth_registration_place|default:'Chưa cung cấp' }}</strong></div>
+<div class="info-row"><span>Địa chỉ thường trú (theo căn cước)</span><strong>{{ person.permanent_address|default:'Chưa cung cấp' }}</strong></div>
+<div class="info-row"><span>Ngày cấp</span><strong>{{ person.identity_issued_on|date:'d/m/Y'|default:'Chưa cung cấp' }}</strong></div>
+<div class="info-row"><span>Ngày hết hạn</span><strong>{% if person.identity_no_expiry %}Không thời hạn{% else %}{{ person.identity_expires_on|date:'d/m/Y'|default:'Chưa cung cấp' }}{% endif %}</strong></div>
+<div class="info-row"><span>Cơ quan / nơi cấp</span><strong>{{ person.identity_issued_by|default:'Chưa cung cấp' }}</strong></div>
+{% if person.identity_expired %}<p class="small text-warning mt-3">Giấy tờ đã qua ngày hết hạn được ghi trong hồ sơ; cần đối chiếu và cập nhật.</p>{% endif %}
