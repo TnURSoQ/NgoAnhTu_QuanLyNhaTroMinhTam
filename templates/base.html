@@ -20,7 +20,7 @@
           <a class="nav-item-link {% if current|slice:':12' == 'appointment_' %}active{% endif %}" href="{% url 'appointment_list' %}"><i class="bi bi-calendar-check"></i> Lịch hẹn</a>
           <a class="nav-item-link {% if current|slice:':7' == 'tenant_' or current == 'cooccupant_review' or current == 'cooccupant_review_list' %}active{% endif %}" href="{% url 'tenant_list' %}"><i class="bi bi-people"></i> Người thuê</a>
           <a class="nav-item-link {% if current|slice:':9' == 'contract_' %}active{% endif %}" href="{% url 'contract_list' %}"><i class="bi bi-file-earmark-text"></i> Hợp đồng</a>
-          <a class="nav-item-link {% if current|slice:':8' == 'invoice_' or current|slice:':15' == 'payment_notice_' or current == 'payment_delete' %}active{% endif %}" href="{% url 'invoice_list' %}"><i class="bi bi-receipt"></i> Hóa đơn</a>
+          <a class="nav-item-link {% if current|slice:':8' == 'invoice_' or current|slice:':15' == 'payment_notice_' or current == 'payment_delete' or current == 'payment_correct' %}active{% endif %}" href="{% url 'invoice_list' %}"><i class="bi bi-receipt"></i> Hóa đơn</a>
           <a class="nav-item-link {% if current == 'maintenance_list' or current == 'maintenance_detail' or current == 'maintenance_set_status' %}active{% endif %}" href="{% url 'maintenance_list' %}"><i class="bi bi-tools"></i> Sửa chữa</a>
           <a class="nav-item-link {% if current|slice:':13' == 'announcement_' %}active{% endif %}" href="{% url 'announcement_list' %}"><i class="bi bi-megaphone"></i> Thông báo</a>
           <a class="nav-item-link {% if current == 'billing_settings' or current|slice:':8' == 'service_' %}active{% endif %}" href="{% url 'billing_settings' %}"><i class="bi bi-gear"></i> Cấu hình</a>
@@ -31,7 +31,7 @@
           <a class="nav-item-link {% if current == 'my_cooccupants' or current == 'my_cooccupant_detail' or current == 'cooccupant_create' or current == 'cooccupant_resubmit' %}active{% endif %}" href="{% url 'my_cooccupants' %}"><i class="bi bi-person-plus"></i> Người ở cùng</a>
           <a class="nav-item-link {% if current == 'my_invoices' or current == 'my_invoice_detail' or current == 'report_transfer' %}active{% endif %}" href="{% url 'my_invoices' %}"><i class="bi bi-receipt"></i> Hóa đơn</a>
           <a class="nav-item-link {% if current == 'my_maintenance_requests' or current == 'my_maintenance_detail' or current == 'maintenance_create' or current == 'maintenance_sent' or current == 'maintenance_cancel' %}active{% endif %}" href="{% url 'my_maintenance_requests' %}"><i class="bi bi-tools"></i> Yêu cầu sửa chữa</a>
-          <a class="nav-item-link {% if current == 'my_payments' %}active{% endif %}" href="{% url 'my_payments' %}"><i class="bi bi-wallet2"></i> Thanh toán</a>
+          <a class="nav-item-link {% if current == 'my_payments' or current == 'my_payment_detail' %}active{% endif %}" href="{% url 'my_payments' %}"><i class="bi bi-wallet2"></i> Thanh toán</a>
           <a class="nav-item-link {% if current == 'my_contracts' %}active{% endif %}" href="{% url 'my_contracts' %}"><i class="bi bi-file-earmark-text"></i> Hợp đồng</a>
           <a class="nav-item-link {% if current == 'password_change' %}active{% endif %}" href="{% url 'password_change' %}"><i class="bi bi-key"></i> Đổi mật khẩu</a>
         {% endif %}
