@@ -51,6 +51,7 @@ class MaintenanceRequest(models.Model):
     preferred_date = models.DateField('Ngày thuận tiện', null=True, blank=True)
     preferred_slot = models.CharField('Buổi thuận tiện', max_length=10, choices=Slot.choices, blank=True)
     contact_method = models.CharField('Liên hệ khi cần', max_length=20, choices=ContactMethod.choices, default=ContactMethod.WEB)
+    contact_phone = models.CharField('Số điện thoại liên hệ', max_length=20, blank=True, default='')
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DA_GUI, db_index=True)
     owner_note = models.TextField('Lời nhắn của chủ trọ', blank=True)
     expected_done = models.DateField('Ngày dự kiến xong', null=True, blank=True)
@@ -115,9 +116,11 @@ class NotificationRead(models.Model):
         MAINTENANCE = 'maintenance', 'Phản hồi sửa chữa'
         OWNER_MAINTENANCE = 'owner_maintenance', 'Yêu cầu sửa chữa mới'
         OWNER_APPOINTMENT = 'owner_appointment', 'Lịch hẹn xem phòng'
+        OWNER_APPOINTMENT_CANCEL = 'owner_appointment_cancel', 'Khách hủy lịch xem phòng'
         OWNER_TRANSFER = 'owner_transfer', 'Báo chuyển khoản'
         OWNER_COOCCUPANT = 'owner_cooccupant', 'Hồ sơ người ở cùng chờ duyệt'
         COOCCUPANT_DECISION = 'cooccupant_decision', 'Kết quả hồ sơ người ở cùng'
+        PAYMENT_CORRECTION = 'payment_correction', 'Điều chỉnh / hủy khoản thanh toán'
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notification_reads')
     kind = models.CharField(max_length=24, choices=Kind.choices)

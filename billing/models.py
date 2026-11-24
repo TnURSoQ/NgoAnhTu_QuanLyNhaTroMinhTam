@@ -104,7 +104,7 @@ class Invoice(models.Model):
         ]
 
     def total_paid(self):
-        return self.payments.aggregate(total=models.Sum('amount'))['total'] or 0
+        return self.payments.active().aggregate(total=models.Sum('amount'))['total'] or 0
 
     @property
     def electric_calculation_matches(self):
@@ -245,6 +245,11 @@ class InvoiceDraft(models.Model):
         return f'Nháp T{self.month}/{self.year} - {self.contract}'
 
 
+class PaymentQuerySet(models.QuerySet):
+    def active(self):
+        return self.filter(voided_at__isnull=True)
+
+
 class Payment(models.Model):
     class Method(models.TextChoices):
         TIEN_MAT = 'tien_mat', 'Tiền mặt'
@@ -254,8 +259,34 @@ class Payment(models.Model):
     invoice = models.ForeignKey(Invoice, on_delete=models.PROTECT, related_name='payments')
     amount = DongField()
     paid_date = models.DateField(default=timezone.localdate)
+    recorded_at = models.DateTimeField('Thời điểm ghi nhận', default=timezone.now, null=True, blank=True, editable=False)
+    recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                    editable=False, related_name='recorded_payments')
     method = models.CharField(max_length=20, choices=Method.choices, default=Method.TIEN_MAT)
     note = models.TextField(blank=True, default='')
+    voided_at = models.DateTimeField('Thời điểm hủy', null=True, blank=True, editable=False)
+    voided_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+                                  editable=False, related_name='voided_payments')
+    void_reason = models.TextField('Lý do hủy / điều chỉnh', blank=True, default='', max_length=1000, editable=False)
+    replaces = models.OneToOneField('self', on_delete=models.PROTECT, null=True, blank=True,
+                                    editable=False, related_name='replacement')
+    objects = PaymentQuerySet.as_manager()
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=(models.Q(voided_at__isnull=True, voided_by__isnull=True, void_reason='') |
+                (models.Q(voided_at__isnull=False, voided_by__isnull=False) & ~models.Q(void_reason=''))),
+                name='payment_void_has_audit'),
+            models.CheckConstraint(condition=~models.Q(pk=models.F('replaces_id')), name='payment_not_own_replacement'),
+        ]
+
+    @property
+    def is_voided(self):
+        return self.voided_at is not None
+
+    @property
+    def display_code(self):
+        return f'TT-{self.pk:06d}' if self.pk else 'TT-mới'
 
     def clean(self):
         from rooms.models import DepositEntry
@@ -272,8 +303,12 @@ class Payment(models.Model):
             return
         if self.amount <= 0:
             raise ValidationError('Số tiền thanh toán phải lớn hơn 0.')
-        if self.invoice_id:
-            paid_before = self.invoice.payments.exclude(pk=self.pk).aggregate(
+        if self.replaces_id:
+            previous = type(self).objects.get(pk=self.replaces_id)
+            if not previous.is_voided or previous.invoice_id != self.invoice_id or previous.method == self.Method.TU_COC:
+                raise ValidationError('Giao dịch thay thế cần cùng hóa đơn và liên kết khoản thu đã hủy hợp lệ.')
+        if self.invoice_id and not self.is_voided:
+            paid_before = self.invoice.payments.active().exclude(pk=self.pk).aggregate(
                 total=models.Sum('amount')
             )['total'] or 0
             remaining = self.invoice.total_amount - paid_before
@@ -284,6 +319,17 @@ class Payment(models.Model):
                 raise ValidationError(
                     f'Số tiền vượt quá số còn nợ ({formatted_remaining}đ).'
                 )
+
+    def save(self, *args, **kwargs):
+        previous = type(self).objects.filter(pk=self.pk).first() if self.pk else None
+        if previous:
+            fields = ('invoice_id', 'amount', 'paid_date', 'method', 'note', 'recorded_at', 'recorded_by_id',
+                      'voided_at', 'voided_by_id', 'void_reason', 'replaces_id')
+            if any(getattr(previous, name) != getattr(self, name) for name in fields):
+                raise ValidationError('Không sửa trực tiếp giao dịch đã ghi nhận. Hãy dùng chức năng điều chỉnh / hủy có lý do.')
+        elif self.is_voided:
+            raise ValidationError('Giao dịch mới không được có sẵn thông tin hủy.')
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f'{self.amount}đ - {self.invoice}'

@@ -2,6 +2,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 import uuid
 from .identity_storage import identity_image_path, identity_storage
+from .identity_profile import IdentityProfile
 
 class User(AbstractUser):
     class Role(models.TextChoices):
@@ -14,7 +15,7 @@ class User(AbstractUser):
         return f'{self.username} ({self.get_role_display()})'
 
 
-class Tenant(models.Model):
+class Tenant(IdentityProfile):
     user = models.OneToOneField(
         User, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='tenant_profile',

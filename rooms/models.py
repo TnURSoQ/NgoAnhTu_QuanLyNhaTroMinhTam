@@ -1,4 +1,5 @@
 from django.db import models
+from accounts.identity_profile import IdentityProfile
 from django.utils import timezone
 from accounts.models import Tenant
 from accounts.model_fields import DongField
@@ -126,7 +127,7 @@ class ContractTenant(models.Model):
         return f'{self.tenant}{tag} - {self.contract}'
 
 
-class CoOccupantRequest(models.Model):
+class CoOccupantRequest(IdentityProfile):
     class Status(models.TextChoices):
         PENDING = 'pending', 'Chờ xác nhận'
         APPROVED = 'approved', 'Đã xác nhận'
@@ -170,8 +171,7 @@ class CoOccupantRequest(models.Model):
         ]
 
     def clean(self):
-        if self.date_of_birth and self.date_of_birth > timezone.localdate():
-            raise ValidationError({'date_of_birth': 'Ngày sinh không được ở tương lai.'})
+        super().clean()
 
     @property
     def display_code(self):
@@ -251,6 +251,14 @@ class CheckoutRecord(models.Model):
 CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'  # bỏ I, O, 0, 1 cho khó nhầm
 
 
+class AppointmentCalendar(models.Model):
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
+    revision = models.PositiveBigIntegerField(default=0)
+
+    class Meta:
+        constraints = [models.CheckConstraint(condition=models.Q(id=1), name='one_viewing_calendar')]
+
+
 class ViewingAppointment(models.Model):
     """Lịch hẹn xem phòng do khách (chưa đăng nhập) đặt."""
 
@@ -266,19 +274,40 @@ class ViewingAppointment(models.Model):
         CHIEU = 'chieu', 'Buổi chiều (13:30 - 17:00)'
         TOI = 'toi', 'Buổi tối (18:00 - 20:00)'
 
+    class CancelledBy(models.TextChoices):
+        GUEST = 'guest', 'Khách đặt lịch'
+        OWNER = 'owner', 'Chủ trọ'
+        SYSTEM = 'system', 'Hệ thống'
+
     code = models.CharField(max_length=10, unique=True, editable=False)
     room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='appointments')
     visitor_name = models.CharField(max_length=100)
     visitor_phone = models.CharField(max_length=20)
+    visitor_email = models.EmailField(blank=True, default='')
+    notification_version = models.PositiveIntegerField(default=0, editable=False)
     appointment_date = models.DateField()
+    start_time = models.TimeField(null=True, blank=True)
+    contract = models.OneToOneField('Contract', on_delete=models.PROTECT, null=True, blank=True,
+                                   related_name='viewing_appointment')
     slot = models.CharField(max_length=10, choices=Slot.choices, default=Slot.SANG)
     note = models.CharField(max_length=255, blank=True, default='')
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.CHO_XAC_NHAN)
     owner_note = models.CharField(max_length=255, blank=True, default='')
+    cancelled_by = models.CharField(max_length=10, choices=CancelledBy.choices, blank=True, default='')
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancellation_reason = models.CharField(max_length=255, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['appointment_date', 'id']
+        constraints = [
+            models.UniqueConstraint(fields=['appointment_date', 'start_time'],
+                condition=models.Q(status='da_xac_nhan', start_time__isnull=False), name='unique_confirmed_viewing_time'),
+            models.CheckConstraint(condition=(models.Q(start_time__isnull=True) |
+                models.Q(slot='sang', start_time__in=['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00']) |
+                models.Q(slot='chieu', start_time__in=['13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30']) |
+                models.Q(slot='toi', start_time__in=['18:00', '18:30', '19:00', '19:30'])), name='valid_viewing_half_hour'),
+        ]
 
     @classmethod
     def new_code(cls):
@@ -294,3 +323,82 @@ class ViewingAppointment(models.Model):
 
     def __str__(self):
         return f'{self.code} - {self.visitor_name}'
+
+    @property
+    def masked_email(self):
+        if '@' not in self.visitor_email:
+            return ''
+        local, domain = self.visitor_email.rsplit('@', 1)
+        return local[:1] + '***@' + domain
+
+    @property
+    def time_label(self):
+        if self.start_time:
+            from .appointment_schedule import time_label
+            return time_label(self.start_time)
+        return 'Chưa chốt giờ cụ thể'
+
+    @property
+    def schedule_label(self):
+        return f'{self.appointment_date:%d/%m/%Y} · {self.get_slot_display()} · {self.time_label}'
+
+    @property
+    def can_guest_cancel(self):
+        return self.status in (self.Status.CHO_XAC_NHAN, self.Status.DA_XAC_NHAN) and not self.contract_id
+
+
+class AppointmentEmail(models.Model):
+    """Durable, private snapshots of appointment notifications and delivery state."""
+    class Event(models.TextChoices):
+        BOOKED = 'booked', 'Tiếp nhận đặt lịch'
+        CONFIRMED = 'confirmed', 'Xác nhận lịch hẹn'
+        CANCELLED = 'cancelled', 'Hủy lịch hẹn'
+        RESCHEDULED = 'rescheduled', 'Đổi ngày giờ hẹn'
+        VISITED = 'visited', 'Đã xem phòng'
+        LEASED = 'leased', 'Đã chốt thuê'
+        DETAILS = 'details', 'Cập nhật email liên hệ'
+
+    class Status(models.TextChoices):
+        PENDING = 'pending', 'Chờ gửi'
+        SENDING = 'sending', 'Đang gửi'
+        SENT = 'sent', 'Đã gửi'
+        FAILED = 'failed', 'Gửi chưa thành công'
+        PREVIEW = 'preview', 'Chỉ tạo bản xem thử'
+        SUPERSEDED = 'superseded', 'Đã có thông tin mới hơn'
+
+    appointment = models.ForeignKey(ViewingAppointment, on_delete=models.CASCADE, related_name='emails')
+    revision = models.PositiveIntegerField()
+    event = models.CharField(max_length=20, choices=Event.choices)
+    recipient = models.EmailField()
+    subject = models.CharField(max_length=255)
+    text_body = models.TextField()
+    html_body = models.TextField()
+    lookup_url = models.CharField(max_length=1000, blank=True, default='')
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    attempts = models.PositiveIntegerField(default=0)
+    error_code = models.CharField(max_length=50, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    attempted_at = models.DateTimeField(null=True, blank=True)
+    next_attempt_at = models.DateTimeField(null=True, blank=True)
+
+    @property
+    def tone(self):
+        return {'sent': 'mint', 'failed': 'amber', 'sending': 'sky', 'pending': 'amber',
+                'preview': 'lavender', 'superseded': 'gray'}.get(self.status, 'gray')
+
+    @property
+    def error_message(self):
+        return {'not_configured': 'Chưa cấu hình máy chủ gửi email.',
+                'authentication_config': 'Cần điền đủ tài khoản và mật khẩu ứng dụng cho máy chủ gửi thư.',
+                'site_url': 'Cần cấu hình địa chỉ website để khách mở liên kết tra cứu.',
+                'sender_address': 'Cần kiểm tra địa chỉ email gửi hoặc nhận phản hồi.',
+                'authentication': 'Máy chủ thư chưa chấp nhận tài khoản gửi. Cần kiểm tra cấu hình đăng nhập.',
+                'recipient': 'Máy chủ thư từ chối địa chỉ người nhận. Hãy kiểm tra email của khách.',
+                'connection': 'Chưa kết nối hoặc gửi được qua máy chủ email. Có thể thử lại.',
+                'delivery': 'Chưa gửi được email. Cần kiểm tra cấu hình và thử lại.'}.get(self.error_code, '')
+
+    class Meta:
+        ordering = ['-revision']
+        constraints = [models.UniqueConstraint(fields=['appointment', 'revision'], name='unique_appointment_email_revision')]
+        indexes = [models.Index(fields=['status', 'next_attempt_at'], name='appointment_email_retry_idx')]
