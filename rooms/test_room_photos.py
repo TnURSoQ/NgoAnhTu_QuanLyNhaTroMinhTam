@@ -71,7 +71,7 @@ class RoomPhotoTests(TestCase):
 
     def test_room_without_photo_uses_honest_placeholder_and_has_price_breakdown(self):
         response = self.client.get(reverse('public_room_detail', args=[self.room.pk]))
-        self.assertContains(response, 'đang cập nhật ảnh thực tế')
+        self.assertContains(response, 'đang cập nhật ảnh phòng')
         self.assertContains(response, 'Các dịch vụ có thể đăng ký')
         self.assertContains(response, 'Wifi')
         self.assertContains(response, '2.500.000')

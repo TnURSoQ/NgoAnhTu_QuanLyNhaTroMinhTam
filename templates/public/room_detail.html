@@ -1,4 +1,4 @@
-{% extends 'base_public.html' %}
+{% extends 'base_public.html' %}{% load static %}
 {% block title %}Phòng {{ room.room_number }} · {{ SITE_NAME }}{% endblock %}
 {% block content %}
 <a class="back-link" href="{% url 'public_rooms' %}"><i class="bi bi-arrow-left"></i> Quay lại danh sách phòng</a>
@@ -12,7 +12,7 @@
 
 <div class="row g-4">
   <div class="col-12 col-lg-7">
-    <section class="soft-card p-3 mb-4"><h2 class="h5">Ảnh thực tế của phòng</h2>{% if room.photos.all %}<div class="room-photo-gallery">{% for photo in room.photos.all %}<figure><a href="{{ photo.image.url }}" target="_blank" rel="noopener"><img src="{{ photo.image.url }}" alt="{{ photo.caption|default:'Ảnh phòng' }} {{ room.room_number }}" loading="lazy" width="900" height="600"></a>{% if photo.caption %}<figcaption>{{ photo.caption }}</figcaption>{% endif %}</figure>{% endfor %}</div>{% else %}<div class="room-photo-placeholder"><i class="bi bi-images" aria-hidden="true"></i><p>Chủ trọ đang cập nhật ảnh thực tế của phòng này.</p></div>{% endif %}</section>
+    {% include 'public/_room_gallery.html' %}
     <section class="soft-card p-4 mb-4">
       <div class="section-head"><h2>Thông tin phòng</h2></div>
       <div class="info-row"><span>Diện tích</span><strong>{% if room.area %}{{ room.area|floatformat:"-2" }} m²{% else %}-{% endif %}</strong></div>
@@ -40,19 +40,9 @@
     <section class="soft-card p-4 booking-card" id="dat-lich">
       <div class="section-head"><h2>Đặt lịch xem phòng</h2></div>
       {% if available %}
-      <form method="post" novalidate>
-        {% csrf_token %}
-        {% for e in form.non_field_errors %}<div class="alert alert-danger">{{ e }}</div>{% endfor %}
-        {% for field in form %}
-        <div class="mb-3">
-          <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}</label>
-          {{ field }}
-          {% for e in field.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
-        </div>
-        {% endfor %}
-        <button type="submit" class="btn btn-primary w-100 py-2"><i class="bi bi-calendar-check"></i> Đặt lịch xem phòng</button>
-        <p class="text-muted small mt-3 mb-0">Không cần tài khoản. Sau khi đặt, bạn nhận một mã lịch hẹn để tra cứu.</p>
-      </form>
+      <p class="text-muted">Chọn ngày và buổi thuận tiện để đến xem phòng trực tiếp. Chủ trọ sẽ xác nhận giờ cụ thể qua email.</p>
+      <button type="button" class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#roomBookingModal"><i class="bi bi-calendar-check"></i> Đặt lịch xem phòng</button>
+      <p class="small text-muted mt-3 mb-0">Yêu cầu xem phòng chưa giữ giờ hoặc giữ phòng.</p>
       {% else %}
       <div class="alert alert-warning mb-3">Phòng này đã có người thuê nên không đặt lịch được.</div>
       <a class="btn btn-outline-brand" href="{% url 'public_rooms' %}">Xem phòng trống khác</a>
@@ -60,4 +50,26 @@
     </section>
   </div>
 </div>
+{% if available %}
+<div class="modal fade room-booking-modal" id="roomBookingModal" tabindex="-1" aria-labelledby="roomBookingTitle" aria-describedby="roomBookingDescription" aria-hidden="true"{% if form.errors %} data-open-on-load="true"{% endif %}>
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
+    <div class="modal-header"><div><h2 class="modal-title h5" id="roomBookingTitle">Đặt lịch xem phòng P.{{ room.room_number }}</h2><p class="small text-muted mb-0 mt-1">{{ room.price|floatformat:'0g' }} đ/tháng</p></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng form đặt lịch"></button></div>
+    <form method="post" action="{% url 'public_room_detail' room.pk %}" novalidate>
+      <div class="modal-body">
+        <p class="small text-muted" id="roomBookingDescription">Chọn ngày, buổi và thông tin liên hệ. Chủ trọ sẽ xác nhận giờ xem cụ thể qua email.</p>
+        {% csrf_token %}
+        {% for e in form.non_field_errors %}<div class="alert alert-danger" role="alert">{{ e }}</div>{% endfor %}
+        {% for field in form %}<div class="mb-3">
+          <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}</label>{{ field }}
+          {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+          {% for e in field.errors %}<div class="text-danger small mt-1" role="alert">{{ e }}</div>{% endfor %}
+        </div>{% endfor %}
+        <p class="text-muted small mb-0">Yêu cầu này chưa giữ giờ hoặc giữ phòng. Hãy kiểm tra email trước khi đặt.</p>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-outline-brand" data-bs-dismiss="modal">Đóng</button><button type="submit" class="btn btn-primary"><i class="bi bi-calendar-check"></i> Gửi yêu cầu đặt lịch</button></div>
+    </form>
+  </div></div>
+</div>
+{% endif %}
 {% endblock %}
+{% block scripts %}<script src="{% static 'js/public-room-detail.js' %}?v=20261124-2" defer></script>{% endblock %}

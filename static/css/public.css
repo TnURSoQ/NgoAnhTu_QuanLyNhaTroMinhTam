@@ -117,6 +117,22 @@
 .pub-body .page-head h1 { font-size: 1.95rem; font-weight: 600; letter-spacing: -.8px; }
 .pub-body .soft-card { border-color: #e9e9df; box-shadow: 0 6px 24px #36432d05; }
 .pub-body .booking-card { border-top: 3px solid #b86548; border-radius: 16px; }
+.room-gallery-frame { position: relative; }
+.room-public-carousel { aspect-ratio: 3 / 2; overflow: hidden; border-radius: 13px; background: #f2efe9; }
+.room-public-carousel .carousel-inner, .room-public-carousel .carousel-item, .room-public-carousel .carousel-item > a { height: 100%; }
+.room-public-carousel .carousel-item > a { display: block; }
+.room-public-carousel img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.pub-body .room-gallery-arrow { top: 50%; bottom: auto; width: 42px; height: 42px; padding: 0; transform: translateY(-50%); border: 1px solid #ffffffb3; border-radius: 50%; background: #fffffff0; color: #334036; opacity: 1; box-shadow: 0 3px 14px #25332526; }
+.pub-body .room-gallery-arrow:hover { color: var(--brand); background: #fff; }
+.room-gallery-arrow.carousel-control-prev { left: 14px; }
+.room-gallery-arrow.carousel-control-next { right: 14px; }
+.room-gallery-count { position: absolute; bottom: 13px; right: 14px; padding: 5px 11px; color: #fff; background: #243027b3; border-radius: 20px; font-size: .75rem; pointer-events: none; }
+.room-booking-modal .modal-dialog { max-width: 620px; }
+.room-booking-modal .modal-content { border-radius: 18px; overflow: hidden; border: 1px solid var(--line); }
+.room-booking-modal form { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.room-booking-modal .modal-header, .room-booking-modal .modal-footer { flex-shrink: 0; }
+.room-booking-modal .modal-body { overflow-y: auto; padding: 22px 24px; }
+.room-booking-modal .modal-header, .room-booking-modal .modal-footer { padding: 18px 24px; }
 .pub-body .form-label { font-size: .77rem; }
 .pub-body .info-row { font-size: .83rem; }
 @media (min-width: 1200px) { .rental-hero-image { object-position: center 51%; } }

@@ -1,0 +1,23 @@
+{% with photos=room.photos.all %}
+{% if photos %}
+<section class="soft-card p-2 p-md-3 mb-4" aria-label="Bộ ảnh phòng {{ room.room_number }}">
+  <div class="room-gallery-frame">
+    <div id="roomPhotoCarousel" class="carousel slide room-public-carousel" data-room-gallery data-bs-interval="false" aria-roledescription="trình chiếu ảnh" aria-label="Ảnh phòng {{ room.room_number }}">
+      <div class="carousel-inner">
+      {% for photo in photos %}<div class="carousel-item{% if forloop.first %} active{% endif %}" data-caption="{{ photo.caption }}" role="group" aria-label="Ảnh {{ forloop.counter }} / {{ photos|length }}">
+        <a href="{{ photo.image.url }}" target="_blank" rel="noopener" aria-label="Xem ảnh {{ forloop.counter }} phòng {{ room.room_number }} ở kích thước đầy đủ"><img src="{{ photo.image.url }}" alt="{{ photo.caption|default:'Ảnh phòng' }} {{ room.room_number }}" width="1200" height="800"{% if forloop.first %} fetchpriority="high"{% else %} loading="lazy"{% endif %}></a>
+      </div>{% endfor %}
+      </div>
+      {% if photos|length > 1 %}
+      <button class="carousel-control-prev room-gallery-arrow" type="button" data-bs-target="#roomPhotoCarousel" data-bs-slide="prev" aria-label="Ảnh trước"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>
+      <button class="carousel-control-next room-gallery-arrow" type="button" data-bs-target="#roomPhotoCarousel" data-bs-slide="next" aria-label="Ảnh tiếp theo"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
+      {% endif %}
+    </div>
+    {% if photos|length > 1 %}<span class="room-gallery-count" data-gallery-count aria-live="polite" aria-atomic="true">1 / {{ photos|length }}</span>{% endif %}
+  </div>
+  <p class="small text-muted mt-2 mb-0" data-gallery-caption{% if not photos.0.caption %} hidden{% endif %}>{{ photos.0.caption }}</p>
+</section>
+{% else %}
+<section class="soft-card p-3 mb-4"><div class="room-photo-placeholder"><i class="bi bi-images" aria-hidden="true"></i><p>Chủ trọ đang cập nhật ảnh phòng.</p></div></section>
+{% endif %}
+{% endwith %}
