@@ -147,7 +147,7 @@ class BookingTests(TestCase):
         self.url = reverse('public_room_detail', args=[self.room.pk])
 
     def data(self, **kw):
-        d = {'visitor_name': 'Nguyễn Văn A', 'visitor_phone': '0912 345 678',
+        d = {'visitor_name': 'Nguyễn Văn A', 'visitor_phone': '0912 345 678', 'visitor_email': 'khach@example.com',
              'appointment_date': (self.today + timedelta(days=2)).isoformat(), 'slot': 'sang', 'note': ''}
         d.update(kw)
         return d
@@ -163,12 +163,25 @@ class BookingTests(TestCase):
         self.assertContains(page, a.code)
         self.assertContains(page, 'Chủ trọ sẽ liên hệ')
 
+    def test_invalid_submission_reopens_booking_modal_and_preserves_input(self):
+        for data in ({}, self.data(visitor_email='invalid-email')):
+            with self.subTest(data=data):
+                response = self.client.post(self.url, data)
+                self.assertEqual(response.status_code, 200)
+                self.assertTrue(response.context['form'].is_bound)
+                self.assertTrue(response.context['form'].errors)
+                self.assertContains(response, 'data-open-on-load="true"')
+                self.assertContains(response, 'id="roomBookingModal"')
+                if data:
+                    self.assertContains(response, 'value="invalid-email"')
+                self.assertFalse(ViewingAppointment.objects.exists())
+
     def test_logged_in_owner_and_tenant_can_still_book_from_public_pages(self):
         for index, role in enumerate((User.Role.OWNER, User.Role.TENANT)):
             with self.subTest(role=role):
                 self.client.force_login(User.objects.create_user(role, role=role))
                 phone = f'090123456{index}'
-                response = self.client.post(self.url, self.data(visitor_phone=phone))
+                response = self.client.post(self.url, self.data(visitor_phone=phone, visitor_email=f'khach{index}@example.com'))
                 appointment = ViewingAppointment.objects.get(visitor_phone=phone)
                 self.assertRedirects(response, reverse('appointment_status', args=[appointment.code]))
 
@@ -249,11 +262,11 @@ class OwnerAppointmentTests(TestCase):
         url = reverse('appointment_set_status', args=[self.a.pk])
         self.client.post(url, {'status': 'da_chot'})                        # nhảy cóc: không cho
         self.a.refresh_from_db(); self.assertEqual(self.a.status, 'cho_xac_nhan')
-        self.client.post(url, {'status': 'da_xac_nhan', 'owner_note': 'Gọi khi tới'})
+        self.client.post(url, {'status': 'da_xac_nhan', 'owner_note': 'Gọi khi tới', 'start_time': '14:00'})
         self.a.refresh_from_db()
         self.assertEqual((self.a.status, self.a.owner_note), ('da_xac_nhan', 'Gọi khi tới'))
         self.client.post(url, {'status': 'da_xem'})
-        self.client.post(url, {'status': 'huy'})
+        self.client.post(url, {'status': 'huy', 'owner_note': 'Khách chưa có nhu cầu thuê'})
         self.a.refresh_from_db(); self.assertEqual(self.a.status, 'huy')
         self.client.post(url, {'status': 'da_xac_nhan'})                    # đã hủy: không đổi nữa
         self.a.refresh_from_db(); self.assertEqual(self.a.status, 'huy')

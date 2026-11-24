@@ -1,0 +1,23 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{ title }}</title></head>
+<body style="margin:0;padding:24px 12px;background:#f7f5f0;font-family:Arial,sans-serif;color:#293b34;line-height:1.6">
+<table role="presentation" style="width:100%;max-width:600px;margin:auto;border-collapse:collapse"><tr><td style="padding:24px;background:#fff;border-radius:16px">
+<p style="margin:0;color:#b55238;font-weight:bold">{{ site_name }}</p>
+<h1 style="font-size:24px;line-height:1.35;margin:16px 0">{{ title }}</h1>
+<p>Xin chào <strong>{{ a.visitor_name }}</strong>,</p><p>{{ introduction }}</p>
+<table role="presentation" style="width:100%;border-collapse:collapse;background:#f5f8f2;border-radius:10px">
+<tr><td style="padding:10px 14px">Mã lịch hẹn</td><td style="padding:10px 14px;font-weight:bold">{{ a.code }}</td></tr>
+<tr><td style="padding:10px 14px">Phòng</td><td style="padding:10px 14px;font-weight:bold">P.{{ a.room.room_number }}</td></tr>
+<tr><td style="padding:10px 14px">Trạng thái</td><td style="padding:10px 14px;font-weight:bold">{{ a.get_status_display }}</td></tr>
+{% if previous_schedule %}<tr><td style="padding:10px 14px">Lịch cũ</td><td style="padding:10px 14px">{{ previous_schedule }}</td></tr>{% endif %}
+<tr><td style="padding:10px 14px">{% if previous_schedule %}Lịch mới{% else %}Ngày xem{% endif %}</td><td style="padding:10px 14px;font-weight:bold">{{ a.appointment_date|date:'d/m/Y' }}</td></tr>
+<tr><td style="padding:10px 14px">Buổi</td><td style="padding:10px 14px">{{ a.get_slot_display }}</td></tr>
+<tr><td style="padding:10px 14px">Giờ xem</td><td style="padding:10px 14px;font-weight:bold">{{ a.time_label }}</td></tr>
+<tr><td style="padding:10px 14px">Địa điểm</td><td style="padding:10px 14px">{{ site_address }}</td></tr></table>
+{% if a.cancelled_by %}<p style="padding:12px;background:#fcf1e8;border-radius:8px"><strong>Bên hủy lịch: {{ a.get_cancelled_by_display }}</strong><br>Lý do hủy: {{ a.cancellation_reason|default:'Không ghi lý do'|linebreaksbr }}</p>
+{% elif a.owner_note %}<p style="padding:12px;background:#fcf1e8;border-radius:8px"><strong>Lời nhắn của chủ trọ:</strong><br>{{ a.owner_note|linebreaksbr }}</p>{% endif %}
+{% if a.status == 'cho_xac_nhan' %}<p>Yêu cầu này chưa giữ giờ hoặc giữ phòng; nhà trọ sẽ xác nhận giờ cụ thể sau.</p>{% endif %}
+<p style="margin:24px 0"><a href="{{ status_url }}" style="display:inline-block;padding:12px 20px;border-radius:8px;color:#fff;background:#b55238;text-decoration:none;font-weight:bold">Tra cứu lịch hẹn</a></p>
+{% if site_phone %}<p>Điện thoại: <a href="tel:{{ site_phone }}">{{ site_phone }}</a></p>{% endif %}
+{% if reply_to %}<p>Email liên hệ: <a href="mailto:{{ reply_to }}">{{ reply_to }}</a></p>{% endif %}
+<p style="font-size:12px;color:#65766d">Hãy giữ mã và đường dẫn tra cứu riêng tư. Nếu nhận nhiều thư, trang tra cứu luôn hiển thị thông tin mới nhất.</p>
+</td></tr></table></body></html>

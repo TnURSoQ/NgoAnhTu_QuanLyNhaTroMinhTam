@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -73,14 +74,17 @@ def contract_create(request):
         form = ContractCreateForm(request.POST)
         if form.is_valid():
             data = form.cleaned_data
+            appointment_id = request.POST.get('appointment', '')
             try:
-                contract = services.create_contract(
-                    data['room'], list(data['tenants']), data['representative'],
-                    data['start_date'], data['end_date'], data['deposit'],
-                    monthly_rent=data.get('monthly_rent'), initial_electric=data.get('initial_electric'),
-                    initial_water=data.get('initial_water'), prorate_first_month=data['prorate_first_month'],
-                    service_ids=[s.pk for s in data['services']], deposit_paid=data.get('deposit_paid') or 0,
-                    deposit_method=data.get('deposit_method') or 'cash', created_by=request.user)
+                with transaction.atomic():
+                    contract = services.create_contract(
+                        data['room'], list(data['tenants']), data['representative'],
+                        data['start_date'], data['end_date'], data['deposit'],
+                        monthly_rent=data.get('monthly_rent'), initial_electric=data.get('initial_electric'),
+                        initial_water=data.get('initial_water'), prorate_first_month=data['prorate_first_month'],
+                        service_ids=[s.pk for s in data['services']], deposit_paid=data.get('deposit_paid') or 0,
+                        deposit_method=data.get('deposit_method') or 'cash', created_by=request.user,
+                        appointment_id=int(appointment_id) if appointment_id.isdigit() else None)
             except ValidationError as e:
                 form.add_error(None, e)
             else:
@@ -91,10 +95,6 @@ def contract_create(request):
                     msg += (f' Tài khoản đăng nhập của {rep.full_name}: tên đăng nhập và mật khẩu '
                             f'ban đầu đều là số CCCD ({rep.id_card_number}).')
                 messages.success(request, msg)
-                appointment_id = request.POST.get('appointment', '')
-                ViewingAppointment.objects.filter(
-                    pk=int(appointment_id) if appointment_id.isdigit() else 0, room=contract.room,
-                    status__in=['cho_xac_nhan', 'da_xac_nhan', 'da_xem']).update(status='da_chot')                
                 return redirect('contract_detail', pk=contract.pk)
     else:
         initial = {}
@@ -136,7 +136,7 @@ def contract_detail(request, pk):
                     key=lambda ct: (not ct.is_representative, ct.tenant.full_name))
     invoices = []
     for inv in contract.invoices.prefetch_related('payments').order_by('-year', '-month')[:12]:
-        paid = sum((p.amount for p in inv.payments.all()), 0)
+        paid = sum((p.amount for p in inv.payments.all() if not p.is_voided), 0)
         invoices.append({'invoice': inv, 'paid': paid, 'remaining': inv.total_amount - paid})
     return render(request, 'rooms/contracts/detail.html', {
         'contract': contract, 'status_key': key, 'label': label, 'tone': tone,

@@ -15,6 +15,9 @@ def create_account_for_representative(sender, instance, **kwargs):
 @receiver(post_save, sender=Contract)
 def sync_room_status_on_save(sender, instance, **kwargs):
     _sync_room(instance.room_id)
+    if kwargs.get('created') and not kwargs.get('raw') and instance.status == Contract.Status.HIEU_LUC:
+        from .appointment_services import reconcile_created_contract
+        transaction.on_commit(lambda pk=instance.pk: reconcile_created_contract(pk), robust=True)
 
 
 @receiver(post_delete, sender=Contract)

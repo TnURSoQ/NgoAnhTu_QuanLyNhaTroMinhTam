@@ -1,0 +1,5 @@
+{% if a.cancelled_by %}
+<div class="info-row"><span>Bên hủy lịch</span><strong>{{ a.get_cancelled_by_display }}</strong></div>
+<div class="info-row"><span>Hủy lúc</span><strong>{{ a.cancelled_at|date:'d/m/Y H:i' }}</strong></div>
+<div class="info-row"><span>Lý do hủy</span><strong>{{ a.cancellation_reason|default:'Không ghi lý do' }}</strong></div>
+{% endif %}

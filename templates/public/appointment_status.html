@@ -7,7 +7,7 @@
       <div class="confirm-icon ok-icon"><i class="bi bi-calendar-check"></i></div>
       <p class="text-muted mb-1">Mã lịch hẹn của bạn</p>
       <div class="code-big">{{ appointment.code }}</div>
-      <p class="text-muted small mb-3">Hãy lưu lại mã này để tra cứu bất cứ lúc nào.</p>
+      <p class="text-muted small mb-3">Giữ mã này riêng tư để tra cứu và quản lý lịch hẹn của bạn.</p>
       <span class="pill pill-{% if appointment.status == 'cho_xac_nhan' %}amber{% elif appointment.status == 'da_xac_nhan' %}sky{% elif appointment.status == 'da_xem' %}lavender{% elif appointment.status == 'da_chot' %}mint{% else %}gray{% endif %}">{{ appointment.get_status_display }}</span>
     </section>
 
@@ -15,22 +15,47 @@
       <div class="info-row"><span>Phòng</span><strong><a href="{% url 'public_room_detail' appointment.room.pk %}">P.{{ appointment.room.room_number }}</a> · {{ appointment.room.price|floatformat:"0g" }} đ/tháng</strong></div>
       <div class="info-row"><span>Ngày xem</span><strong>{{ appointment.appointment_date|date:"d/m/Y" }}</strong></div>
       <div class="info-row"><span>Buổi</span><strong>{{ appointment.get_slot_display }}</strong></div>
+      <div class="info-row"><span>Giờ xem</span><strong>{{ appointment.time_label }}</strong></div>
       <div class="info-row"><span>Người đặt</span><strong>{{ appointment.visitor_name }}</strong></div>
       <div class="info-row"><span>Số điện thoại</span><strong>{{ appointment.visitor_phone }}</strong></div>
+      {% if appointment.visitor_email %}<div class="info-row"><span>Email nhận thông báo</span><strong class="text-break">{{ appointment.masked_email }}</strong></div>{% endif %}
       {% if appointment.note %}<div class="info-row"><span>Ghi chú của bạn</span><strong>{{ appointment.note }}</strong></div>{% endif %}
-      {% if appointment.owner_note %}<div class="info-row"><span>Lời nhắn từ chủ trọ</span><strong>{{ appointment.owner_note }}</strong></div>{% endif %}
+      {% if appointment.owner_note and appointment.owner_note != appointment.cancellation_reason %}<div class="info-row"><span>{% if appointment.cancelled_by %}Lời nhắn trước khi hủy{% else %}Lời nhắn từ chủ trọ{% endif %}</span><strong>{{ appointment.owner_note }}</strong></div>{% endif %}
+      {% include 'rooms/appointments/_cancellation_info.html' with a=appointment %}
     </section>
 
-    {% if appointment.status == 'cho_xac_nhan' %}<div class="alert alert-warning">Chủ trọ sẽ liên hệ qua số điện thoại của bạn để xác nhận lịch hẹn.</div>
-    {% elif appointment.status == 'da_xac_nhan' %}<div class="alert alert-info">Lịch hẹn đã được xác nhận. Vui lòng đến đúng ngày và buổi đã chọn.</div>
+    {% if appointment.visitor_email %}
+      {% if latest_email.status == 'sent' %}<div class="alert alert-success small">Đã gửi thông báo đến {{ appointment.masked_email }}. Nếu chưa thấy thư, hãy kiểm tra mục Thư rác (Spam). Bạn vẫn có thể tra cứu bằng mã trên trang này.</div>
+      {% elif latest_email.status == 'sending' %}<div class="alert alert-info small">Lịch hẹn đã được lưu. Hệ thống đang gửi email thông báo; bạn có thể giữ mã để tra cứu.</div>
+      {% else %}<div class="alert alert-warning small">Lịch hẹn đã được lưu nhưng email thông báo chưa gửi thành công. Hãy giữ mã để tra cứu; chủ trọ có thể liên hệ qua số điện thoại bạn cung cấp.</div>{% endif %}
+    {% endif %}
+    {% if appointment.status == 'cho_xac_nhan' %}<div class="alert alert-warning">Chủ trọ sẽ liên hệ để xác nhận lịch hẹn. Thông tin xác nhận, đổi lịch hoặc hủy sẽ được thông báo qua email nếu bạn đã cung cấp địa chỉ.</div>
+    {% elif appointment.status == 'da_xac_nhan' %}<div class="alert alert-info">Lịch hẹn đã được xác nhận.{% if appointment.start_time %} Vui lòng đến ngày {{ appointment.appointment_date|date:'d/m/Y' }}, khung giờ {{ appointment.time_label }}.{% else %} Lịch cũ chưa ghi giờ cụ thể; vui lòng liên hệ chủ trọ để chốt giờ.{% endif %} Xác nhận lịch xem chưa giữ riêng phòng cho bạn.</div>
     {% elif appointment.status == 'da_xem' %}<div class="alert alert-info">Cảm ơn bạn đã đến xem phòng.</div>
     {% elif appointment.status == 'da_chot' %}<div class="alert alert-success">Bạn đã chốt thuê phòng này. Chúc bạn ở trọ vui vẻ!</div>
-    {% else %}<div class="alert alert-danger">Lịch hẹn này đã bị hủy. Bạn có thể <a href="{% url 'public_rooms' %}">chọn phòng khác</a> và đặt lại.</div>{% endif %}
+    {% else %}<div class="alert alert-danger">Lịch hẹn này đã được hủy. Bạn có thể <a href="{% url 'public_rooms' %}">chọn phòng khác</a> và đặt lại.</div>{% endif %}
 
     <div class="d-flex gap-2 flex-wrap justify-content-center">
+      {% if appointment.can_guest_cancel %}<button type="button" class="btn btn-outline-brand text-danger" data-bs-toggle="modal" data-bs-target="#cancelAppointmentModal"><i class="bi bi-calendar-x"></i> Hủy lịch hẹn</button>{% endif %}
       <a class="btn btn-outline-brand" href="{% url 'public_rooms' %}">Xem thêm phòng</a>
       <a class="btn btn-outline-brand" href="{% url 'appointment_lookup' %}">Tra cứu mã khác</a>
     </div>
   </div>
 </div>
+{% if appointment.can_guest_cancel %}
+<div class="modal fade" id="cancelAppointmentModal" tabindex="-1" aria-labelledby="cancelAppointmentTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content soft-card">
+    <div class="modal-header"><h2 class="modal-title h5" id="cancelAppointmentTitle">Hủy lịch hẹn {{ appointment.code }}</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button></div>
+    <form method="post" action="{% url 'appointment_cancel' appointment.code %}" novalidate>{% csrf_token %}
+      <div class="modal-body">
+        <p>Phòng <strong>P.{{ appointment.room.room_number }}</strong> · {{ appointment.appointment_date|date:'d/m/Y' }} · {{ appointment.time_label }}</p>
+        <p class="small text-muted">Sau khi xác nhận, lịch sẽ được hủy ngay và thông báo tới chủ trọ. Bạn có thể để trống lý do.</p>
+        {{ cancel_form.non_field_errors }}<label class="form-label" for="{{ cancel_form.reason.id_for_label }}">{{ cancel_form.reason.label }}</label>{{ cancel_form.reason }}{{ cancel_form.reason.errors }}
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-outline-brand" data-bs-dismiss="modal">Giữ lịch hẹn</button><button type="submit" class="btn btn-danger">Xác nhận hủy lịch</button></div>
+    </form>
+  </div></div>
+</div>
+{% endif %}
 {% endblock %}
+{% block scripts %}{% if cancel_form.errors and appointment.can_guest_cancel %}<script>bootstrap.Modal.getOrCreateInstance(document.getElementById('cancelAppointmentModal')).show();</script>{% endif %}{% endblock %}

@@ -12,6 +12,7 @@ from billing.services import _money
 from accounts.money import MAX_MONEY
 from accounts.models import Tenant
 from .models import CheckoutRecord, Contract, ContractRenewal, ContractTenant, DepositEntry, Room
+from .appointment_schedule import lock_calendar
 
 
 def money(amount):
@@ -23,7 +24,7 @@ def unpaid_invoices(contract):
     result = []
     invoices = contract.invoices.exclude(status=Invoice.Status.DA_THANH_TOAN).prefetch_related('payments')
     for inv in invoices.order_by('year', 'month'):
-        remaining = inv.total_amount - sum((p.amount for p in inv.payments.all()), Decimal('0'))
+        remaining = inv.total_amount - sum((p.amount for p in inv.payments.all() if not p.is_voided), Decimal('0'))
         if remaining > 0:
             result.append((inv, remaining))
     return result
@@ -105,8 +106,11 @@ def contract_errors(room, tenants, representative, start_date, end_date, deposit
 def create_contract(room, tenants, representative, start_date, end_date, deposit, *, monthly_rent=None,
                     initial_electric=None, initial_water=None, prorate_first_month=False,
                     service_ids=None, deposit_paid=0, deposit_method=DepositEntry.Method.CASH,
-                    created_by=None):
+                    created_by=None, appointment_id=None):
+    lock_calendar()
     room = Room.objects.select_for_update().get(pk=room.pk)
+    from .appointment_services import settle_for_contract, validate_contract_source
+    validate_contract_source(appointment_id, room)
     list(Tenant.objects.select_for_update().filter(pk__in=[t.pk for t in tenants]).order_by('pk'))
     errors = contract_errors(room, tenants, representative, start_date, end_date, deposit)
     if errors:
@@ -132,6 +136,7 @@ def create_contract(room, tenants, representative, start_date, end_date, deposit
     if deposit_paid:
         receive_deposit(contract, amount=deposit_paid, occurred_on=start_date, method=deposit_method,
                         note='Thu cọc khi nhận phòng', created_by=created_by)
+    settle_for_contract(contract, appointment_id)
     return contract
 
 
@@ -178,7 +183,7 @@ def checkout_errors(contract, checkout_date):
         return errors
     errors += _date_errors(contract, checkout_date, 'Ngày trả phòng')
     if checkout_date:
-        if contract.invoices.filter(payments__paid_date__gt=checkout_date).exists():
+        if contract.invoices.filter(payments__paid_date__gt=checkout_date, payments__voided_at__isnull=True).exists():
             errors.append('Ngày trả phòng không được trước ngày thu tiền đã ghi nhận của hợp đồng.')
         if contract.deposit_entries.filter(occurred_on__gt=checkout_date).exists():
             errors.append('Ngày trả phòng không được trước giao dịch cọc đã ghi nhận.')
@@ -244,7 +249,7 @@ def transfer_errors(contract, new_room, transfer_date, new_end_date):
         errors.append('Ngày kết thúc hợp đồng mới không được trước ngày chuyển phòng.')
     if transfer_date and contract.deposit_entries.filter(occurred_on__gt=transfer_date).exists():
         errors.append('Ngày chuyển phòng không được trước giao dịch cọc đã ghi nhận.')
-    if transfer_date and contract.invoices.filter(payments__paid_date__gt=transfer_date).exists():
+    if transfer_date and contract.invoices.filter(payments__paid_date__gt=transfer_date, payments__voided_at__isnull=True).exists():
         errors.append('Ngày chuyển phòng không được trước giao dịch thu tiền đã ghi nhận.')
     return errors
 
@@ -254,6 +259,7 @@ def transfer_contract(contract, new_room, transfer_date, new_end_date, *, initia
                       initial_water=None, accept_outstanding=False, transfer_deposit=True, created_by=None):
     """Kết thúc hợp đồng cũ rồi lập hợp đồng mới ở phòng mới cho đúng những người đó.
     Hóa đơn cũ vẫn thuộc phòng cũ nên lịch sử không bị lệch."""
+    lock_calendar()
     list(Room.objects.select_for_update().filter(pk__in=[contract.room_id, new_room.pk]).order_by('pk'))
     contract = Contract.objects.select_for_update().get(pk=contract.pk)
     new_room = Room.objects.select_for_update().get(pk=new_room.pk)
@@ -289,6 +295,8 @@ def transfer_contract(contract, new_room, transfer_date, new_end_date, *, initia
     for ct in people:
         ContractTenant.objects.create(
             contract=new_contract, tenant=ct.tenant, is_representative=ct.is_representative)
+    from .appointment_services import settle_for_contract
+    settle_for_contract(new_contract)
     return new_contract
 
 
@@ -394,7 +402,7 @@ def apply_deposit_to_invoice(invoice, *, amount, occurred_on=None, note='', refe
     if len(note) > 500:
         raise ValidationError(['Ghi chú tối đa 500 ký tự.'])
     payment = Payment(invoice=invoice, amount=amount, paid_date=occurred_on,
-                       method=Payment.Method.TU_COC, note=note.strip())
+                       method=Payment.Method.TU_COC, note=note.strip(), recorded_by=created_by)
     payment._from_deposit = True
     payment.full_clean()
     payment.save()

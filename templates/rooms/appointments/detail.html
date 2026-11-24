@@ -1,53 +1,101 @@
-{% extends 'base.html' %}
+{% extends 'base.html' %}{% load static %}
 {% block title %}Lịch hẹn {{ a.code }} · Nhà trọ Minh Tâm{% endblock %}
 {% block content %}
 <a class="back-link" href="{% url 'appointment_list' %}"><i class="bi bi-arrow-left"></i> Quay lại danh sách lịch hẹn</a>
 <div class="page-head">
   <div class="d-flex align-items-center gap-3 flex-wrap"><h1>Lịch hẹn {{ a.code }}</h1><span class="pill pill-{{ tone }}">{{ a.get_status_display }}</span></div>
-  {% if a.status == 'da_xac_nhan' or a.status == 'da_xem' %}
+  {% if room_available and a.status == 'da_xac_nhan' or room_available and a.status == 'da_xem' %}
   <a class="btn btn-primary" href="{% url 'contract_create' %}?appointment={{ a.pk }}"><i class="bi bi-file-earmark-plus"></i> Lập hợp đồng cho khách</a>
   {% endif %}
 </div>
 
 <div class="row g-4">
   <div class="col-12 col-xl-7">
+    {% if not room_available and a.status != 'da_chot' and a.status != 'huy' %}<div class="alert alert-warning">Phòng không còn sẵn sàng cho thuê. Hãy xử lý hủy có lý do và trao đổi phòng khác với khách.</div>{% endif %}
+    {% if a.status == 'da_xac_nhan' and not a.start_time %}<div class="alert alert-warning">Lịch cũ đã xác nhận nhưng chưa ghi giờ. Hãy dùng Đổi ngày giờ hẹn để bổ sung; hệ thống tạm chặn xác nhận thêm cùng buổi để tránh trùng lịch.</div>{% endif %}
     <section class="soft-card p-4">
       <div class="section-head"><h2>Thông tin lịch hẹn</h2></div>
       <div class="info-row"><span>Khách</span><strong>{{ a.visitor_name }}</strong></div>
       <div class="info-row"><span>Số điện thoại</span><strong><a href="tel:{{ a.visitor_phone }}">{{ a.visitor_phone }}</a></strong></div>
+      <div class="info-row"><span>Email nhận thông báo</span><strong class="text-break">{{ a.visitor_email|default:'Chưa có email (lịch cũ)' }}</strong></div>
       <div class="info-row"><span>Phòng</span><strong><a href="{% url 'room_detail' a.room.pk %}">P.{{ a.room.room_number }}</a> · {{ a.room.price|floatformat:"0g" }} đ/tháng</strong></div>
       <div class="info-row"><span>Ngày xem</span><strong>{{ a.appointment_date|date:"d/m/Y" }}</strong></div>
       <div class="info-row"><span>Buổi</span><strong>{{ a.get_slot_display }}</strong></div>
+      <div class="info-row"><span>Giờ xem</span><strong>{{ a.time_label }}</strong></div>
+      {% if a.contract_id %}<div class="info-row"><span>Hợp đồng</span><strong><a href="{% url 'contract_detail' a.contract_id %}">{{ a.contract.display_code }}</a></strong></div>{% endif %}
       <div class="info-row"><span>Ghi chú của khách</span><strong>{{ a.note|default:"-" }}</strong></div>
-      <div class="info-row"><span>Lời nhắn của chủ trọ</span><strong>{{ a.owner_note|default:"-" }}</strong></div>
+      {% if a.owner_note != a.cancellation_reason %}<div class="info-row"><span>{% if a.cancelled_by %}Lời nhắn trước khi hủy{% else %}Lời nhắn của chủ trọ{% endif %}</span><strong>{{ a.owner_note|default:"-" }}</strong></div>{% endif %}
+      {% include 'rooms/appointments/_cancellation_info.html' %}
       <div class="info-row"><span>Đặt lúc</span><strong>{{ a.created_at|date:"d/m/Y H:i" }}</strong></div>
     </section>
   </div>
   <div class="col-12 col-xl-5">
+    {% if can_confirm and room_available %}<section class="soft-card p-4 mb-4">
+      <div class="section-head"><h2>Xác nhận giờ xem</h2></div>
+      <p class="small text-muted">Mỗi lượt 30 phút. Chọn giờ thuộc buổi khách yêu cầu; lịch dẫn xem được kiểm tra chung giữa tất cả các phòng.</p>
+      <form method="post" action="{% url 'appointment_set_status' a.pk %}" data-appointment-form data-fixed-slot="{{ a.slot }}">{% csrf_token %}
+        <input type="hidden" name="status" value="da_xac_nhan">
+        {% for field in confirmation_form %}<div class="mb-3"><label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endfor %}
+        <button class="btn btn-primary w-100" type="submit">Xác nhận lịch hẹn</button>
+      </form>
+    </section>{% endif %}
     {% if actions %}
     <section class="soft-card p-4 mb-4">
       <div class="section-head"><h2>Xử lý lịch hẹn</h2></div>
       <form method="post" action="{% url 'appointment_set_status' a.pk %}">
         {% csrf_token %}
-        <label class="form-label" for="owner_note">Lời nhắn cho khách (nếu có)</label>
+        <label class="form-label" for="owner_note">Lời nhắn cho khách / Lý do hủy</label>
         <input class="form-control mb-3" id="owner_note" name="owner_note" maxlength="255" placeholder="VD: Mời bạn đến cổng chính, gọi số này khi tới">
+        <p class="form-text">Khi hủy, cần nhập lý do. Lời nhắn được hiển thị cho khách và gửi kèm email.</p>
         <div class="d-grid gap-2">
-          {% for value, label, css in actions %}<button type="submit" name="status" value="{{ value }}" class="btn {{ css }}">{{ label }}</button>{% endfor %}
+          {% for value, label, css in actions %}<button type="submit" name="status" value="{{ value }}" class="btn {{ css }}"{% if value == 'da_xem' and not can_mark_seen %} disabled title="Chưa tới giờ hẹn"{% endif %}>{{ label }}</button>{% endfor %}
         </div>
       </form>
     </section>
     {% endif %}
-    {% if can_reschedule %}
+    {% if can_reschedule and room_available %}
     <section class="soft-card p-4">
       <div class="section-head"><h2>Đổi ngày giờ hẹn</h2></div>
-      <form method="post" action="{% url 'appointment_reschedule' a.pk %}">
+      <form method="post" action="{% url 'appointment_reschedule' a.pk %}" data-appointment-form>
         {% csrf_token %}
+        {{ reschedule_form.non_field_errors }}
         <div class="mb-3"><label class="form-label" for="{{ reschedule_form.appointment_date.id_for_label }}">Ngày hẹn mới</label>{{ reschedule_form.appointment_date }}</div>
         <div class="mb-3"><label class="form-label" for="{{ reschedule_form.slot.id_for_label }}">Buổi</label>{{ reschedule_form.slot }}</div>
+        {% if reschedule_form.start_time.field.required %}<div class="mb-3"><label class="form-label" for="{{ reschedule_form.start_time.id_for_label }}">{{ reschedule_form.start_time.label }}</label>{{ reschedule_form.start_time }}{{ reschedule_form.start_time.errors }}</div>{% endif %}
+        {{ reschedule_form.appointment_date.errors }}{{ reschedule_form.slot.errors }}
+        <div class="mb-3"><label class="form-label" for="{{ reschedule_form.owner_note.id_for_label }}">{{ reschedule_form.owner_note.label }}</label>{{ reschedule_form.owner_note }}</div>
         <button type="submit" class="btn btn-outline-brand w-100">Đổi lịch</button>
       </form>
     </section>
     {% endif %}
   </div>
 </div>
+<section class="soft-card p-3 p-md-4 mt-4"><div class="section-head"><h2>Lịch đã xác nhận cùng ngày {{ a.appointment_date|date:'d/m/Y' }}</h2></div>
+  <p class="small text-muted">Xem các giờ đã có khách trước khi xác nhận hoặc đổi lịch. Các yêu cầu đang chờ chưa giữ khung giờ.</p>
+  {% for booked in day_confirmed %}<a class="appointment-calendar-item" href="{% url 'appointment_detail' booked.pk %}"><strong>{{ booked.time_label }}</strong><span>P.{{ booked.room.room_number }} · {{ booked.code }}</span></a>{% empty %}<p class="text-muted mb-0">Chưa có lịch khác được xác nhận trong ngày này.</p>{% endfor %}
+</section>
+<section class="soft-card p-3 p-md-4 mt-4">
+  <div class="section-head"><h2><i class="bi bi-envelope"></i> Email cho khách</h2></div>
+  {% if email_preview_mode %}<div class="alert alert-warning small">Hệ thống đang ở chế độ xem thử email, chưa gửi thư thật đến khách. Cần cấu hình tài khoản gửi email trước khi sử dụng thực tế.</div>
+  {% elif email_configuration_problem %}<div class="alert alert-warning small">Chưa đủ cấu hình gửi email. Lịch hẹn vẫn được lưu; thư đang chờ có thể gửi lại sau khi cấu hình xong.</div>{% endif %}
+  {% if not a.visitor_email %}<p class="text-muted small">Lịch hẹn này được tạo khi chưa thu thập email. Hãy hỏi khách và bổ sung địa chỉ nếu cần nhận thông báo.</p>{% endif %}
+  <details class="mb-3"><summary class="fw-semibold">{% if a.visitor_email %}Sửa email liên hệ của khách{% else %}Bổ sung email liên hệ{% endif %}</summary>
+    <form method="post" action="{% url 'appointment_update_email' a.pk %}" class="mt-3">{% csrf_token %}
+      <label class="form-label" for="{{ email_form.visitor_email.id_for_label }}">{{ email_form.visitor_email.label }}</label>
+      <div class="d-flex flex-wrap gap-2">{{ email_form.visitor_email }}<button type="submit" class="btn btn-outline-brand">Lưu email và gửi thông tin hiện tại</button></div>
+      <p class="form-text">Chỉ sửa sau khi đối chiếu với khách. Thư đang chờ tới địa chỉ cũ sẽ không gửi tiếp.</p>
+    </form>
+  </details>
+  {% if email_can_retry and not email_preview_mode and not email_configuration_problem %}<form method="post" action="{% url 'appointment_retry_email' a.pk %}" class="mb-3">{% csrf_token %}<button class="btn btn-outline-brand" type="submit"><i class="bi bi-arrow-clockwise"></i> Gửi lại email đang chờ / bị lỗi</button></form>{% endif %}
+  <div class="appointment-email-history">
+  {% for email in emails %}<article class="appointment-email-item">
+    <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap"><strong>{{ email.get_event_display }}</strong><span class="pill pill-{{ email.tone }}">{{ email.get_status_display }}</span></div>
+    <p class="small text-muted text-break mb-1 mt-2">{{ email.recipient }}</p>
+    <p class="small text-muted mb-0">Tạo {{ email.created_at|date:'d/m/Y H:i' }}{% if email.sent_at %} · Gửi {{ email.sent_at|date:'d/m/Y H:i' }}{% endif %}</p>
+    {% if email.status == 'failed' or email.status == 'pending' %}{% if email.error_message %}<p class="small text-warning mb-0 mt-2">{{ email.error_message }}</p>{% endif %}{% endif %}
+  </article>{% empty %}<p class="text-muted mb-0">Chưa có email thông báo cho lịch hẹn này.</p>{% endfor %}
+  </div>
+  {% if emails %}<p class="small text-muted mt-3 mb-0">Hiển thị tối đa 10 cập nhật gần nhất. “Đã gửi” nghĩa là máy chủ thư đã tiếp nhận, khách có thể cần kiểm tra mục Thư rác.</p>{% endif %}
+</section>
 {% endblock %}
+{% block scripts %}<script src="{% static 'js/appointment-time.js' %}?v=20261124-1" defer></script>{% endblock %}

@@ -1,0 +1,24 @@
+{% autoescape off %}{{ title }}
+{{ site_name }}
+
+Xin chào {{ a.visitor_name }},
+{{ introduction }}
+
+Mã lịch hẹn: {{ a.code }}
+Phòng: P.{{ a.room.room_number }}
+Trạng thái: {{ a.get_status_display }}
+{% if previous_schedule %}Lịch cũ: {{ previous_schedule }}
+Lịch mới: {{ a.appointment_date|date:'d/m/Y' }} · {{ a.get_slot_display }}{% else %}Ngày xem: {{ a.appointment_date|date:'d/m/Y' }}
+Buổi: {{ a.get_slot_display }}{% endif %}
+Giờ xem: {{ a.time_label }}
+{% if a.status == 'cho_xac_nhan' %}Yêu cầu này chưa giữ giờ hoặc giữ phòng; nhà trọ sẽ xác nhận giờ cụ thể sau.{% endif %}
+Địa điểm: {{ site_address }}
+{% if a.cancelled_by %}Bên hủy lịch: {{ a.get_cancelled_by_display }}
+Lý do hủy: {{ a.cancellation_reason|default:'Không ghi lý do' }}{% endif %}
+{% if a.owner_note and not a.cancelled_by %}Lời nhắn của chủ trọ: {{ a.owner_note }}{% endif %}
+{% if site_phone %}Điện thoại chủ trọ: {{ site_phone }}{% endif %}
+{% if reply_to %}Email liên hệ: {{ reply_to }}{% endif %}
+
+Tra cứu trạng thái mới nhất: {{ status_url }}
+Hãy giữ mã và đường dẫn này riêng tư. Nếu nhận nhiều thư, trang tra cứu luôn hiển thị thông tin mới nhất.
+{% endautoescape %}
