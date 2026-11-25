@@ -7,13 +7,13 @@ Cập nhật ngày 18/11/2026, dựa trên mã nguồn, đề cương `225122004
 | Vấn đề trước khi rà soát | Điều chỉnh trong phần mềm |
 |---|---|
 | Danh sách phòng dùng hình cửa minh họa, chưa có ảnh riêng | Chủ trọ tải ảnh từng phòng; danh sách dùng ảnh đại diện; chi tiết có bộ ảnh. Chưa có ảnh thật thì ghi rõ đang cập nhật |
-| Khách không xem được đơn giá điện nước ngay khi chọn phòng | Giá tháng, tiện ích, đơn giá điện/kWh, nước/m³ và danh mục phí có thể đăng ký được công khai |
+| Khách không xem được đơn giá điện nước ngay khi chọn phòng | Giá tháng, tiện ích, đơn giá điện/kWh, nước/người/tháng (mặc định 50.000đ) và danh mục phí có thể đăng ký được công khai |
 | Đề cương loại chức năng khách vãng lai, trái với góp ý mới | Bản đề cương cập nhật bổ sung khách xem thông tin phòng; vẫn chỉ có hai vai trò đăng nhập |
 | Đề cương ghi PostgreSQL, môi trường hiện tại là SQLite | Bổ sung cấu hình PostgreSQL qua DATABASE_URL, phụ thuộc và hướng dẫn; ghi rõ chưa xác minh kết nối PostgreSQL thực tế |
 | Giá hợp đồng lấy trực tiếp từ giá phòng | Lưu giá thuê thỏa thuận riêng. Đổi giá niêm yết không làm thay đổi giá hợp đồng hoặc hóa đơn đã lập |
 | Mọi phòng mặc định bị tính cùng danh mục phí | Hợp đồng mới chọn dịch vụ sử dụng; nháp và màn hình lập hóa đơn dùng danh sách đó |
 | Nhận phòng giữa tháng không có quy tắc rõ | Hợp đồng chọn thu trọn tháng hoặc tính tháng đầu theo số ngày ở/số ngày trong tháng; hóa đơn vẫn cho chủ trọ đối chiếu khoản thu |
-| Chưa có chỉ số điện nước bàn giao | Ghi chỉ số ban đầu trên hợp đồng. Các kỳ sau tự lấy chỉ số cũ; không tự đoán mức tiêu thụ mới |
+| Chưa có chỉ số điện bàn giao | Ghi chỉ số điện ban đầu trên hợp đồng. Các kỳ sau tự lấy chỉ số cũ; chủ trọ nhập số mới. Nước thu đủ tháng theo số người chốt trong kỳ, mặc định 50.000đ/người |
 | Khóa chỉ số theo phòng/tháng làm kẹt khi đổi khách cùng tháng | Lưu chỉ số theo hợp đồng/tháng. Hai khách kế tiếp trong cùng phòng có dữ liệu riêng, không ghi đè kỳ trước |
 | Cọc thỏa thuận bị hiểu như tiền đã thu | Có sổ thu cọc từng lần; chỉ ghi nhận thực thu; có chống gửi trùng và không thu vượt thỏa thuận |
 | Chuyển phòng chưa theo dõi dòng tiền cọc | Ghi chuyển cọc ra/vào giữa hai hợp đồng; không ghi nhận thu tiền mặt lần nữa |

@@ -84,7 +84,7 @@ erDiagram
 | UC02 | Đặt lịch xem | Phòng còn trống, ngày hợp lệ; trả mã hẹn, chưa tự giữ phòng hoặc tạo hợp đồng |
 | UC03 | Nhận phòng | Chủ trọ, phòng sẵn sàng, đủ sức chứa, đại diện thuộc danh sách; lưu hợp đồng và thông tin bàn giao |
 | UC04 | Thu cọc | Hợp đồng hiệu lực; thu thực tế từng lần, không vượt thỏa thuận và không ghi trùng cùng mã giao dịch |
-| UC05 | Nhập điện nước | Có nháp; điền số cũ tự động, cho lưu dở số mới; kiểm tra chỉ số và tổng tiền |
+| UC05 | Nhập điện nước | Có nháp; điền chỉ số điện cũ tự động, cho lưu dở số mới; nước mặc định 50.000đ/người/tháng, chủ trọ chốt số người và thu đủ tháng; lưu đơn giá, số người trên hóa đơn |
 | UC06 | Chốt hóa đơn | Chọn phòng đủ thông tin; lưu giao dịch toàn bộ hoặc hoàn tác khi sai; phòng thiếu dữ liệu giữ nháp |
 | UC07 | Thu tiền | Khoản thu hợp lệ, không vượt nợ; lưu nhiều lần và cập nhật trạng thái |
 | UC08 | Xác nhận chuyển khoản | Thông báo chờ xử lý; chủ trọ đối chiếu; chỉ xác nhận một lần |

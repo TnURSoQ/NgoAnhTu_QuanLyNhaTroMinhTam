@@ -3,7 +3,7 @@
 ## Trước khi trình bày với giảng viên
 
 - [ ] Đăng ảnh thật cho từng phòng dùng demo; nhập tiện ích, diện tích, sức chứa, giá thuê và đơn giá điện nước.
-- [ ] Trang chủ hiển thị đúng ảnh phòng, giá theo tháng, điện/kWh, nước/m³; chi tiết có đủ tiện ích và phí có thể đăng ký.
+- [ ] Trang chủ hiển thị đúng ảnh phòng, giá theo tháng, điện/kWh, nước/người/tháng (mặc định 50.000đ); chi tiết có đủ tiện ích và phí có thể đăng ký.
 - [ ] Các ảnh minh họa chung được ghi rõ là minh họa; không gọi ảnh tạo/ảnh mẫu là ảnh thật của phòng.
 - [ ] Tên đề tài, tác nhân và phạm vi trong đề cương khớp sản phẩm. Khách không đăng nhập vẫn có luồng xem phòng.
 - [ ] Thống nhất cách ghi SQLite phát triển và PostgreSQL triển khai; không nói đã triển khai PostgreSQL nếu chưa kiểm tra máy chủ đó.

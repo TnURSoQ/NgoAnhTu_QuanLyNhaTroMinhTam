@@ -3,9 +3,11 @@
 Trong **Hóa đơn**, mở **Nhập điện nước / Chốt hóa đơn**. Mỗi phòng là một dòng:
 
 1. Kiểm tra tháng/năm. Tháng hiện tại tự tạo nháp khi chủ trọ mở danh sách hóa đơn. Nút **Nhập điện nước / Chốt hóa đơn** bổ sung các phòng chưa có nháp trong kỳ đã chọn rồi mở bảng nhập.
-2. Chỉ số cũ lấy từ kỳ trước của hợp đồng hoặc chỉ số bàn giao nhận phòng và không cần nhập lại. Nếu chưa có cả hai, nhập chỉ số ban đầu theo hồ sơ thực tế. Nhập điện mới và nước mới; được để trống để lưu dở. Chỉ số mới phải lớn hơn hoặc bằng chỉ số cũ; nhập bằng nhau để xác nhận không tiêu thụ. Khi kỳ trước được chốt muộn, hệ thống cập nhật chỉ số cũ theo kỳ đó để tránh tính trùng lượng tiêu thụ.
+2. Chỉ số cũ lấy từ kỳ trước của hợp đồng hoặc chỉ số bàn giao nhận phòng và không cần nhập lại. Nếu chưa có cả hai, nhập chỉ số ban đầu theo hồ sơ thực tế. Nhập chỉ số điện mới và chốt số người tính tiền nước; được để trống để lưu dở. Chỉ số mới phải lớn hơn hoặc bằng chỉ số cũ; nhập bằng nhau để xác nhận không tiêu thụ. Khi kỳ trước được chốt muộn, hệ thống cập nhật chỉ số cũ theo kỳ đó để tránh tính trùng lượng tiêu thụ.
 3. Kiểm tra tiền phòng, dịch vụ, đơn giá, tổng dự kiến và hạn thanh toán. Để trống hạn: hệ thống dùng ngày chốt cộng 10 ngày.
 4. Bấm **Lưu chỉ số / bản nháp**, hoặc chọn các phòng rồi bấm **Lưu và chốt các phòng đã chọn**. Phòng thiếu chỉ số hay đơn giá vẫn được lưu nháp. Phòng đủ dữ liệu trở thành hóa đơn chính thức.
+
+Nước mặc định **50.000đ/người/tháng**, thu đủ tháng theo số người chủ trọ chốt, kể cả vào hoặc rời phòng giữa tháng. Số người gợi ý gồm người đại diện và người ở cùng đã duyệt; hồ sơ chờ duyệt chưa được tính. Chủ trọ có thể sửa số người trước khi phát hành. Hóa đơn mới không yêu cầu chỉ số nước. Hóa đơn đã phát hành theo công tơ vẫn giữ nguyên cách tính và đơn giá cũ; nháp chưa phát hành được chuyển sang cách tính mới khi nâng cấp.
 
 Nháp không xuất hiện cho người thuê, trong công nợ, báo cáo doanh thu hoặc nhắc quá hạn. Đơn giá điện nước, tiền phòng theo hợp đồng và dịch vụ đăng ký được lưu tại lúc tạo nháp; thay đổi cấu hình sau đó không làm thay đổi nháp đã có. Tiền phòng tháng đầu dùng cách tính đã chọn trên hợp đồng. Nếu thiếu đơn giá lúc tạo, hệ thống bổ sung đơn giá hiện hành khi mở/lưu bảng sau khi cấu hình.
 
