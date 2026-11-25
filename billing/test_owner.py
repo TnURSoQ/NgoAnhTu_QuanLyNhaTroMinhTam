@@ -25,7 +25,7 @@ class BillingBase(TestCase):
         cls.tenant = Tenant.objects.create(full_name='Nguyễn Minh Ánh', id_card_number='012345678901',
                                            phone='0901234567')
         ContractTenant.objects.create(contract=cls.contract, tenant=cls.tenant, is_representative=True)
-        cls.rate = UtilityRate.objects.create(electric_price=3500, water_price=15000,
+        cls.rate = UtilityRate.objects.create(water_billing_method='metered', electric_price=3500, water_price=15000,
                                               effective_date=cls.today - timedelta(days=30))
         cls.wifi = Service.objects.create(name='Wifi', unit_price=100000)
 

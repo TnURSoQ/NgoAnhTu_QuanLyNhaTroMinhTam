@@ -1,0 +1,11 @@
+<section class="soft-card p-3 p-md-4 mb-4">
+  <div class="section-head flex-wrap gap-2"><h2>Điều khoản đã ghi nhận</h2>{% if owner_view and active %}<a class="btn btn-sm btn-outline-brand" href="{% url 'contract_terms' contract.pk %}">Cập nhật theo tài liệu đã ký</a>{% endif %}</div>
+  <h3 class="h6 mt-3">Thanh toán</h3><div class="text-muted contract-long-text">{{ contract.payment_terms|default:'Chưa ghi nhận; xem hợp đồng hai bên đã ký.'|linebreaksbr }}</div>
+  <h3 class="h6 mt-3">Gia hạn</h3><div class="text-muted contract-long-text">{{ contract.renewal_terms|default:'Chưa ghi nhận điều khoản gia hạn riêng.'|linebreaksbr }}</div>
+  <h3 class="h6 mt-3">Báo trước / trả phòng</h3><div class="text-muted contract-long-text">{{ contract.checkout_terms|default:'Chưa ghi nhận; trao đổi với chủ trọ và đối chiếu hợp đồng đã ký.'|linebreaksbr }}</div>
+  <p class="small text-muted mt-3 mb-0">Ứng dụng không tự gia hạn khi hết hạn. Mốc nhắc 30 ngày và 7 ngày hỗ trợ hai bên trao đổi; thời hạn báo trước theo thỏa thuận đã ký.</p>
+</section>
+<section class="soft-card p-3 p-md-4 mb-4">
+  <div class="section-head flex-wrap gap-2"><h2>Tài liệu hợp đồng</h2>{% if owner_view %}<a class="btn btn-sm btn-outline-brand" href="{% url 'contract_document_upload' contract.pk %}"><i class="bi bi-upload"></i> Bổ sung tài liệu</a>{% endif %}</div>
+  {% for document in contract_documents %}<div class="history-row d-flex gap-2 flex-wrap"><div class="flex-grow-1"><strong>{{ document.title }}</strong><small class="d-block text-muted">{{ document.get_kind_display }} · {{ document.created_at|date:'d/m/Y H:i' }}</small></div><a class="btn btn-sm btn-outline-brand" href="{% url 'contract_document_download' document.pk %}"><i class="bi bi-download"></i> Tải tài liệu</a></div>{% empty %}<p class="text-muted mb-0">Chưa tải lên hợp đồng hoặc phụ lục đã ký.</p>{% endfor %}
+</section>

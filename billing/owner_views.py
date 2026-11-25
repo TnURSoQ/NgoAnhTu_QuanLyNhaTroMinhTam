@@ -12,7 +12,8 @@ from django.db import DatabaseError
 from accounts.decorators import owner_required
 from accounts.text import normalize
 from rooms.display import representative_of
-from rooms.models import Contract
+from rooms.models import Contract, PropertyInfo
+from rooms.forms import PropertyInfoForm
 from . import drafts, services
 from .receipts import invoice_statement
 from .receipts import payment_records
@@ -136,7 +137,7 @@ def invoice_drafts(request):
             else:
                 if action == 'publish':
                     messages.success(request, f'Đã chốt {published} hóa đơn. '
-                                     f'{skipped} phòng được chọn còn thiếu chỉ số hoặc đơn giá, đã giữ nháp.')
+                                     f'{skipped} phòng được chọn còn thiếu thông tin tính tiền, đã giữ nháp.')
                 else:
                     messages.success(request, f'Đã lưu chỉ số cho {len(rows)} bản nháp.')
                 return redirect(f'{reverse("invoice_drafts")}?month={month}&year={year}')
@@ -170,6 +171,7 @@ def invoice_create(request):
             'has_previous_reading': bool(baseline),
             'old_electric': str(electric) if electric is not None else '',
             'old_water': str(water) if water is not None else '',
+            'water_people_count': contract.contract_tenants.count(),
             'service_items': [{'service': s.pk, 'description': s.name, 'quantity': 1, 'unit_price': str(s.unit_price)}
                               for s in services.billable_services(contract).order_by('name')]}
     if request.method != 'POST':
@@ -177,7 +179,8 @@ def invoice_create(request):
         if room_id in room_data:
             defaults = room_data[room_id]
             form.initial.update(room=room_id, room_fee=defaults['price'],
-                                old_electric=defaults['old_electric'], old_water=defaults['old_water'])
+                                old_electric=defaults['old_electric'], old_water=defaults['old_water'],
+                                water_people_count=defaults['water_people_count'] or None)
     if request.method == 'POST':
         valid_form, valid_lines = form.is_valid(), lines.is_valid()
         if valid_form and valid_lines:
@@ -280,17 +283,21 @@ def payment_correct(request, pk):
 @owner_required
 def billing_settings(request):
     action = request.POST.get('action')
+    property_form = PropertyInfoForm(request.POST if request.method == 'POST' and action == 'property' else None,
+                                     instance=PropertyInfo.current())
     rate_form = UtilityRateForm(request.POST if request.method == 'POST' and action == 'rate' else None)
     service_form = ServiceForm(request.POST if request.method == 'POST' and action == 'service' else None)
     bank = BankAccount.objects.first()
     bank_form = BankAccountForm(request.POST if request.method == 'POST' and action == 'bank' else None,
                                 initial={k: getattr(bank, k) for k in
                                          ('bank_name', 'account_number', 'account_holder')} if bank else {})
-    if request.method == 'POST' and action in ('rate', 'service', 'bank'):
-        form = {'rate': rate_form, 'service': service_form, 'bank': bank_form}[action]
+    if request.method == 'POST' and action in ('rate', 'service', 'bank', 'property'):
+        form = {'rate': rate_form, 'service': service_form, 'bank': bank_form, 'property': property_form}[action]
         if form.is_valid():
             try:
-                if action == 'rate':
+                if action == 'property':
+                    property_form.save()
+                elif action == 'rate':
                     services.add_utility_rate(**form.cleaned_data)
                 elif action == 'bank':
                     services.configure_bank_account(**form.cleaned_data)
@@ -300,12 +307,13 @@ def billing_settings(request):
                 form.add_error(None, e.messages)
             else:
                 messages.success(request, {'rate': 'Đã thêm đơn giá mới.', 'service': 'Đã thêm dịch vụ.',
-                                           'bank': 'Đã cập nhật thông tin chuyển khoản.'}[action])
+                                           'bank': 'Đã cập nhật thông tin chuyển khoản.',
+                                           'property': 'Đã cập nhật tiện ích chung của nhà trọ.'}[action])
                 return redirect('billing_settings')
     return _render(request, 'billing/owner/settings.html', {
         'rate': UtilityRate.current(), 'rates': UtilityRate.objects.all(),
         'services': Service.objects.order_by('name'), 'rate_form': rate_form, 'service_form': service_form,
-        'bank_account': bank, 'bank_form': bank_form})
+        'bank_account': bank, 'bank_form': bank_form, 'property_form': property_form})
 
 
 def _get_payment_notice(pk):

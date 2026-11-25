@@ -37,7 +37,7 @@
           <td><span class="pill pill-mint">P.{{ r.contract.room.room_number }}</span></td>
           <td>{% if r.tenant %}{{ r.tenant.full_name }}{% if r.people > 1 %} <span class="text-muted small">+{{ r.people|add:"-1" }} người</span>{% endif %}{% else %}-{% endif %}</td>
           <td>{{ r.contract.start_date|date:"d/m/Y" }} – {{ r.contract.end_date|date:"d/m/Y" }}</td>
-          <td class="text-end">{{ r.contract.deposit|floatformat:"0g" }} đ</td>
+          <td class="text-end">{{ r.contract.agreed_deposit|floatformat:"0g" }} đ</td>
           <td><span class="pill pill-{{ r.tone }}">{{ r.label }}</span></td>
           <td class="text-end"><a class="btn btn-sm btn-outline-brand" href="{% url 'contract_detail' r.contract.pk %}">Xem</a></td>
         </tr>

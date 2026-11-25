@@ -1,0 +1,40 @@
+<section class="soft-card p-3 p-md-4 mb-4">
+  <div class="section-head flex-wrap gap-2"><h2>Đề nghị và lịch sử gia hạn</h2>{% if active and owner_view %}<a class="btn btn-sm btn-outline-brand" href="{% url 'contract_renew' contract.pk %}">Gửi đề nghị</a>{% endif %}</div>
+  {% for proposal in proposals %}
+  <article class="border rounded-4 p-3 mb-3 {% if proposal.pending %}border-warning-subtle bg-warning-subtle{% endif %}">
+    <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-2"><strong>{{ proposal.display_code }}</strong><span class="pill {% if proposal.status == 'accepted' %}pill-mint{% elif proposal.pending %}pill-amber{% else %}pill-gray{% endif %}">{{ proposal.get_status_display }}</span></div>
+    <p class="small text-muted mb-2">{{ proposal.get_source_display }} · {{ proposal.created_by.get_full_name|default:proposal.created_by.username }} · {{ proposal.created_at|date:'d/m/Y H:i' }}</p>
+    <div class="info-row"><span>Hạn cũ → hạn đề nghị</span><strong>{{ proposal.old_end_date|date:'d/m/Y' }} → {{ proposal.new_end_date|date:'d/m/Y' }}</strong></div>
+    <div class="info-row"><span>Giá thuê cũ → mới</span><strong>{{ proposal.old_rent|floatformat:'0g' }} → {{ proposal.monthly_rent|floatformat:'0g' }} đ/tháng</strong></div>
+    <div class="info-row"><span>Mức cọc cũ → mới</span><strong>{{ proposal.old_deposit|floatformat:'0g' }} → {{ proposal.deposit|floatformat:'0g' }} đ</strong></div>
+    <div class="info-row"><span>Áp dụng giá và cọc từ</span><strong>{{ proposal.effective_date|date:'d/m/Y' }}</strong></div>
+    {% if proposal.terms %}<div class="mt-3"><strong>Điều khoản bổ sung</strong><div class="contract-long-text">{{ proposal.terms|linebreaksbr }}</div></div>{% endif %}
+    {% if proposal.note %}<p class="mt-2 mb-2 contract-long-text">{{ proposal.note }}</p>{% endif %}
+    {% if proposal.responded_at %}<p class="small text-muted mt-2 mb-1">{% if proposal.source == 'offline' %}Chủ trọ ghi nhận theo tài liệu đã ký{% else %}Phản hồi bởi {{ proposal.responded_by.get_full_name|default:proposal.responded_by.username|default:'Hệ thống' }}{% endif %} · {{ proposal.responded_at|date:'d/m/Y H:i' }}</p>{% endif %}
+    {% if proposal.response_note %}<p class="small mb-2 contract-long-text">{{ proposal.response_note }}</p>{% endif %}
+    <a class="btn btn-sm btn-outline-brand my-2" href="{% url 'renewal_print' proposal.pk %}" target="_blank" rel="noopener"><i class="bi bi-printer"></i> In / lưu nội dung gia hạn</a>
+    {% for document in proposal.documents.all %}<a class="btn btn-sm btn-outline-brand my-2" href="{% url 'contract_document_download' document.pk %}"><i class="bi bi-download"></i> {{ document.title }}</a>{% endfor %}
+    {% if proposal.can_respond %}
+    <form method="post" action="{% url 'renewal_respond' proposal.pk %}" class="mt-3">{% csrf_token %}
+      <label class="form-label" for="reply-{{ proposal.pk }}">Phản hồi</label><textarea class="form-control mb-3" rows="2" maxlength="1000" name="note" id="reply-{{ proposal.pk }}"></textarea>
+      <label class="d-flex gap-2 mb-3"><input class="form-check-input" type="checkbox" name="confirm"><span>Tôi đã đọc và đồng ý thời hạn, giá thuê, mức cọc, điều khoản hiện có và điều khoản bổ sung của đề nghị này.</span></label>
+      <div class="d-flex gap-2 flex-wrap"><button class="btn btn-primary" name="action" value="accept">Đồng ý gia hạn</button><button class="btn btn-outline-brand" name="action" value="reject">Từ chối đề nghị</button>{% if owner_view %}<a class="btn btn-outline-brand" href="{% url 'contract_renew' contract.pk %}">Đề xuất điều khoản khác</a>{% endif %}</div>
+    </form>
+    {% endif %}
+    {% if proposal.can_withdraw %}<form method="post" action="{% url 'renewal_respond' proposal.pk %}" class="mt-2">{% csrf_token %}<button class="btn btn-sm btn-outline-brand" name="action" value="withdraw">Rút đề nghị</button></form>{% endif %}
+  </article>
+  {% empty %}<p class="text-muted mb-0">Chưa có đề nghị gia hạn trên ứng dụng.</p>{% endfor %}
+</section>
+
+<section class="soft-card p-3 p-md-4 mb-4">
+  <div class="section-head"><h2>Dự kiến trả phòng</h2></div>
+  {% for notice in moveout_notices %}<article class="border rounded-4 p-3 mb-3">
+    <div class="d-flex justify-content-between flex-wrap gap-2"><strong>{{ notice.planned_date|date:'d/m/Y' }}</strong><span class="pill pill-gray">{{ notice.get_status_display }}</span></div>
+    <p class="small text-muted mt-2">Gửi lúc {{ notice.created_at|date:'d/m/Y H:i' }}</p>
+    {% if notice.reason %}<p class="contract-long-text">{{ notice.reason }}</p>{% endif %}
+    {% if notice.response_note %}<p class="small contract-long-text">Phản hồi: {{ notice.response_note }}</p>{% endif %}
+    {% if active and owner_view and notice.status == 'pending' %}<form method="post" action="{% url 'moveout_respond' notice.pk %}">{% csrf_token %}<label for="moveout-{{ notice.pk }}" class="form-label">Trao đổi lịch bàn giao</label><textarea id="moveout-{{ notice.pk }}" class="form-control mb-2" rows="2" maxlength="1000" name="note"></textarea><button class="btn btn-sm btn-outline-brand" name="action" value="acknowledge">Ghi nhận lịch dự kiến</button></form>{% endif %}
+    {% if active and representative %}{% if notice.status == 'pending' or notice.status == 'acknowledged' %}<form method="post" action="{% url 'moveout_respond' notice.pk %}">{% csrf_token %}<button class="btn btn-sm btn-outline-brand mt-2" name="action" value="cancel">Rút thông báo dự kiến</button></form>{% endif %}{% endif %}
+  </article>{% empty %}<p class="text-muted">Chưa có thông báo dự kiến trả phòng.</p>{% endfor %}
+  <p class="small text-muted mb-0">Lịch dự kiến dùng để trao đổi. Hợp đồng và tình trạng phòng chỉ kết thúc khi chủ trọ ghi nhận bàn giao thực tế.</p>
+</section>

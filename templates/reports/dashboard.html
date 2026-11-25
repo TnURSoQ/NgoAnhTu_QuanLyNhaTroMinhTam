@@ -1,75 +1,17 @@
-{% extends 'base.html' %}
-{% block title %}Báo cáo thống kê{% endblock %}
+{% extends 'base.html' %}{% load static %}
+{% block title %}Báo cáo · Nhà trọ Minh Tâm{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/reports.css' %}?v=20261124-2">{% endblock %}
 {% block content %}
-<div class="page-head"><h4 class="mb-0">Báo cáo thống kê</h4><a class="btn btn-outline-brand" href="{% url 'report_print' %}?year={{ year }}" target="_blank" rel="noopener"><i class="bi bi-printer"></i> In báo cáo / Lưu PDF</a></div>
-<section class="soft-card p-3 mb-3 d-flex justify-content-between align-items-center gap-3 flex-wrap"><div><strong>Cọc thực tế đang giữ: {{ deposit_held|floatformat:'0g' }} đ</strong><p class="small text-muted mb-0">Tiền cọc theo dõi riêng, không cộng vào doanh thu tiền thuê. Báo cáo thực thu chưa phải báo cáo lợi nhuận.</p></div><a class="btn btn-outline-brand" href="{% url 'cashbook_csv' %}?year={{ year }}">Xuất sổ thu và cọc CSV</a></section>
-
-<div class="row g-3 mb-4">
-  <div class="col-6 col-md-3"><div class="card text-center shadow-sm"><div class="card-body">
-    <div class="small text-muted">Tổng số phòng</div><div class="fs-3 fw-bold">{{ room_stats.total }}</div>
-  </div></div></div>
-  <div class="col-6 col-md-3"><div class="card text-center shadow-sm"><div class="card-body">
-    <div class="small text-muted">Đang thuê</div><div class="fs-3 fw-bold">{{ room_stats.dang_thue }}</div>
-  </div></div></div>
-  <div class="col-6 col-md-3"><div class="card text-center shadow-sm"><div class="card-body">
-    <div class="small text-muted">Phòng trống</div>
-    <div class="fs-3 fw-bold">{{ room_stats.trong }} <span class="fs-6 text-muted">({{ room_stats.pct_trong|floatformat:"-1" }}%)</span></div>
-    <div class="small text-muted">Bảo trì: {{ room_stats.bao_tri }}</div>
-  </div></div></div>
-  <div class="col-6 col-md-3"><div class="card text-center shadow-sm"><div class="card-body">
-    <div class="small text-muted">Tổng công nợ</div><div class="fs-4 fw-bold text-danger">{{ total_debt|floatformat:"0g" }}đ</div>
-  </div></div></div>
-</div>
-
-<div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
-  <h5 class="mb-0">Doanh thu năm {{ year }}</h5>
-  <form method="get" class="d-flex gap-2">
-    <select name="year" class="form-select form-select-sm w-auto">
-      {% for y in years %}<option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}
-    </select>
-    <button type="submit" class="btn btn-sm btn-outline-primary">Xem</button>
-  </form>
-</div>
-<p class="text-muted small">Giá trị hóa đơn đã thanh toán theo ngày ghi nhận: gồm tiền mới nhận và tiền cọc được đối trừ. Tiền mới nhận để thanh toán hóa đơn: {{ cash_received|floatformat:'0g' }} đ · Đối trừ cọc: {{ deposit_applied|floatformat:'0g' }} đ.</p>
-<div class="card shadow-sm mb-4"><div class="card-body">
-  <div class="table-responsive">
-    <table class="table table-sm align-middle mb-0">
-      <thead><tr><th>Tháng</th><th class="text-end">Thực thu</th><th style="width:40%"></th></tr></thead>
-      <tbody>
-        {% for m in months %}
-        <tr>
-          <td>{{ m.month }}</td>
-          <td class="text-end">{{ m.total|floatformat:"0g" }}đ</td>
-          <td><progress class="w-100" style="height:10px" value="{{ m.pct }}" max="100"></progress></td>
-        </tr>
-        {% endfor %}
-      </tbody>
-      <tfoot><tr class="table-light"><th>Cả năm</th><th class="text-end">{{ year_total|floatformat:"0g" }}đ</th><th></th></tr></tfoot>
-    </table>
-  </div>
-</div></div>
-
-<h5>Công nợ <span class="badge bg-danger">{{ overdue_count }} quá hạn</span></h5>
-{% if debts %}
-<div class="table-responsive">
-  <table class="table table-striped align-middle">
-    <thead><tr><th>Phòng</th><th>Kỳ</th><th>Người đại diện</th><th class="text-end">Còn nợ</th><th>Hạn</th><th>Tình trạng</th><th>Thu tiền</th></tr></thead>
-    <tbody>
-      {% for d in debts %}
-      <tr>
-        <td>{{ d.invoice.contract.room.room_number }}<small class="d-block"><a href="{% url 'contract_detail' d.invoice.contract.pk %}">{{ d.invoice.contract.display_code }}</a>{% if d.invoice.contract.status == 'ket_thuc' %} · Đã bàn giao{% endif %}</small></td>
-        <td>T{{ d.invoice.month }}/{{ d.invoice.year }}</td>
-        <td>{% if d.tenant %}{{ d.tenant.full_name }}<div class="small text-muted">{{ d.tenant.phone }}</div>{% else %}-{% endif %}</td>
-        <td class="text-end">{{ d.remaining|floatformat:"0g" }}đ</td>
-        <td>{{ d.invoice.due_date|date:"d/m/Y" }}</td>
-        <td>{% if d.overdue_days > 0 %}<span class="badge bg-danger">Quá hạn {{ d.overdue_days }} ngày</span>{% else %}<span class="badge bg-warning text-dark">Chưa đến hạn</span>{% endif %}</td>
-        <td><a class="btn btn-sm btn-outline-primary" href="{% url 'invoice_detail' d.invoice.pk %}">Thu tiền</a></td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-{% else %}
-<div class="alert alert-success">Không có công nợ.</div>
-{% endif %}
+<div class="page-head"><div><h1>Báo cáo</h1><p class="text-muted mb-0">Đối chiếu thu tiền, hóa đơn và tình hình nhà trọ.</p></div><div class="d-flex gap-2 flex-wrap"><a class="btn btn-outline-brand" href="{% url 'report_excel' %}?{{ period.query }}"><i class="bi bi-file-earmark-excel"></i> Xuất Excel</a><a class="btn btn-primary" href="{% url 'report_print' %}?{{ period.query }}" target="_blank" rel="noopener"><i class="bi bi-printer"></i> In / Lưu PDF</a></div></div>
+{% if filter_error %}<div class="alert alert-warning">{{ filter_error }}</div>{% endif %}
+<form method="get" class="soft-card p-3 mb-4 d-flex align-items-end flex-wrap gap-3"><div><label class="form-label" for="reportYear">Năm</label><select id="reportYear" name="year" class="form-select">{% for y in years %}<option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}</select></div><div><label class="form-label" for="reportMonth">Tháng</label><select id="reportMonth" name="month" class="form-select"><option value="0">Cả năm</option>{% for m in month_choices %}<option value="{{ m }}" {% if period.month == m %}selected{% endif %}>Tháng {{ m }}</option>{% endfor %}</select></div><button class="btn btn-outline-brand">Xem báo cáo</button><span class="report-note mb-2">Thu tiền và hóa đơn: {{ period.label }} · Công nợ, cọc đang giữ và phòng: hiện tại.</span></form>
+<div class="row g-3 mb-4"><div class="col-6 col-xl-3"><section class="soft-card report-kpi"><span class="text-muted small">Tiền mới nhận thanh toán hóa đơn</span><strong class="value">{{ cash_received|floatformat:'0g' }} đ</strong><p class="caption">{{ period.label|capfirst }} · Không gồm thu cọc, đối trừ cọc</p></section></div><div class="col-6 col-xl-3"><section class="soft-card report-kpi"><span class="text-muted small">Hóa đơn đã lập theo kỳ</span><strong class="value">{{ invoice_total|floatformat:'0g' }} đ</strong><p class="caption">{{ invoice_count }} hóa đơn · {{ period_draft_count }} nháp chưa tính</p></section></div><div class="col-6 col-xl-3"><section class="soft-card report-kpi"><span class="text-muted small">Công nợ hiện tại · mọi kỳ</span><strong class="value text-danger">{{ total_debt|floatformat:'0g' }}đ</strong><p class="caption">{{ overdue_count }} hóa đơn quá hạn · gồm hợp đồng đã bàn giao</p></section></div><div class="col-6 col-xl-3"><section class="soft-card report-kpi"><span class="text-muted small">Cọc thực tế đang giữ</span><strong class="value">{{ deposit_held|floatformat:'0g' }} đ</strong><p class="caption">Số dư hiện tại · Theo dõi riêng với tiền thu hóa đơn</p></section></div></div>
+<div class="nav nav-tabs report-tabs" role="tablist" aria-label="Loại báo cáo">
+<button class="nav-link active" id="collections-tab" data-bs-toggle="tab" data-bs-target="#collections" type="button" role="tab" aria-controls="collections" aria-selected="true">Thu tiền</button>
+<button class="nav-link" id="invoices-tab" data-bs-toggle="tab" data-bs-target="#invoices" type="button" role="tab" aria-controls="invoices" aria-selected="false">Hóa đơn &amp; công nợ</button>
+<button class="nav-link" id="deposits-tab" data-bs-toggle="tab" data-bs-target="#deposits" type="button" role="tab" aria-controls="deposits" aria-selected="false">Tiền cọc</button>
+<button class="nav-link" id="rooms-tab" data-bs-toggle="tab" data-bs-target="#rooms" type="button" role="tab" aria-controls="rooms" aria-selected="false">Phòng &amp; hợp đồng</button>
+<button class="nav-link" id="repairs-tab" data-bs-toggle="tab" data-bs-target="#repairs" type="button" role="tab" aria-controls="repairs" aria-selected="false">Sửa chữa</button></div>
+<p class="report-note d-md-none mt-2 mb-0">Vuốt ngang thanh mục và bảng để xem đầy đủ.</p>
+<div class="tab-content"><div class="tab-pane fade show active" id="collections" role="tabpanel" aria-labelledby="collections-tab" tabindex="0">{% include 'reports/_collections.html' %}</div><div class="tab-pane fade" id="invoices" role="tabpanel" aria-labelledby="invoices-tab" tabindex="0">{% include 'reports/_invoices.html' %}</div><div class="tab-pane fade" id="deposits" role="tabpanel" aria-labelledby="deposits-tab" tabindex="0">{% include 'reports/_deposits.html' %}</div><div class="tab-pane fade" id="rooms" role="tabpanel" aria-labelledby="rooms-tab" tabindex="0">{% include 'reports/_rooms.html' %}</div><div class="tab-pane fade" id="repairs" role="tabpanel" aria-labelledby="repairs-tab" tabindex="0">{% include 'reports/_repairs.html' %}</div></div>
 {% endblock %}

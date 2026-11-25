@@ -6,6 +6,7 @@ from . import print_views
 urlpatterns = [
     path('tong-quan/', views.overview, name='owner_dashboard'),
     path('bao-cao/', views.dashboard, name='report_dashboard'),
+    path('bao-cao/excel/', views.dashboard_excel, name='report_excel'),
     path('bao-cao/so-thu.csv', views.cashbook_csv, name='cashbook_csv'),
     path('in/hop-dong/<int:pk>/', print_views.contract_print, name='contract_print'),
     path('in/thanh-toan/<int:pk>/', print_views.payment_print, name='payment_print'),

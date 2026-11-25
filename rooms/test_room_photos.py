@@ -40,7 +40,7 @@ class RoomPhotoTests(TestCase):
         cls.other_user = User.objects.create_user('photo-tenant', role='tenant')
         cls.room = Room.objects.create(room_number='101', price=2500000, amenities='Điều hòa, Wifi')
         cls.other_room = Room.objects.create(room_number='102', price=2000000)
-        UtilityRate.objects.create(electric_price=3500, water_price=15000, effective_date=timezone.localdate())
+        UtilityRate.objects.create(water_billing_method='metered', electric_price=3500, water_price=15000, effective_date=timezone.localdate())
         Service.objects.create(name='Wifi', unit_price=100000)
 
     def room_data(self, room=None, **changes):

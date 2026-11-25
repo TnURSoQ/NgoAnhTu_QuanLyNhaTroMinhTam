@@ -56,7 +56,7 @@
       <div class="info-row"><span>Mã hợp đồng</span><strong><a href="{% url 'contract_detail' contract.pk %}">{{ contract.display_code }}</a></strong></div>
       <div class="info-row"><span>Thời gian thuê</span><strong>{{ contract.start_date|date:"d/m/Y" }} – {{ contract.end_date|date:"d/m/Y" }}</strong></div>
       <div class="info-row"><span>Giá thuê theo hợp đồng</span><strong>{{ contract.agreed_rent|floatformat:"0g" }} đ/tháng</strong></div>
-      <div class="info-row"><span>Đặt cọc</span><strong>{{ contract.deposit|floatformat:"0g" }} đ</strong></div>
+      <div class="info-row"><span>Đặt cọc</span><strong>{{ contract.agreed_deposit|floatformat:"0g" }} đ</strong></div>
       <div class="info-row"><span>Trạng thái</span><strong><span class="pill pill-mint">Đang hiệu lực</span></strong></div>
       {% else %}
       <p class="text-muted mb-0">Chưa có hợp đồng đang hiệu lực.</p>

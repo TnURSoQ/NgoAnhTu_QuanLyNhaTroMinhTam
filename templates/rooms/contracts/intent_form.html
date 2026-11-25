@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<a class="back-link" href="{{ contract_detail_url }}"><i class="bi bi-arrow-left"></i> Quay lại hợp đồng</a>
+<div class="page-head"><div><h1>{{ title }}</h1><p class="text-muted">{{ contract.display_code }} · Phòng {{ contract.room.room_number }}</p></div></div>
+<section class="soft-card p-3 p-md-4 mx-auto" style="max-width:850px">
+  {% if notice %}<div class="alert alert-info">{{ notice }}</div>{% endif %}
+  <form method="post" enctype="multipart/form-data" novalidate>{% csrf_token %}
+    {% include 'rooms/contracts/_fields.html' %}
+    <div class="d-flex gap-2 flex-wrap mt-4"><button class="btn btn-primary" type="submit">{{ submit_label }}</button><a class="btn btn-outline-brand" href="{{ contract_detail_url }}">Quay lại</a></div>
+  </form>
+</section>
+{% endblock %}

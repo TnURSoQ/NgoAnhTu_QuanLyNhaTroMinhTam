@@ -9,9 +9,16 @@ from django.core.validators import MinValueValidator
 from django.utils import timezone
 from django.utils.formats import number_format
 
+class WaterBillingMethod(models.TextChoices):
+    PER_PERSON = 'per_person', 'Theo người / tháng'
+    METERED = 'metered', 'Theo công tơ (lịch sử)'
+
+
 class UtilityRate(models.Model):
     electric_price = DongField()
-    water_price = DongField()
+    water_price = DongField(default=50000)
+    water_billing_method = models.CharField(max_length=12, choices=WaterBillingMethod.choices,
+                                           default=WaterBillingMethod.PER_PERSON)
     effective_date = models.DateField()
 
     class Meta:
@@ -19,6 +26,10 @@ class UtilityRate(models.Model):
 
     def __str__(self):
         return f'Đơn giá từ {self.effective_date}'
+
+    @property
+    def water_unit_label(self):
+        return 'đ/người/tháng' if self.water_billing_method == WaterBillingMethod.PER_PERSON else 'đ/m³'
 
     @classmethod
     def current(cls):
@@ -35,8 +46,8 @@ class UtilityReading(models.Model):
     year = models.PositiveSmallIntegerField()
     old_electric = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     new_electric = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
-    old_water = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
-    new_water = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
+    old_water = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(0)])
+    new_water = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(0)])
 
     class Meta:
         constraints = [
@@ -59,7 +70,9 @@ class UtilityReading(models.Model):
         return self.new_electric - self.old_electric
 
     def water_usage(self):
-        return self.new_water - self.old_water
+        if self.new_water is not None and self.old_water is not None:
+            return self.new_water - self.old_water
+        return None
 
     def __str__(self):
         return f'Chỉ số {self.room} - T{self.month}/{self.year}'
@@ -91,6 +104,10 @@ class Invoice(models.Model):
     water_fee = DongField(default=0)
     electric_unit_price = DongField(default=0)
     water_unit_price = DongField(default=0)
+    # Legacy/manual imported invoices retain their original metered interpretation.
+    water_billing_method = models.CharField(max_length=12, choices=WaterBillingMethod.choices,
+                                           default=WaterBillingMethod.METERED)
+    water_people_count = models.PositiveIntegerField(null=True, blank=True, validators=[MinValueValidator(1)])
     note = models.TextField(blank=True, default='')
     total_amount = DongField()
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.CHUA_THANH_TOAN)
@@ -113,8 +130,10 @@ class Invoice(models.Model):
 
     @property
     def water_calculation_matches(self):
-        return bool(self.utility_reading and whole_dong(
-            self.utility_reading.water_usage() * self.water_unit_price) == self.water_fee)
+        if self.water_billing_method == WaterBillingMethod.PER_PERSON:
+            return self.water_people_count is not None and self.water_people_count * self.water_unit_price == self.water_fee
+        usage = self.utility_reading.water_usage() if self.utility_reading else None
+        return usage is not None and whole_dong(usage * self.water_unit_price) == self.water_fee
 
     def update_status(self):
         """Tính lại trạng thái từ số tiền đã thu và hạn thanh toán."""
@@ -182,6 +201,9 @@ class InvoiceDraft(models.Model):
     room_fee = DongField()
     electric_unit_price = DongField(null=True, blank=True)
     water_unit_price = DongField(null=True, blank=True)
+    water_billing_method = models.CharField(max_length=12, choices=WaterBillingMethod.choices,
+                                           default=WaterBillingMethod.PER_PERSON)
+    water_people_count = models.PositiveIntegerField(null=True, blank=True, validators=[MinValueValidator(1)])
     old_electric = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
                                        validators=[MinValueValidator(0)])
     new_electric = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
@@ -214,6 +236,8 @@ class InvoiceDraft(models.Model):
     def clean(self):
         errors = {}
         for utility, label in [('electric', 'điện'), ('water', 'nước')]:
+            if utility == 'water' and self.water_billing_method == WaterBillingMethod.PER_PERSON:
+                continue
             old, new = getattr(self, f'old_{utility}'), getattr(self, f'new_{utility}')
             if old is not None and new is not None and new < old:
                 errors[f'new_{utility}'] = f'Chỉ số {label} mới không được nhỏ hơn chỉ số cũ.'
@@ -223,10 +247,13 @@ class InvoiceDraft(models.Model):
     @property
     def is_ready(self):
         present = all(getattr(self, name) is not None for name in (
-            'old_electric', 'new_electric', 'old_water', 'new_water',
-            'electric_unit_price', 'water_unit_price'))
+            'old_electric', 'new_electric', 'electric_unit_price', 'water_unit_price'))
+        water_ready = (self.water_people_count is not None and self.water_people_count > 0
+                       if self.water_billing_method == WaterBillingMethod.PER_PERSON else
+                       self.old_water is not None and self.new_water is not None
+                       and self.new_water >= self.old_water >= 0)
         return (present and self.new_electric >= self.old_electric >= 0
-                and self.new_water >= self.old_water >= 0
+                and water_ready
                 and self.electric_unit_price > 0 and self.water_unit_price > 0)
 
     @property
@@ -239,7 +266,9 @@ class InvoiceDraft(models.Model):
             return None
         return (self.room_fee + self.services_total
                 + whole_dong((self.new_electric - self.old_electric) * self.electric_unit_price)
-                + whole_dong((self.new_water - self.old_water) * self.water_unit_price))
+                + (self.water_people_count * self.water_unit_price
+                   if self.water_billing_method == WaterBillingMethod.PER_PERSON else
+                   whole_dong((self.new_water - self.old_water) * self.water_unit_price)))
 
     def __str__(self):
         return f'Nháp T{self.month}/{self.year} - {self.contract}'

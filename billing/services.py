@@ -14,10 +14,22 @@ from accounts.text import normalize
 from rooms.display import representative_of
 from rooms.models import Contract, Room
 from .models import (BankAccount, Invoice, InvoiceDraft, InvoiceService, Payment, PaymentNotice, Service,
-                     UtilityRate, UtilityReading)
+                     UtilityRate, UtilityReading, WaterBillingMethod)
 
 DUE_DAYS = 10
 MAX_FEE = MAX_MONEY
+
+
+def water_is_metered():
+    rate = UtilityRate.current()
+    return bool(rate and rate.water_billing_method == WaterBillingMethod.METERED)
+
+
+def validate_water_people_count(value):
+    # IntegerField.to_python would truncate a Decimal supplied by an internal caller.
+    if not isinstance(value, int) or isinstance(value, bool) or not 1 <= value <= 2147483647:
+        raise ValidationError(['Số người tính tiền nước phải là số nguyên từ 1 trở lên.'])
+    return value
 
 
 def _money(value, label, positive=False):
@@ -77,12 +89,22 @@ def billable_services(contract):
     return Service.objects.all() if contract.use_default_services else contract.services.all()
 
 
-def default_room_fee(contract, month, year):
-    rent = contract.agreed_rent
-    if contract.prorate_first_month and (contract.start_date.year, contract.start_date.month) == (year, month):
-        _, last = period_dates(month, year)
-        rent = whole_dong(rent * (last.day - contract.start_date.day + 1) / last.day)
-    return rent
+def default_room_fee(contract, month, year, *, exclude_proposal=None):
+    first, last = period_dates(month, year)
+    start = max(first, contract.start_date) if contract.prorate_first_month else first
+    base = contract.monthly_rent if contract.monthly_rent is not None else contract.room.price
+    changes = list(contract.renewal_proposals.filter(status='accepted', effective_date__lte=last).exclude(
+        pk=exclude_proposal).order_by('effective_date', 'pk')) if contract.pk else []
+    total = Decimal(0)
+    # Weighted rent when an agreed new price starts partway through a month.
+    for day_number in range(start.day, last.day + 1):
+        day = first.replace(day=day_number)
+        rent = base
+        for terms in changes:
+            if terms.effective_date <= day:
+                rent = terms.monthly_rent
+        total += rent
+    return whole_dong(total / last.day)
 
 
 def previous_utility_reading(room_id, month, year, contract=None):
@@ -91,7 +113,7 @@ def previous_utility_reading(room_id, month, year, contract=None):
     readings = UtilityReading.objects.filter(room_id=room_id)
     if contract:
         legacy = Q(contract__isnull=True, invoices__isnull=True)
-        if contract.initial_electric is not None and contract.initial_water is not None:
+        if contract.initial_electric is not None:
             legacy &= Q(year__gt=contract.start_date.year) | Q(year=contract.start_date.year, month__gte=contract.start_date.month)
         readings = readings.filter(Q(contract=contract) | legacy)
     return readings.filter(
@@ -104,7 +126,7 @@ def utility_baseline(room_id, month, year, contract=None):
     previous = previous_utility_reading(room_id, month, year, contract)
     if previous:
         return previous.new_electric, previous.new_water, f'reading:{previous.pk}:{previous.new_electric}:{previous.new_water}'
-    if contract and contract.initial_electric is not None and contract.initial_water is not None:
+    if contract and contract.initial_electric is not None:
         return contract.initial_electric, contract.initial_water, f'handover:{contract.pk}:{contract.initial_electric}:{contract.initial_water}'
     return None, None, ''
 
@@ -133,7 +155,7 @@ def _store_reading(reading):
 
 
 def _make_invoice(reading, *, room_fee=None, due_date=None, note='', service_items=None,
-                  contract=None, unit_prices=None):
+                  contract=None, unit_prices=None, water_billing_method=None, water_people_count=None):
     if contract is None:
         contract = room_contract(reading.room_id, reading.month, reading.year)
     if not contract or contract.room_id != reading.room_id:
@@ -148,15 +170,28 @@ def _make_invoice(reading, *, room_fee=None, due_date=None, note='', service_ite
         if not rate:
             raise ValidationError(['Chưa cấu hình đơn giá điện nước.'])
         unit_prices = (rate.electric_price, rate.water_price)
+        water_billing_method = rate.water_billing_method
+    if water_billing_method not in WaterBillingMethod.values:
+        raise ValidationError(['Chưa xác định cách tính tiền nước.'])
     electric_price = _money(unit_prices[0], 'Đơn giá điện', positive=True)
     water_price = _money(unit_prices[1], 'Đơn giá nước', positive=True)
     electric_fee = _money(whole_dong(reading.electric_usage() * electric_price), 'Tiền điện')
-    water_fee = _money(whole_dong(reading.water_usage() * water_price), 'Tiền nước')
+    if water_billing_method == WaterBillingMethod.PER_PERSON:
+        if water_people_count is None:
+            water_people_count = contract.contract_tenants.count()
+        validate_water_people_count(water_people_count)
+        water_fee = _money(water_people_count * water_price, 'Tiền nước')
+    else:
+        if reading.water_usage() is None:
+            raise ValidationError(['Hóa đơn theo công tơ cần đủ chỉ số nước cũ và mới.'])
+        water_people_count = None
+        water_fee = _money(whole_dong(reading.water_usage() * water_price), 'Tiền nước')
     room_fee = _money(default_room_fee(contract, reading.month, reading.year) if room_fee is None else room_fee, 'Tiền phòng')
     invoice = Invoice(
         contract=contract, utility_reading=reading, month=reading.month, year=reading.year,
         room_fee=room_fee, electric_fee=electric_fee, water_fee=water_fee,
         electric_unit_price=electric_price, water_unit_price=water_price,
+        water_billing_method=water_billing_method, water_people_count=water_people_count,
         total_amount=0, due_date=due_date or timezone.localdate() + timedelta(days=DUE_DAYS), note=note)
     invoice.full_clean()
     invoice.save()
@@ -203,14 +238,17 @@ def create_invoice_from_reading(reading):
     if not reading.contract:
         raise ValidationError(['Kỳ hóa đơn phải nằm trong thời gian thuê của hợp đồng còn hiệu lực.'])
     _set_previous_reading(reading)
+    rate = UtilityRate.current()
+    if rate and rate.water_billing_method == WaterBillingMethod.PER_PERSON:
+        reading.old_water = reading.new_water = None
     reading.full_clean()
-    reading.save(update_fields=['old_electric', 'old_water', 'contract'])
+    reading.save(update_fields=['old_electric', 'old_water', 'new_water', 'contract'])
     return _make_invoice(reading, contract=reading.contract)
 
 
 @transaction.atomic
-def create_invoice(*, room, month, year, new_electric, new_water, old_electric=None, old_water=None,
-                   room_fee=None, due_date=None, note='', service_items=None):
+def create_invoice(*, room, month, year, new_electric, new_water=None, old_electric=None, old_water=None,
+                   room_fee=None, due_date=None, note='', service_items=None, water_people_count=None):
     month, year = _period(month, year)
     room = Room.objects.select_for_update().get(pk=room.pk)
     contract = room_contract(room.pk, month, year)
@@ -220,6 +258,9 @@ def create_invoice(*, room, month, year, new_electric, new_water, old_electric=N
     reading = UtilityReading(room=room, contract=contract, month=month, year=year, old_electric=old_electric,
                              new_electric=new_electric, old_water=old_water, new_water=new_water)
     _set_previous_reading(reading)
+    rate = UtilityRate.current()
+    if rate and rate.water_billing_method == WaterBillingMethod.PER_PERSON:
+        reading.old_water = reading.new_water = None
     reading.clean_fields()
     reading.clean()
     if Invoice.objects.filter(contract=contract, month=month, year=year).exists():
@@ -228,7 +269,7 @@ def create_invoice(*, room, month, year, new_electric, new_water, old_electric=N
     try:
         with transaction.atomic():
             return _make_invoice(reading, contract=contract, room_fee=room_fee, due_date=due_date,
-                                 note=note, service_items=service_items)
+                                 note=note, service_items=service_items, water_people_count=water_people_count)
     except IntegrityError:
         raise ValidationError(['Hóa đơn tháng này hoặc dịch vụ đã tồn tại. Vui lòng kiểm tra lại.'])
 
@@ -301,7 +342,7 @@ def delete_invoice(invoice):
 
 
 @transaction.atomic
-def add_utility_rate(*, electric_price, water_price, effective_date):
+def add_utility_rate(*, electric_price, water_price=50000, effective_date):
     rate = UtilityRate(electric_price=_money(electric_price, 'Giá điện', positive=True),
                        water_price=_money(water_price, 'Giá nước', positive=True),
                        effective_date=effective_date)

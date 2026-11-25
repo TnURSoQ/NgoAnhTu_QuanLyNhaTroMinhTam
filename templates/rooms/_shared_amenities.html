@@ -1,0 +1,9 @@
+{% if property_info.amenity_list %}
+<section class="soft-card shared-amenities{% if shared_amenities_home %} shared-amenities-home{% endif %}" aria-labelledby="sharedAmenitiesTitle">
+  <div class="shared-amenities-intro">
+    <span class="shared-amenities-icon" aria-hidden="true"><i class="bi bi-buildings"></i></span>
+    <div><h2 id="sharedAmenitiesTitle">Tiện ích chung của nhà trọ</h2><p>Các khu vực và tiện ích người thuê được sử dụng chung tại nhà trọ.</p></div>
+  </div>
+  <ul class="shared-amenity-list">{% for amenity in property_info.amenity_list %}<li><i class="bi bi-check2" aria-hidden="true"></i><span>{{ amenity }}</span></li>{% endfor %}</ul>
+</section>
+{% endif %}

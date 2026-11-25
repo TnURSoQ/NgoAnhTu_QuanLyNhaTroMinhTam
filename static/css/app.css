@@ -1,4 +1,14 @@
 /* ============ Nhà trọ Minh Tâm - giao diện ấm áp ============ */
+.shared-amenities { padding: clamp(20px, 2.5vw, 32px); margin-bottom: 24px; }
+.shared-amenities-intro { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 20px; }
+.shared-amenities-intro > div { min-width: 0; }
+.shared-amenities-intro h2 { margin: 0 0 8px; font-size: 1.12rem; font-weight: 750; line-height: 1.45; }
+.shared-amenities-intro p { margin: 0; color: var(--muted); font-size: .84rem; line-height: 1.75; }
+.shared-amenities-icon { display: grid; place-items: center; flex: 0 0 42px; height: 42px; border-radius: 12px; color: #557350; background: #edf2e7; font-size: 1.2rem; }
+.shared-amenity-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 12px; padding: 0; margin: 0; list-style: none; }
+.shared-amenity-list > li { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 14px 16px; border: 1px solid #e4e9de; border-radius: 12px; background: #f8faf5; color: #3f5d3c; font-size: .85rem; font-weight: 600; line-height: 1.5; }
+.shared-amenity-list > li span { overflow-wrap: anywhere; }
+.shared-amenity-list i { display: grid; place-items: center; flex: 0 0 22px; height: 22px; border-radius: 50%; background: #e6eedf; color: #587b4c; font-size: .9rem; }
 :root {
   --brand: #B9563A;
   --brand-dark: #9C4429;
@@ -183,6 +193,33 @@ h1, h2, h3, h4, h5 { color: var(--ink); }
 .kpi.tone-amber { background: var(--amber); } .kpi.tone-amber .kpi-icon { color: #C88A12; }
 .kpi.tone-rose { background: var(--rose); } .kpi.tone-rose .kpi-icon { color: #C4503F; }
 .kpi.tone-lavender { background: var(--lavender); } .kpi.tone-lavender .kpi-icon { color: #6B4BB0; }
+
+/* The amount gets its own space instead of competing with the icon. */
+.overview-summary { container: overview / inline-size; }
+.overview-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.overview-metrics .kpi { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-content: start; align-items: start; gap: 18px 12px; padding: 20px; min-width: 0; }
+.overview-metrics .kpi-icon { grid-column: 1; width: 42px; height: 42px; font-size: 1.2rem; }
+.overview-metrics .kpi-go { display: block; grid-column: 2; grid-row: 1; align-self: center; font-size: .8rem; opacity: .7; }
+.overview-metrics .kpi-text { grid-column: 1 / -1; display: flex; gap: 6px; min-width: 0; }
+.overview-metrics .kpi-value { font-size: 1.8rem; font-variant-numeric: tabular-nums; letter-spacing: -.6px; }
+.overview-metrics .kpi-label { font-size: .8rem; line-height: 1.55; }
+.overview-metrics .overview-money { grid-column: 1 / -1; background: #fff3da; }
+.overview-money .kpi-money { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; font-size: clamp(1.35rem, 2.4cqw, 1.8rem); color: #9b5b17; white-space: normal; }
+.overview-money .kpi-amount { white-space: nowrap; }
+.overview-money .kpi-money small { font-size: .65em; font-weight: 600; }
+.overview-money .kpi-period { color: #87775d; font-size: .76rem; }
+@container overview (min-width: 620px) {
+  .overview-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .overview-metrics .overview-money { grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; }
+  .overview-metrics .overview-money .kpi-text { grid-column: 2; grid-row: 1; }
+  .overview-metrics .overview-money .kpi-go { grid-column: 3; }
+}
+@container overview (min-width: 1060px) {
+  .overview-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, 1.55fr); }
+  .overview-metrics .overview-money { grid-column: auto; grid-template-columns: minmax(0, 1fr) auto; align-items: start; }
+  .overview-metrics .overview-money .kpi-text { grid-column: 1 / -1; grid-row: 2; }
+  .overview-metrics .overview-money .kpi-go { grid-column: 2; }
+}
 
 /* ---------- thẻ phòng ---------- */
 .room-card { position: relative; border-radius: var(--radius); padding: 1rem 1.15rem 1.1rem; overflow: hidden; border: 1px solid rgba(0, 0, 0, .04); transition: transform .15s ease, box-shadow .15s ease; }
@@ -401,3 +438,8 @@ a.room-card { color: var(--ink); }
 .room-photo-placeholder { display: grid; place-items: center; min-height: 200px; text-align: center; background: #f6f1eb; border-radius: 12px; color: #766759; padding: 20px; }
 .room-photo-placeholder i { font-size: 2.5rem; }
 @media (max-width: 575.98px) { .room-photo-gallery, .room-photo-editor { grid-template-columns: 1fr; } }
+
+/* Contract proposals and long agreement text on small screens. */
+.contract-long-text { overflow-wrap: anywhere; }
+.info-row > * { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 575.98px) { .info-row { flex-wrap: wrap; gap: .3rem .75rem; } .info-row strong { margin-left: auto; } }

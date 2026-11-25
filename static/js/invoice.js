@@ -12,6 +12,18 @@
   function preview() {
     let total = money(field('room_fee').value);
     for (const utility of ['electric', 'water']) {
+      if (utility === 'water' && form.dataset.waterMethod === 'per_person') {
+        const people = Number(field('water_people_count').value);
+        const target = document.getElementById('waterPreview');
+        const valid = Number.isInteger(people) && people > 0;
+        target.classList.toggle('text-danger', !valid);
+        if (valid) {
+          const amount = people * rates.water;
+          total += amount;
+          target.textContent = people + ' người × ' + moneyFmt(rates.water) + ' đ = ' + moneyFmt(amount) + ' đ/tháng';
+        } else target.textContent = 'Nhập số người tính tiền nước từ 1 trở lên.';
+        continue;
+      }
       const oldValue = decimal(field('old_' + utility).value);
       const newValue = decimal(field('new_' + utility).value);
       const usage = newValue - oldValue;
@@ -41,6 +53,10 @@
     const data = defaults[field('room').value];
     field('room_fee').value = data ? moneyFmt(data.price) : '';
     for (const utility of ['electric', 'water']) {
+      if (utility === 'water' && form.dataset.waterMethod === 'per_person') {
+        field('water_people_count').value = data && data.water_people_count ? data.water_people_count : '';
+        continue;
+      }
       field('old_' + utility).value = data ? data['old_' + utility] : '';
       field('old_' + utility).disabled = Boolean(data && data.has_previous_reading);
       field('new_' + utility).value = '';

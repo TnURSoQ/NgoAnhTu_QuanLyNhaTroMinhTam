@@ -6,8 +6,8 @@ from django.utils import timezone
 
 from accounts.forms import BootstrapFormMixin
 from accounts.form_fields import FlexibleDecimalField, MoneyField, PlainDecimalInput
-from .models import InvoiceDraft, Payment, Service
-from .services import available_rooms, utility_baseline, DUE_DAYS, MAX_FEE
+from .models import InvoiceDraft, Payment, Service, UtilityRate, WaterBillingMethod
+from .services import available_rooms, room_contract, utility_baseline, DUE_DAYS, MAX_FEE
 
 
 class PeriodForm(BootstrapFormMixin, forms.Form):
@@ -26,6 +26,8 @@ class InvoiceCreateForm(PeriodForm):
                                      decimal_places=2, widget=PlainDecimalInput)
     new_water = FlexibleDecimalField(label='Chỉ số nước mới', min_value=0, max_digits=10,
                                      decimal_places=2, widget=PlainDecimalInput)
+    water_people_count = forms.IntegerField(label='Số người tính tiền nước', min_value=1, max_value=2147483647,
+                                            required=False)
     room_fee = MoneyField(label='Tiền phòng', min_value=0, max_value=MAX_FEE,
                           max_digits=8, decimal_places=0)
     due_date = forms.DateField(label='Hạn thanh toán', widget=forms.DateInput(
@@ -35,6 +37,12 @@ class InvoiceCreateForm(PeriodForm):
     def __init__(self, *args, month, year, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['room'].queryset = available_rooms(month, year)
+        rate = UtilityRate.current()
+        self.water_per_person = not rate or rate.water_billing_method == WaterBillingMethod.PER_PERSON
+        self.fields['water_people_count'].required = self.water_per_person
+        for name in ('old_water', 'new_water'):
+            self.fields[name].required = not self.water_per_person
+            self.fields[name].disabled = self.water_per_person
         self.initial.setdefault('month', month)
         self.initial.setdefault('year', year)
         self.initial.setdefault('due_date', timezone.localdate() + timedelta(days=DUE_DAYS))
@@ -44,11 +52,15 @@ class InvoiceCreateForm(PeriodForm):
         except (TypeError, ValueError):
             room = None
         electric, water, baseline = utility_baseline(room.pk, month, year) if room else (None, None, '')
+        if room and self.water_per_person:
+            contract = room_contract(room.pk, month, year)
+            self.initial.setdefault('water_people_count', contract.contract_tenants.count() or None)
         if baseline:
             for utility, value in [('electric', electric), ('water', water)]:
                 name = f'old_{utility}'
-                self.initial[name] = str(value)
-                self.fields[name].disabled = True
+                if value is not None:
+                    self.initial[name] = str(value)
+                    self.fields[name].disabled = True
 
 
 class InvoiceDraftForm(BootstrapFormMixin, forms.ModelForm):
@@ -68,8 +80,9 @@ class InvoiceDraftForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = InvoiceDraft
         fields = ['old_electric', 'new_electric', 'old_water', 'new_water', 'room_fee',
-                  'due_date', 'note']
-        labels = {'due_date': 'Hạn thanh toán', 'note': 'Ghi chú'}
+                  'water_people_count', 'due_date', 'note']
+        # A missing count may be saved as a draft, but cannot be published.
+        labels = {'due_date': 'Hạn thanh toán', 'note': 'Ghi chú', 'water_people_count': 'Số người tính tiền nước'}
         widgets = {'due_date': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
                    'note': forms.Textarea(attrs={'rows': 1})}
 
@@ -77,9 +90,15 @@ class InvoiceDraftForm(BootstrapFormMixin, forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.initial['revision'] = self.instance.revision
         self.initial['preview_token'] = self.instance.preview_token
+        self.water_per_person = self.instance.water_billing_method == WaterBillingMethod.PER_PERSON
+        if self.water_per_person:
+            for name in ('old_water', 'new_water'):
+                self.fields[name].disabled = True
+        else:
+            self.fields['water_people_count'].disabled = True
         if self.instance.has_previous_reading:
             self.fields['old_electric'].disabled = True
-            self.fields['old_water'].disabled = True
+            self.fields['old_water'].disabled = self.water_per_person or self.instance.old_water is not None
         self.fields['due_date'].help_text = 'Để trống: 10 ngày kể từ khi chốt.'
         for name, field in self.fields.items():
             field.widget.attrs['aria-label'] = f'Phòng {self.instance.contract.room.room_number}: {field.label}'
@@ -135,8 +154,9 @@ class PaymentCorrectionForm(PaymentForm):
 class UtilityRateForm(BootstrapFormMixin, forms.Form):
     electric_price = MoneyField(label='Giá điện (đ/kWh)', min_value=1,
                                 max_digits=8, decimal_places=0)
-    water_price = MoneyField(label='Giá nước (đ/m³)', min_value=1,
-                             max_digits=8, decimal_places=0)
+    water_price = MoneyField(label='Giá nước (đ/người/tháng)', min_value=1, initial=50000,
+                             max_digits=8, decimal_places=0,
+                             help_text='Mặc định 50.000đ/người/tháng. Thu đủ tháng theo số người chủ trọ chốt trong kỳ.')
     effective_date = forms.DateField(label='Ngày hiệu lực', initial=timezone.localdate,
                                     widget=forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'))
 

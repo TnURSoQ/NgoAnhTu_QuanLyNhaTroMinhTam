@@ -121,6 +121,8 @@ class NotificationRead(models.Model):
         OWNER_COOCCUPANT = 'owner_cooccupant', 'Hồ sơ người ở cùng chờ duyệt'
         COOCCUPANT_DECISION = 'cooccupant_decision', 'Kết quả hồ sơ người ở cùng'
         PAYMENT_CORRECTION = 'payment_correction', 'Điều chỉnh / hủy khoản thanh toán'
+        CONTRACT_DUE = 'contract_due', 'Nhắc hạn hợp đồng'
+        CONTRACT_EVENT = 'contract_event', 'Trao đổi hợp đồng'
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notification_reads')
     kind = models.CharField(max_length=24, choices=Kind.choices)

@@ -7,7 +7,7 @@ from django.utils import timezone
 from accounts.decorators import owner_required
 from accounts.text import normalize
 from . import services
-from .contract_forms import (ContractCheckoutForm, ContractCreateForm, ContractRenewForm,
+from .contract_forms import (ContractCheckoutForm, ContractCreateForm,
                              ContractTransferForm, DepositApplyForm, DepositReceiptForm, DepositRefundForm)
 from billing.models import Invoice
 from .display import contract_status_ui, representative_of
@@ -129,6 +129,7 @@ def contract_create(request):
 
 @owner_required
 def contract_detail(request, pk):
+    from .renewal_views import contract_context
     contract = _get_contract(pk)
     today = timezone.localdate()
     key, label, tone = contract_status_ui(contract, today)
@@ -139,9 +140,10 @@ def contract_detail(request, pk):
         paid = sum((p.amount for p in inv.payments.all() if not p.is_voided), 0)
         invoices.append({'invoice': inv, 'paid': paid, 'remaining': inv.total_amount - paid})
     return render(request, 'rooms/contracts/detail.html', {
+        **contract_context(contract, request.user),
         'contract': contract, 'status_key': key, 'label': label, 'tone': tone,
         'people': people, 'invoices': invoices,
-        'renewals': contract.renewals.all(), 'successors': contract.next_contracts.select_related('room'),
+        'renewals': contract.renewals.filter(proposal__isnull=True), 'successors': contract.next_contracts.select_related('room'),
         'days_left': (contract.end_date - today).days,
         'active': contract.status == Contract.Status.HIEU_LUC,
         'deposit_balance': contract.deposit_balance, 'deposit_entries': contract.deposit_entries.select_related('related_contract'),
@@ -157,28 +159,6 @@ def _action_page(request, contract, template_context):
            'pending_drafts': summary['pending_drafts']}
     ctx.update(template_context)
     return render(request, 'rooms/contracts/action.html', ctx)
-
-
-@owner_required
-def contract_renew(request, pk):
-    contract = _get_contract(pk)
-    if contract.status != Contract.Status.HIEU_LUC:
-        messages.error(request, 'Hợp đồng đã kết thúc nên không gia hạn được.')
-        return redirect('contract_detail', pk=pk)
-    form = ContractRenewForm(contract, request.POST or None)
-    if request.method == 'POST' and form.is_valid():
-        try:
-            services.renew_contract(contract, form.cleaned_data['new_end_date'], form.cleaned_data['note'])
-        except ValidationError as e:
-            form.add_error(None, e)
-        else:
-            messages.success(request, f'Đã gia hạn hợp đồng {contract.display_code} đến '
-                                      f'{form.cleaned_data["new_end_date"]:%d/%m/%Y}.')
-            return redirect('contract_detail', pk=pk)
-    return _action_page(request, contract, {
-        'title': 'Gia hạn hợp đồng', 'subtitle': f'Hợp đồng {contract.display_code} · phòng {contract.room.room_number}',
-        'form': form, 'submit_label': 'Gia hạn', 'danger': False,
-    })
 
 
 @owner_required
@@ -246,7 +226,7 @@ def contract_transfer(request, pk):
 def contract_deposit_receive(request, pk):
     contract = _get_contract(pk)
     form = DepositReceiptForm(request.POST if request.method == 'POST' else None,
-                               initial={'amount': max(contract.deposit - contract.deposit_balance, 0)})
+                               initial={'amount': max(contract.agreed_deposit - contract.deposit_balance, 0)})
     if request.method == 'POST' and form.is_valid():
         try:
             services.receive_deposit(contract, **form.cleaned_data, created_by=request.user)

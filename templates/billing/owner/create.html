@@ -5,16 +5,16 @@
 <div class="page-head"><div><h1>Tạo hóa đơn</h1><p class="text-muted mb-0">Nhập chỉ số, kiểm tra các khoản thu và lưu hóa đơn.</p></div></div>
 {% if not rate %}<div class="alert alert-warning">Chưa cấu hình đơn giá điện nước. <a href="{% url 'billing_settings' %}">Thêm đơn giá</a> trước khi lập hóa đơn.</div>{% endif %}
 {% if not has_rooms %}<div class="alert alert-info">Không còn phòng có hợp đồng hiệu lực và chưa lập hóa đơn trong kỳ này.</div>{% endif %}
-<form method="post" id="invoiceForm" novalidate>{% csrf_token %}
+<form method="post" id="invoiceForm" data-water-method="{% if form.water_per_person %}per_person{% else %}metered{% endif %}" novalidate>{% csrf_token %}
 {% for error in form.non_field_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
 <section class="soft-card p-4 mb-4"><h2 class="step-title">1. Kỳ hóa đơn và phòng</h2><div class="row g-3 align-items-end">
   <div class="col-6 col-md-3"><label for="{{ form.month.id_for_label }}" class="form-label">Tháng</label>{{ form.month }}{{ form.month.errors }}</div>
   <div class="col-6 col-md-3"><label for="{{ form.year.id_for_label }}" class="form-label">Năm</label>{{ form.year }}{{ form.year.errors }}</div>
   <div class="col-12 col-md-6"><label for="{{ form.room.id_for_label }}" class="form-label">Phòng</label>{{ form.room }}{{ form.room.errors }}</div>
-</div><small class="text-muted d-block mt-2">Chỉ số điện nước cũ tự lấy từ kỳ trước và không cần nhập lại. Chủ trọ chỉ nhập chỉ số mới; riêng kỳ đầu chưa có lịch sử cần nhập chỉ số ban đầu. Đổi tháng/năm để tải dữ liệu của kỳ đó.</small></section>
+</div><small class="text-muted d-block mt-2">Chỉ số điện cũ tự lấy từ kỳ trước hoặc lúc nhận phòng. Kỳ đầu chưa có lịch sử cần nhập chỉ số ban đầu. Đổi tháng/năm để tải dữ liệu của kỳ đó.</small></section>
 <section class="soft-card p-4 mb-4"><h2 class="step-title">2. Chỉ số điện nước</h2><div class="row g-4">
   <div class="col-12 col-md-6"><h3 class="h6">Điện · {{ rate.electric_price|default:0|floatformat:"0g" }} đ/kWh</h3><div class="row g-3"><div class="col-6"><label class="form-label" for="{{ form.old_electric.id_for_label }}">Chỉ số cũ</label>{{ form.old_electric }}{{ form.old_electric.errors }}</div><div class="col-6"><label class="form-label" for="{{ form.new_electric.id_for_label }}">Chỉ số mới</label>{{ form.new_electric }}{{ form.new_electric.errors }}</div></div><p class="mt-2 mb-0" id="electricPreview" aria-live="polite"></p></div>
-  <div class="col-12 col-md-6"><h3 class="h6">Nước · {{ rate.water_price|default:0|floatformat:"0g" }} đ/m³</h3><div class="row g-3"><div class="col-6"><label class="form-label" for="{{ form.old_water.id_for_label }}">Chỉ số cũ</label>{{ form.old_water }}{{ form.old_water.errors }}</div><div class="col-6"><label class="form-label" for="{{ form.new_water.id_for_label }}">Chỉ số mới</label>{{ form.new_water }}{{ form.new_water.errors }}</div></div><p class="mt-2 mb-0" id="waterPreview" aria-live="polite"></p></div>
+  <div class="col-12 col-md-6"><h3 class="h6">Nước · {{ rate.water_price|default:50000|floatformat:"0g" }} {{ rate.water_unit_label|default:'đ/người/tháng' }}</h3>{% if form.water_per_person %}<label class="form-label" for="{{ form.water_people_count.id_for_label }}">{{ form.water_people_count.label }}</label>{{ form.water_people_count }}{{ form.water_people_count.errors }}<p class="small text-muted mt-2 mb-0">Gợi ý từ người đại diện và người ở cùng đã được duyệt. Chủ trọ kiểm tra và chốt số người của kỳ này; thu đủ tháng, không chia theo ngày ở.</p>{% else %}<div class="row g-3"><div class="col-6"><label class="form-label" for="{{ form.old_water.id_for_label }}">Chỉ số cũ</label>{{ form.old_water }}{{ form.old_water.errors }}</div><div class="col-6"><label class="form-label" for="{{ form.new_water.id_for_label }}">Chỉ số mới</label>{{ form.new_water }}{{ form.new_water.errors }}</div></div>{% endif %}<p class="mt-2 mb-0" id="waterPreview" aria-live="polite"></p></div>
 </div></section>
 <section class="soft-card p-4 mb-4"><h2 class="step-title">3. Các khoản thu</h2><div class="mb-4"><label class="form-label" for="{{ form.room_fee.id_for_label }}">Tiền phòng (đ/tháng)</label>{{ form.room_fee }}{{ form.room_fee.errors }}</div>
   {{ lines.management_form }}{% for error in lines.non_form_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
@@ -30,4 +30,4 @@
 {{ rate.electric_price|default:0|json_script:"electricRate" }}
 {{ rate.water_price|default:0|json_script:"waterRate" }}
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/invoice.js' %}"></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/invoice.js' %}?v=20261124-water"></script>{% endblock %}

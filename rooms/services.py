@@ -115,7 +115,8 @@ def create_contract(room, tenants, representative, start_date, end_date, deposit
     errors = contract_errors(room, tenants, representative, start_date, end_date, deposit)
     if errors:
         raise ValidationError(errors)
-    if (initial_electric is None) != (initial_water is None):
+    from billing.services import water_is_metered
+    if water_is_metered() and (initial_electric is None) != (initial_water is None):
         raise ValidationError(['Hãy nhập đủ cả chỉ số điện và nước lúc bàn giao, hoặc để trống cả hai.'])
     contract = Contract(
         room=room, start_date=start_date, end_date=end_date, deposit=_money(deposit, 'Tiền cọc thỏa thuận'),
@@ -226,6 +227,8 @@ def checkout_contract(contract, checkout_date, *, deposit_deduction=0, deduction
     contract.status = Contract.Status.KET_THUC
     contract.checkout_date = checkout_date
     contract.save(update_fields=['status', 'checkout_date'])   # phòng tự về "Còn trống"
+    from .renewal_services import close_pending_intentions
+    close_pending_intentions(contract)
     Room.objects.filter(pk=contract.room_id).update(status=room_condition)
     return contract
 
@@ -271,13 +274,16 @@ def transfer_contract(contract, new_room, transfer_date, new_end_date, *, initia
     contract.status = Contract.Status.KET_THUC
     contract.checkout_date = transfer_date
     contract.save(update_fields=['status', 'checkout_date'])   # phòng cũ về "Còn trống"
+    from .renewal_services import close_pending_intentions
+    close_pending_intentions(contract)
     new_contract = Contract.objects.create(
         room=new_room, start_date=transfer_date, end_date=new_end_date,
-        deposit=contract.deposit, previous_contract=contract, monthly_rent=new_room.price,
+        deposit=contract.agreed_deposit, previous_contract=contract, monthly_rent=new_room.price,
         initial_electric=initial_electric, initial_water=initial_water,
         use_default_services=contract.use_default_services,
         prorate_first_month=contract.prorate_first_month)
-    if (initial_electric is None) != (initial_water is None):
+    from billing.services import water_is_metered
+    if water_is_metered() and (initial_electric is None) != (initial_water is None):
         raise ValidationError(['Hãy nhập đủ chỉ số điện và nước của phòng mới.'])
     new_contract.full_clean()
     new_contract.services.set(contract.services.all())
@@ -317,7 +323,7 @@ def receive_deposit(contract, *, amount, occurred_on=None, method=DepositEntry.M
     occurred_on = occurred_on or timezone.localdate()
     if not contract.start_date <= occurred_on <= timezone.localdate():
         raise ValidationError(['Ngày thu cọc phải từ ngày nhận phòng đến hôm nay.'])
-    if contract.deposit_balance + amount > contract.deposit:
+    if contract.deposit_balance + amount > contract.deposit_on(occurred_on):
         raise ValidationError(['Tổng cọc đã thu không được vượt tiền cọc thỏa thuận trên hợp đồng.'])
     if method not in (DepositEntry.Method.CASH, DepositEntry.Method.BANK):
         raise ValidationError(['Chọn tiền mặt hoặc chuyển khoản để thu cọc.'])

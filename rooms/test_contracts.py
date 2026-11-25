@@ -429,7 +429,7 @@ class ContractDetailViewTests(ContractViewBase):
         self.assertContains(r, '2.500.000 đ')
         self.assertContains(r, 'Còn nợ 600.000 đ')
         self.assertContains(r, 'Gia hạn thêm')
-        self.assertContains(r, 'Gia hạn</a>')
+        self.assertContains(r, 'Đề nghị gia hạn</a>')
         self.assertContains(r, 'Trả phòng</a>')
 
     def test_ended_contract_hides_actions(self):
@@ -473,9 +473,17 @@ class ContractActionViewTests(ContractViewBase):
         url = reverse('contract_renew', args=[self.contract.pk])
         self.assertEqual(self.client.get(url).status_code, 200)
         new_end = self.contract.end_date + timedelta(days=100)
-        r = self.client.post(url, {'new_end_date': new_end.isoformat(), 'note': 'ok'}, follow=True)
+        data = dict(self.client.get(url).context['form'].initial)
+        data.update(new_end_date=new_end.isoformat(), note='ok', confirm='on')
+        r = self.client.post(url, data, follow=True)
         self.assertRedirects(r, reverse('contract_detail', args=[self.contract.pk]))
-        self.assertContains(r, 'Đã gia hạn hợp đồng')
+        self.assertContains(r, 'Đã gửi đề nghị gia hạn')
+        self.contract.refresh_from_db()
+        self.assertNotEqual(self.contract.end_date, new_end)
+        self.a.refresh_from_db()
+        self.client.force_login(self.a.user)
+        proposal = self.contract.renewal_proposals.get()
+        self.client.post(reverse('renewal_respond', args=[proposal.pk]), {'action': 'accept', 'confirm': 'on'})
         self.contract.refresh_from_db()
         self.assertEqual(self.contract.end_date, new_end)
 

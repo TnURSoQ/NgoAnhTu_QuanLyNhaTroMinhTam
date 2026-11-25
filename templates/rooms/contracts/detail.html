@@ -14,7 +14,7 @@
   </div>
   {% if active %}
   <div class="d-flex gap-2 flex-wrap">
-    <a class="btn btn-primary" href="{% url 'contract_renew' contract.pk %}"><i class="bi bi-calendar-plus"></i> Gia hạn</a>
+    <a class="btn btn-primary" href="{% url 'contract_renew' contract.pk %}"><i class="bi bi-calendar-plus"></i> Đề nghị gia hạn</a>
     <a class="btn btn-outline-brand" href="{% url 'contract_transfer' contract.pk %}"><i class="bi bi-arrow-left-right"></i> Chuyển phòng</a>
     <a class="btn btn-outline-brand text-danger" href="{% url 'contract_checkout' contract.pk %}"><i class="bi bi-box-arrow-right"></i> Trả phòng</a>
   </div>
@@ -32,17 +32,17 @@
       <div class="info-row"><span>Phòng</span><strong><a href="{% url 'room_detail' contract.room.pk %}">P.{{ contract.room.room_number }}</a></strong></div>
       <div class="info-row"><span>Thời hạn</span><strong>{{ contract.start_date|date:"d/m/Y" }} – {{ contract.end_date|date:"d/m/Y" }}</strong></div>
       <div class="info-row"><span>Giá thuê theo hợp đồng</span><strong>{{ contract.agreed_rent|floatformat:"0g" }} đ/tháng</strong></div>
-      <div class="info-row"><span>Cọc thỏa thuận</span><strong>{{ contract.deposit|floatformat:"0g" }} đ</strong></div>
+      <div class="info-row"><span>Cọc thỏa thuận</span><strong>{{ contract.agreed_deposit|floatformat:"0g" }} đ</strong></div>
       <div class="info-row"><span>Cọc thực tế đang giữ</span><strong>{{ deposit_balance|floatformat:"0g" }} đ</strong></div>
       <div class="info-row"><span>Tháng đầu</span><strong>{% if contract.prorate_first_month %}Theo ngày ở / số ngày trong tháng{% else %}Thu trọn tháng theo thỏa thuận{% endif %}</strong></div>
-      <div class="info-row"><span>Chỉ số nhận phòng</span><strong>Điện {{ contract.initial_electric|default_if_none:'Chưa ghi nhận' }} · Nước {{ contract.initial_water|default_if_none:'Chưa ghi nhận' }}</strong></div>
+      <div class="info-row"><span>Chỉ số nhận phòng</span><strong>Điện {{ contract.initial_electric|default_if_none:'Chưa ghi nhận' }}{% if contract.initial_water != None %} · Nước (chỉ số lưu trước đây): {{ contract.initial_water }}{% endif %}</strong></div>
       <div class="info-row"><span>Dịch vụ định kỳ</span><strong>{% if contract.use_default_services %}Theo danh mục chung{% else %}{% for service in contract.services.all %}{{ service.name }}{% if not forloop.last %}, {% endif %}{% empty %}Không đăng ký{% endfor %}{% endif %}</strong></div>
       {% if contract.checkout_date %}<div class="info-row"><span>Ngày trả phòng</span><strong>{{ contract.checkout_date|date:"d/m/Y" }}</strong></div>{% endif %}
       {% if contract.previous_contract %}<div class="info-row"><span>Chuyển từ</span><strong><a href="{% url 'contract_detail' contract.previous_contract.pk %}">{{ contract.previous_contract.display_code }} (P.{{ contract.previous_contract.room.room_number }})</a></strong></div>{% endif %}
       {% for n in successors %}<div class="info-row"><span>Đã chuyển sang</span><strong><a href="{% url 'contract_detail' n.pk %}">{{ n.display_code }} (P.{{ n.room.room_number }})</a></strong></div>{% endfor %}
     </section>
 
-    <section class="soft-card p-4 mb-4"><div class="section-head"><h2>Sổ tiền cọc</h2>{% if active and deposit_balance < contract.deposit %}<a class="btn btn-sm btn-outline-brand" href="{% url 'contract_deposit_receive' contract.pk %}">Ghi nhận thu cọc</a>{% elif not active and settlement.refundable > 0 %}<a class="btn btn-sm btn-outline-brand" href="{% url 'contract_deposit_refund' contract.pk %}">Ghi nhận đã hoàn cọc</a>{% endif %}</div>
+    <section class="soft-card p-4 mb-4"><div class="section-head"><h2>Sổ tiền cọc</h2>{% if active and deposit_balance < contract.agreed_deposit %}<a class="btn btn-sm btn-outline-brand" href="{% url 'contract_deposit_receive' contract.pk %}">Ghi nhận thu cọc</a>{% elif not active and settlement.refundable > 0 %}<a class="btn btn-sm btn-outline-brand" href="{% url 'contract_deposit_refund' contract.pk %}">Ghi nhận đã hoàn cọc</a>{% endif %}</div>
       <div class="info-row"><span>Nợ hóa đơn đã chốt</span><strong>{{ settlement.debt|floatformat:'0g' }} đ</strong></div>
       <div class="info-row"><span>Cọc có thể hoàn sau khi giữ lại công nợ</span><strong>{% if settlement.pending_count %}Chưa xác định · còn nháp{% else %}{{ settlement.refundable|floatformat:'0g' }} đ{% endif %}</strong></div>
       <div class="info-row"><span>Đã hoàn tiền thực tế</span><strong>{{ settlement.refunded|floatformat:'0g' }} đ</strong></div>
@@ -69,6 +69,8 @@
   </div>
 
   <div class="col-12 col-xl-5">
+    {% include 'rooms/contracts/_agreement_panel.html' %}
+    {% include 'rooms/contracts/_terms_documents.html' %}
     <section class="soft-card p-4 mb-4">
       <div class="section-head"><h2>Người thuê</h2></div>
       {% for ct in people %}
@@ -83,8 +85,8 @@
       {% endfor %}
     </section>
 
-    <section class="soft-card p-4">
-      <div class="section-head"><h2>Lịch sử gia hạn</h2></div>
+    {% if renewals %}<section class="soft-card p-4 mb-4">
+      <div class="section-head"><h2>Lịch sử gia hạn trước đây</h2></div>
       {% for r in renewals %}
       <div class="history-row">
         <span class="dot dot-green"></span>
@@ -92,7 +94,9 @@
           <small class="d-block text-muted">Gia hạn ngày {{ r.renewed_on|date:"d/m/Y" }}{% if r.note %} · {{ r.note }}{% endif %}</small></span>
       </div>
       {% empty %}<p class="text-muted mb-0">Chưa gia hạn lần nào.</p>{% endfor %}
-    </section>
+      <p class="small text-muted mt-3 mb-0">Các lần gia hạn lưu trước đây chưa có lịch sử xác nhận hai bên trên ứng dụng.</p>
+    </section>{% endif %}
+    <section class="soft-card p-4"><h2 class="h5 mb-3">Lịch sử ghi nhận</h2>{% for entry in contract_events %}<div class="history-row"><div><strong>{{ entry.title }}</strong><small class="d-block text-muted">{{ entry.created_at|date:'d/m/Y H:i' }}</small><div class="small contract-long-text">{{ entry.content|linebreaksbr }}</div></div></div>{% empty %}<p class="text-muted mb-0">Chưa có cập nhật.</p>{% endfor %}</section>
   </div>
 </div>
 {% endblock %}

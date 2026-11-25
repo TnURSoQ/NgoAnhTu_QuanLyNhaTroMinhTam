@@ -8,12 +8,13 @@ from django.utils import timezone
 
 from accounts.money import whole_dong
 from rooms.models import Contract, Room
-from .models import Invoice, InvoiceDraft, Service, UtilityRate, UtilityReading
+from .models import Invoice, InvoiceDraft, Service, UtilityRate, UtilityReading, WaterBillingMethod
 from .services import (DUE_DAYS, _make_invoice, _money, _period, _store_reading, billable_services,
-                       default_room_fee, previous_utility_reading, utility_baseline, validate_contract_period)
+                       default_room_fee, previous_utility_reading, utility_baseline, validate_contract_period,
+                       validate_water_people_count)
 
 READING_FIELDS = ('old_electric', 'new_electric', 'old_water', 'new_water')
-EDITABLE_FIELDS = (*READING_FIELDS, 'room_fee', 'due_date', 'note')
+EDITABLE_FIELDS = (*READING_FIELDS, 'water_people_count', 'room_fee', 'due_date', 'note')
 
 
 def previous_reading(draft):
@@ -25,17 +26,27 @@ def fill_missing_defaults(draft):
     electric, water, baseline = utility_baseline(draft.contract.room_id, draft.month, draft.year, draft.contract)
     if baseline:
         draft.old_electric, draft.old_water = electric, water
+    draft.current_people_count = draft.contract.contract_tenants.count()
+    if draft.water_billing_method == WaterBillingMethod.PER_PERSON:
+        draft.old_water = draft.new_water = None
+        if draft.pk is None and draft.water_people_count is None:
+            draft.water_people_count = draft.current_people_count or None
     if draft.electric_unit_price is None or draft.water_unit_price is None:
         rate = UtilityRate.current()
         if rate:
             if draft.electric_unit_price is None:
                 draft.electric_unit_price = rate.electric_price
             if draft.water_unit_price is None:
-                draft.water_unit_price = rate.water_price
+                if draft.water_billing_method == rate.water_billing_method:
+                    draft.water_unit_price = rate.water_price
+                elif draft.water_billing_method == WaterBillingMethod.PER_PERSON:
+                    draft.water_unit_price = 50000
     # Phát hiện lịch sử/đơn giá bổ sung đã thay đổi từ lúc chủ trọ mở bảng.
     draft.preview_token = ':'.join(str(value) for value in (
         baseline,
-        draft.electric_unit_price, draft.water_unit_price))
+        draft.electric_unit_price, draft.water_unit_price, draft.water_billing_method,
+        draft.current_people_count, draft.contract.end_date,
+        default_room_fee(draft.contract, draft.month, draft.year)))
     draft.has_previous_reading = bool(baseline)
     return draft
 
@@ -74,7 +85,8 @@ def generate_monthly_drafts(month, year, *, dry_run=False):
         draft = InvoiceDraft(contract=contract, month=first.month, year=first.year,
                              room_fee=_money(default_room_fee(contract, first.month, first.year), 'Tiền phòng'), service_items=items,
                              electric_unit_price=rate.electric_price if rate else None,
-                             water_unit_price=rate.water_price if rate else None)
+                             water_unit_price=rate.water_price if rate else 50000,
+                             water_billing_method=rate.water_billing_method if rate else WaterBillingMethod.PER_PERSON)
         fill_missing_defaults(draft)
         draft.full_clean()
         _money(draft.room_fee + draft.services_total, 'Tổng tiền phòng và dịch vụ')
@@ -85,6 +97,8 @@ def generate_monthly_drafts(month, year, *, dry_run=False):
 
 
 def _validate_draft(draft):
+    if draft.water_billing_method == WaterBillingMethod.PER_PERSON and draft.water_people_count is not None:
+        validate_water_people_count(draft.water_people_count)
     draft.full_clean()
     _money(draft.room_fee, 'Tiền phòng')
     for name, label in [('electric_unit_price', 'Đơn giá điện'), ('water_unit_price', 'Đơn giá nước')]:
@@ -95,6 +109,10 @@ def _validate_draft(draft):
     # Kiểm tra cả khoản đã nhập khi khoản còn lại vẫn đang để trống.
     total = draft.room_fee + draft.services_total
     for utility, label in [('electric', 'điện'), ('water', 'nước')]:
+        if utility == 'water' and draft.water_billing_method == WaterBillingMethod.PER_PERSON:
+            if draft.water_people_count is not None and draft.water_unit_price is not None:
+                total += _money(draft.water_people_count * draft.water_unit_price, 'Tiền nước')
+            continue
         old, new = getattr(draft, f'old_{utility}'), getattr(draft, f'new_{utility}')
         price = getattr(draft, f'{utility}_unit_price')
         if old is not None and new is not None and price is not None:
@@ -123,7 +141,8 @@ def _publish_locked(draft):
     return _make_invoice(
         reading, contract=draft.contract, room_fee=draft.room_fee,
         due_date=draft.due_date or timezone.localdate() + timedelta(days=DUE_DAYS), note=draft.note,
-        service_items=items, unit_prices=(draft.electric_unit_price, draft.water_unit_price))
+        service_items=items, unit_prices=(draft.electric_unit_price, draft.water_unit_price),
+        water_billing_method=draft.water_billing_method, water_people_count=draft.water_people_count)
 
 
 @transaction.atomic
@@ -151,10 +170,10 @@ def save_draft_rows(rows, *, month, year, publish=False):
         draft.contract = contracts[draft.contract_id]
         validate_contract_period(draft.contract, draft.month, draft.year)
         for name in EDITABLE_FIELDS:
-            setattr(draft, name, row[name])
+            setattr(draft, name, row.get(name))
         fill_missing_defaults(draft)
         if draft.preview_token != row['preview_token']:
-            raise ValidationError(['Chỉ số kỳ trước hoặc đơn giá đã thay đổi. Hãy tải lại bảng để kiểm tra.'])
+            raise ValidationError(['Chỉ số kỳ trước, đơn giá hoặc danh sách người ở đã thay đổi. Hãy tải lại bảng để kiểm tra.'])
         try:
             _validate_draft(draft)
             draft.revision += 1

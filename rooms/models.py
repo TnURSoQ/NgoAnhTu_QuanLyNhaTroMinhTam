@@ -8,6 +8,28 @@ from django.core.validators import MinValueValidator
 from django.core.validators import RegexValidator
 import secrets
 import uuid
+from .amenities import amenity_names, shared_name
+
+
+class PropertyInfo(models.Model):
+    """Shared facilities for this single-property application; no billing fields."""
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
+    shared_amenities = models.CharField('Tiện ích chung khác', max_length=500, blank=True, default='')
+
+    class Meta:
+        constraints = [models.CheckConstraint(condition=models.Q(id=1), name='one_property_info')]
+
+    @property
+    def amenity_list(self):
+        return amenity_names(self.shared_amenities)
+
+    @classmethod
+    def current(cls):
+        # Reading public pages must never create configuration rows.
+        return cls.objects.filter(pk=1).first() or cls(pk=1)
+
+    def __str__(self):
+        return 'Thông tin nhà trọ'
 
 class Room(models.Model):
     class Status(models.TextChoices):
@@ -26,7 +48,7 @@ class Room(models.Model):
 
     @property
     def amenity_list(self):
-        return [a.strip() for a in self.amenities.split(',') if a.strip()]
+        return [name for name in amenity_names(self.amenities) if not shared_name(name)]
 
     @property
     def cover_photo(self):
@@ -73,6 +95,9 @@ class Contract(models.Model):
     checkout_date = models.DateField(null=True, blank=True)  # ngày trả phòng thực tế
     previous_contract = models.ForeignKey(
         'self', null=True, blank=True, on_delete=models.SET_NULL, related_name='next_contracts')
+    payment_terms = models.TextField('Điều khoản thanh toán', blank=True, default='')
+    renewal_terms = models.TextField('Điều khoản gia hạn', blank=True, default='')
+    checkout_terms = models.TextField('Điều khoản báo trước / trả phòng', blank=True, default='')
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=['room'], condition=models.Q(status='hieu_luc'),
@@ -87,7 +112,31 @@ class Contract(models.Model):
 
     @property
     def agreed_rent(self):
-        return self.monthly_rent if self.monthly_rent is not None else self.room.price
+        return self.rent_on(self.checkout_date or timezone.localdate())
+
+    def _renewal_terms_on(self, day):
+        if not self.pk:
+            return None
+        return self.renewal_proposals.filter(status='accepted', effective_date__lte=day).order_by(
+            '-effective_date', '-pk').first()
+
+    def rent_on(self, day):
+        terms = self._renewal_terms_on(day)
+        return terms.monthly_rent if terms else (
+            self.monthly_rent if self.monthly_rent is not None else self.room.price)
+
+    def deposit_on(self, day):
+        terms = self._renewal_terms_on(day)
+        return terms.deposit if terms else self.deposit
+
+    @property
+    def agreed_deposit(self):
+        return self.deposit_on(self.checkout_date or timezone.localdate())
+
+    @property
+    def status_label(self):
+        from .display import contract_status_ui
+        return contract_status_ui(self, timezone.localdate())[1]
 
     @property
     def deposit_balance(self):
@@ -189,9 +238,127 @@ class ContractRenewal(models.Model):
     renewed_on = models.DateField(default=timezone.localdate)
     note = models.CharField(max_length=255, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
+    proposal = models.OneToOneField('RenewalProposal', null=True, blank=True, on_delete=models.PROTECT,
+                                      related_name='renewal_record')
 
     class Meta:
         ordering = ['-renewed_on', '-id']
+
+
+class RenewalProposal(models.Model):
+    class Status(models.TextChoices):
+        OWNER = 'awaiting_owner', 'Chờ chủ trọ phản hồi'
+        TENANT = 'awaiting_tenant', 'Chờ người thuê xác nhận'
+        ACCEPTED = 'accepted', 'Đã thống nhất gia hạn'
+        REJECTED = 'rejected', 'Đã từ chối'
+        WITHDRAWN = 'withdrawn', 'Đã rút đề nghị'
+        SUPERSEDED = 'superseded', 'Đã có đề nghị thay thế'
+
+    class Source(models.TextChoices):
+        TENANT = 'tenant', 'Người thuê đề nghị'
+        OWNER = 'owner', 'Chủ trọ đề nghị'
+        OFFLINE = 'offline', 'Thỏa thuận ngoài ứng dụng'
+
+    contract = models.ForeignKey(Contract, on_delete=models.PROTECT, related_name='renewal_proposals')
+    old_end_date = models.DateField()
+    new_end_date = models.DateField()
+    effective_date = models.DateField('Ngày áp dụng giá và cọc')
+    old_rent = DongField()
+    monthly_rent = DongField()
+    old_deposit = DongField()
+    deposit = DongField()
+    terms = models.TextField('Điều khoản bổ sung', blank=True)
+    base_terms = models.JSONField(default=dict, blank=True)
+    note = models.CharField('Lời nhắn', max_length=1000, blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, db_index=True)
+    source = models.CharField(max_length=10, choices=Source.choices)
+    created_by = models.ForeignKey('accounts.User', on_delete=models.PROTECT, related_name='renewal_proposals')
+    created_at = models.DateTimeField(auto_now_add=True)
+    responded_by = models.ForeignKey('accounts.User', null=True, blank=True, on_delete=models.PROTECT,
+                                       related_name='renewal_responses')
+    responded_at = models.DateTimeField(null=True, blank=True)
+    response_note = models.CharField(max_length=1000, blank=True)
+
+    class Meta:
+        ordering = ['-created_at', '-pk']
+        constraints = [
+            models.UniqueConstraint(fields=['contract'], condition=models.Q(
+                status__in=['awaiting_owner', 'awaiting_tenant']), name='one_pending_renewal_proposal'),
+            models.CheckConstraint(condition=models.Q(new_end_date__gt=models.F('old_end_date')),
+                                   name='renewal_extends_contract'),
+            models.CheckConstraint(condition=models.Q(effective_date__gt=models.F('old_end_date')) &
+                                   models.Q(effective_date__lte=models.F('new_end_date')), name='renewal_effective_in_term'),
+        ]
+
+    @property
+    def pending(self):
+        return self.status in (self.Status.OWNER, self.Status.TENANT)
+
+    @property
+    def display_code(self):
+        return f'GH-{self.pk:05d}'
+
+
+class MoveOutNotice(models.Model):
+    class Status(models.TextChoices):
+        PENDING = 'pending', 'Chờ chủ trọ ghi nhận'
+        ACKNOWLEDGED = 'acknowledged', 'Đã ghi nhận lịch dự kiến'
+        CANCELLED = 'cancelled', 'Đã rút thông báo'
+        COMPLETED = 'completed', 'Đã bàn giao phòng'
+
+    contract = models.ForeignKey(Contract, on_delete=models.PROTECT, related_name='moveout_notices')
+    planned_date = models.DateField('Ngày dự kiến trả phòng')
+    reason = models.CharField('Lý do / lời nhắn', max_length=1000, blank=True)
+    submitted_by = models.ForeignKey('accounts.User', on_delete=models.PROTECT, related_name='moveout_notices')
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+    created_at = models.DateTimeField(auto_now_add=True)
+    response_note = models.CharField(max_length=1000, blank=True)
+    responded_by = models.ForeignKey('accounts.User', null=True, blank=True, on_delete=models.PROTECT,
+                                       related_name='moveout_responses')
+    responded_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at', '-pk']
+        constraints = [models.UniqueConstraint(fields=['contract'], condition=models.Q(
+            status__in=['pending', 'acknowledged']), name='one_open_moveout_notice')]
+
+
+def contract_document_path(instance, filename):
+    from pathlib import Path
+    return f'contracts/{instance.contract_id}/{uuid.uuid4().hex}{Path(filename).suffix.lower()}'
+
+
+from accounts.identity_storage import identity_storage
+
+
+class ContractDocument(models.Model):
+    class Kind(models.TextChoices):
+        ORIGINAL = 'original', 'Hợp đồng đã ký'
+        ANNEX = 'annex', 'Phụ lục đã ký'
+
+    contract = models.ForeignKey(Contract, on_delete=models.PROTECT, related_name='documents')
+    proposal = models.ForeignKey(RenewalProposal, null=True, blank=True, on_delete=models.PROTECT,
+                                   related_name='documents')
+    kind = models.CharField(max_length=10, choices=Kind.choices)
+    title = models.CharField('Tên tài liệu', max_length=150)
+    file = models.FileField(upload_to=contract_document_path, storage=identity_storage)
+    uploaded_by = models.ForeignKey('accounts.User', on_delete=models.PROTECT)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-pk']
+
+
+class ContractEvent(models.Model):
+    """Immutable in-app notices, scoped to a contract party (never emailed)."""
+    contract = models.ForeignKey(Contract, on_delete=models.PROTECT, related_name='events')
+    audience = models.CharField(max_length=6, choices=[('owner', 'Chủ trọ'), ('tenant', 'Người đại diện')])
+    title = models.CharField(max_length=200)
+    content = models.TextField()
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ['-created_at', '-pk']
 
 
 class DepositEntry(models.Model):

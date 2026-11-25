@@ -14,7 +14,7 @@
     </div>{% endfor %}
   </div></section>
   <section class="soft-card p-4 mb-4"><h2 class="h5">Tiện ích trong phòng</h2>
-    <p class="text-muted small">Chọn các tiện ích thực tế có sẵn. Phí dịch vụ được cấu hình và thỏa thuận riêng trong hợp đồng.</p>
+    <p class="text-muted small">Chọn các tiện ích thực tế nằm trong phòng. Tiện ích dùng chung như chỗ để xe, camera và khu phơi đồ được quản lý tại <a href="{% url 'billing_settings' %}#propertyInfo">Cấu hình → Thông tin nhà trọ</a>.</p>
     <div class="row g-2 mb-3">{% for choice in form.amenity_choices %}<div class="col-12 col-sm-6 col-lg-4"><label class="d-flex gap-2 align-items-center">{{ choice.tag }} {{ choice.choice_label }}</label></div>{% endfor %}</div>
     {{ form.amenity_choices.errors }}
     <label class="form-label" for="{{ form.amenities.id_for_label }}">{{ form.amenities.label }}</label>{{ form.amenities }}

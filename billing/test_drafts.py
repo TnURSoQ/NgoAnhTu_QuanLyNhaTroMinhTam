@@ -113,7 +113,7 @@ class MonthlyDraftServiceTests(DraftBase):
 
     def test_publication_keeps_price_and_service_snapshots(self):
         draft = self.generate()
-        UtilityRate.objects.create(electric_price=9000, water_price=50000, effective_date=self.today)
+        UtilityRate.objects.create(water_billing_method='metered', electric_price=9000, water_price=50000, effective_date=self.today)
         self.room.price = 9000000
         self.room.save()
         self.wifi.unit_price = 500000
@@ -142,7 +142,7 @@ class MonthlyDraftServiceTests(DraftBase):
         UtilityRate.objects.all().delete()
         draft = self.generate()
         self.assertEqual(self.save(self.complete_row(draft), publish=True), (0, 1))
-        UtilityRate.objects.create(electric_price=4000, water_price=20000, effective_date=self.today)
+        UtilityRate.objects.create(water_billing_method='metered', electric_price=4000, water_price=20000, effective_date=self.today)
         self.assertEqual(self.save(self.row(draft), publish=True), (1, 0))
         self.assertEqual(Invoice.objects.get().electric_unit_price, 4000)
 
@@ -245,8 +245,8 @@ class MonthlyDraftServiceTests(DraftBase):
         UtilityRate.objects.all().delete()
         draft = self.generate()
         stale = self.complete_row(draft)
-        UtilityRate.objects.create(electric_price=4000, water_price=20000, effective_date=self.today)
-        with self.assertRaisesMessage(ValidationError, 'đơn giá đã thay đổi'):
+        UtilityRate.objects.create(water_billing_method='metered', electric_price=4000, water_price=20000, effective_date=self.today)
+        with self.assertRaisesMessage(ValidationError, 'đã thay đổi'):
             self.save(stale, publish=True)
         self.assertFalse(Invoice.objects.exists())
 

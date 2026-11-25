@@ -33,6 +33,15 @@ def read_token(user, item):
 
 
 def _read_target(user, kind, object_id):
+    if kind in (NotificationRead.Kind.CONTRACT_DUE, NotificationRead.Kind.CONTRACT_EVENT):
+        from rooms.contract_notifications import due_queryset, event_queryset
+        if kind == NotificationRead.Kind.CONTRACT_DUE:
+            item = get_object_or_404(due_queryset(user), pk=object_id)
+            version, contract_pk = item.notification_time, item.pk
+        else:
+            item = get_object_or_404(event_queryset(user), pk=object_id)
+            version, contract_pk = item.created_at, item.contract_id
+        return version, reverse('contract_detail' if is_owner(user) else 'my_contract_detail', args=[contract_pk])
     if is_owner(user):
         if kind == NotificationRead.Kind.OWNER_MAINTENANCE:
             item = get_object_or_404(MR, pk=object_id, status=MR.Status.DA_GUI)

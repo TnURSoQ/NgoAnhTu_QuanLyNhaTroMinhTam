@@ -7,7 +7,7 @@ from django.views.decorators.http import require_GET, require_POST
 from django.views.decorators.cache import never_cache
 
 from accounts.decorators import tenant_required
-from rooms.models import Contract
+from rooms.models import Contract, PropertyInfo
 from support.models import Announcement, MaintenanceRequest
 from support.services import announcements_for
 from . import services
@@ -59,6 +59,7 @@ def my_room(request):
     transfer_invoice = unpaid_invoice or latest_invoice
     return render(request, 'billing/my_room.html', {
         'contract': contract, 'room': contract.room if contract else None,
+        'property_info': PropertyInfo.current(),
         'can_submit_cooccupants': bool(contract and contract.contract_tenants.filter(tenant=request.tenant, is_representative=True).exists()),
         'latest_invoice': latest_invoice, 'unpaid_invoice': unpaid_invoice,
         'maintenance_requests': MaintenanceRequest.objects.filter(tenant=request.tenant)[:3],

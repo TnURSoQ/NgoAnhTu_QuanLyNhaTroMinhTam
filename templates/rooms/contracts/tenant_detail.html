@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block title %}Hợp đồng {{ contract.display_code }}{% endblock %}
+{% block content %}
+<a class="back-link" href="{% url 'my_contracts' %}"><i class="bi bi-arrow-left"></i> Hợp đồng của tôi</a>
+<div class="page-head"><div><h1>Hợp đồng {{ contract.display_code }}</h1><p class="text-muted">Phòng {{ contract.room.room_number }}</p></div><span class="pill pill-{{ tone }}">{{ label }}{% if status_key == 'het_han' %} – cần xử lý{% endif %}</span></div>
+{% if status_key == 'het_han' %}<div class="alert alert-warning">Hợp đồng đã hết hạn. Hãy trao đổi với chủ trọ để gia hạn hoặc bàn giao phòng. Hệ thống chưa ghi nhận bạn đã trả phòng.</div>{% elif status_key == 'sap_het' %}<div class="alert alert-warning">Còn {{ days_left }} ngày đến hạn. Bạn có thể đề nghị gia hạn hoặc thông báo lịch dự kiến trả phòng.</div>{% endif %}
+<div class="d-flex flex-wrap gap-2 mb-4">
+  {% if active and representative %}{% if not pending_proposal and not open_moveout %}<a class="btn btn-primary" href="{% url 'my_contract_renew' contract.pk %}"><i class="bi bi-calendar-plus"></i> Đề nghị gia hạn</a><a class="btn btn-outline-brand" href="{% url 'my_contract_moveout' contract.pk %}">Thông báo dự kiến trả phòng</a>{% endif %}{% endif %}
+  <a class="btn btn-outline-brand" href="{% url 'my_contract_print' contract.pk %}" target="_blank" rel="noopener"><i class="bi bi-printer"></i> In thông tin hợp đồng</a>
+</div>
+<div class="row g-4">
+  <div class="col-12 col-xl-6">
+    <section class="soft-card p-3 p-md-4 mb-4"><h2 class="h5 mb-3">Thời hạn và chi phí</h2>
+      <div class="info-row"><span>Thời hạn</span><strong>{{ contract.start_date|date:'d/m/Y' }} – {{ contract.end_date|date:'d/m/Y' }}</strong></div>
+      <div class="info-row"><span>Giá thuê đang áp dụng</span><strong>{{ contract.agreed_rent|floatformat:'0g' }} đ/tháng</strong></div>
+      <div class="info-row"><span>Cọc thỏa thuận đang áp dụng</span><strong>{{ contract.agreed_deposit|floatformat:'0g' }} đ</strong></div>
+      <div class="info-row"><span>Cọc thực tế đang giữ</span><strong>{{ deposit_balance|floatformat:'0g' }} đ</strong></div>
+      {% if utility_rate %}<div class="info-row"><span>Điện hiện hành</span><strong>{{ utility_rate.electric_price|floatformat:'0g' }} đ/kWh</strong></div><div class="info-row"><span>Nước hiện hành</span><strong>{{ utility_rate.water_price|floatformat:'0g' }} {{ utility_rate.water_unit_label }}</strong></div><p class="small text-muted mt-2">Đơn giá hiện hành từ {{ utility_rate.effective_date|date:'d/m/Y' }}.{% if utility_rate.water_billing_method == 'per_person' %} Tiền nước thu đủ tháng theo số người chủ trọ chốt trong kỳ.{% endif %} Từng hóa đơn lưu riêng cách tính, đơn giá và số tiền.</p>{% endif %}
+      <h3 class="h6 mt-3">Dịch vụ định kỳ hiện tại</h3>{% for service in contract_services %}<div class="info-row"><span>{{ service.name }}</span><strong>{{ service.unit_price|floatformat:'0g' }} đ/phòng/tháng</strong></div>{% empty %}<p class="text-muted">Không đăng ký dịch vụ định kỳ.</p>{% endfor %}
+      <div class="info-row"><span>Tiền phòng tháng đầu</span><strong>{% if contract.prorate_first_month %}Theo số ngày ở trong tháng{% else %}Trọn tháng theo thỏa thuận{% endif %}</strong></div>
+      {% if contract.checkout_date %}<div class="info-row"><span>Đã bàn giao ngày</span><strong>{{ contract.checkout_date|date:'d/m/Y' }}</strong></div>{% endif %}
+    </section>
+    <section class="soft-card p-3 p-md-4 mb-4"><h2 class="h5 mb-3">Các bên và người ở</h2><h3 class="h6">Bên cho thuê</h3><p>{{ landlord_name }}{% if landlord_phone %} · {{ landlord_phone }}{% endif %}<small class="d-block text-muted">{{ landlord_address }}</small></p>
+      <h3 class="h6">Người thuộc hợp đồng</h3>{% for person in people %}<div class="history-row"><div><strong>{{ person.tenant.full_name }}</strong>{% if person.is_representative %} <span class="pill pill-sky">Đại diện</span>{% endif %}{% if person.tenant.user_id == user.pk %}<small class="d-block text-muted">{{ person.tenant.phone }} · {{ person.tenant.email }}</small>{% endif %}</div></div>{% endfor %}
+      {% if not representative %}<p class="small text-muted mt-3 mb-0">Đề nghị gia hạn và lịch trả phòng do người đại diện trao đổi với chủ trọ.</p>{% endif %}
+    </section>
+    {% include 'rooms/contracts/_terms_documents.html' %}
+  </div>
+  <div class="col-12 col-xl-6">
+    {% include 'rooms/contracts/_agreement_panel.html' %}
+    <section class="soft-card p-3 p-md-4"><h2 class="h5 mb-3">Lịch sử ghi nhận</h2>{% for entry in contract_events %}<div class="history-row"><div><strong>{{ entry.title }}</strong><small class="d-block text-muted">{{ entry.created_at|date:'d/m/Y H:i' }}</small><div class="small contract-long-text">{{ entry.content|linebreaksbr }}</div></div></div>{% empty %}<p class="text-muted">Chưa có cập nhật.</p>{% endfor %}
+      {% for renewal in contract.renewals.all %}{% if not renewal.proposal_id %}<div class="history-row"><div><strong>{{ renewal.old_end_date|date:'d/m/Y' }} → {{ renewal.new_end_date|date:'d/m/Y' }}</strong><small class="d-block text-muted">Gia hạn lưu trước đây · {{ renewal.renewed_on|date:'d/m/Y' }}{% if renewal.note %} · {{ renewal.note }}{% endif %}. Chưa có xác nhận hai bên trên ứng dụng.</small></div></div>{% endif %}{% endfor %}
+    </section>
+  </div>
+</div>
+{% endblock %}

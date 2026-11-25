@@ -245,7 +245,8 @@ def _notification_panel_response(request, feed, owner=False):
             kind = item['notification_kind']
             routes = {'owner_maintenance': 'maintenance_detail', 'owner_appointment': 'appointment_detail',
                       'owner_appointment_cancel': 'appointment_detail',
-                      'owner_transfer': 'invoice_detail', 'owner_cooccupant': 'cooccupant_review'}
+                      'owner_transfer': 'invoice_detail', 'owner_cooccupant': 'cooccupant_review',
+                      'contract_due': 'contract_detail', 'contract_event': 'contract_detail'}
             item['url'] = reverse(routes[kind], args=[item['target_id']])
             if kind == 'owner_maintenance':
                 item['title'] = f'Yêu cầu sửa chữa: {item["title"]}'
@@ -261,6 +262,11 @@ def _notification_panel_response(request, feed, owner=False):
             item['url'] = reverse('my_cooccupant_detail', args=[item['id']])
         elif not owner and item['notification_kind'] == 'payment_correction':
             item['url'] = reverse('my_payment_detail', args=[item['id']])
+        elif not owner and item['notification_kind'] == 'contract_due':
+            item['url'] = reverse('my_contract_detail', args=[item['id']])
+        elif not owner and item['notification_kind'] == 'contract_event':
+            from rooms.models import ContractEvent
+            item['url'] = reverse('my_contract_detail', args=[ContractEvent.objects.get(pk=item['id']).contract_id])
         preview = [' '.join(item.get('notification_content', '').split())]
         if item.get('notification_expected'):
             label = item.get('expected_label', 'Dự kiến xong')

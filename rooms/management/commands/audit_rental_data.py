@@ -4,7 +4,7 @@ import json
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
-from billing.models import Payment
+from billing.models import Payment, UtilityRate, WaterBillingMethod
 from rooms.models import Contract, Room
 
 
@@ -17,6 +17,8 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         issues = []
+        rate = UtilityRate.current()
+        metered_water = bool(rate and rate.water_billing_method == WaterBillingMethod.METERED)
 
         def add(level, kind, code, message):
             issues.append({'level': level, 'kind': kind, 'code': code, 'message': message})
@@ -33,12 +35,14 @@ class Command(BaseCommand):
                 add('error', 'representative', contract.display_code, 'Cần đúng một người đại diện hợp đồng.')
             if members.count() > contract.room.max_occupants:
                 add('error', 'capacity', contract.display_code, 'Số người ở vượt sức chứa phòng.')
-            if contract.initial_electric is None or contract.initial_water is None:
-                add('warning', 'handover', contract.display_code, 'Chưa ghi nhận đủ chỉ số điện nước lúc nhận phòng; cần đối chiếu lịch sử thực tế.')
+            if contract.initial_electric is None or (metered_water and contract.initial_water is None):
+                add('warning', 'handover', contract.display_code, 'Chưa ghi nhận đủ chỉ số công tơ lúc nhận phòng; cần đối chiếu lịch sử thực tế.')
             balance = contract.deposit_balance
-            if balance < 0 or balance > contract.deposit:
+            if balance < 0:
                 add('error', 'deposit', contract.display_code, 'Số dư cọc không hợp lệ so với thỏa thuận.')
-            elif balance < contract.deposit:
+            elif balance > contract.agreed_deposit:
+                add('warning', 'deposit', contract.display_code, 'Cọc còn giữ cao hơn mức thỏa thuận hiện tại; cần đối chiếu việc hoàn / giữ bảo đảm công nợ, không tự ghi nhận hoàn tiền.')
+            elif balance < contract.agreed_deposit:
                 add('warning', 'deposit', contract.display_code, 'Cọc thực thu chưa đủ hoặc chưa được ghi nhận; không được tự suy đoán đã thu.')
             if contract.invoice_drafts.filter(invoice__isnull=True).exists():
                 add('warning', 'drafts', contract.display_code, 'Còn hóa đơn nháp chờ nhập chỉ số hoặc chốt.')

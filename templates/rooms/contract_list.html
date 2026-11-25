@@ -1,25 +1,18 @@
 {% extends 'base.html' %}
 {% block title %}Hợp đồng của tôi{% endblock %}
 {% block content %}
-<h4 class="mb-3">Hợp đồng của tôi</h4>
-{% for c in contracts %}
-<div class="card shadow-sm mb-3">
-  <div class="card-body">
-    <div class="d-flex justify-content-between">
-      <h5 class="card-title">{{ c.room }} <small class="text-muted fw-semibold">· {{ c.display_code }}</small></h5>
-      <span class="badge {% if c.status == 'hieu_luc' %}bg-success{% else %}bg-secondary{% endif %}">{{ c.get_status_display }}</span>
-    </div>
-    <ul class="list-unstyled mb-2">
-      <li>Thời hạn: {{ c.start_date|date:"d/m/Y" }} – {{ c.end_date|date:"d/m/Y" }}</li>
-      <li>Tiền thuê theo hợp đồng: {{ c.agreed_rent|floatformat:"0g" }}đ/tháng</li>
-      <li>Tiền cọc: {{ c.deposit|floatformat:"0g" }}đ</li>
-    </ul>
-    <div class="small text-muted">Người thuê:
-      {% for ct in c.contract_tenants.all %}{{ ct.tenant.full_name }}{% if ct.is_representative %} (đại diện){% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}
-    </div>
-  </div>
+<div class="page-head"><div><h1>Hợp đồng của tôi</h1><p class="text-muted">Theo dõi điều khoản, thời hạn và các đề nghị với chủ trọ.</p></div></div>
+<div class="row g-4">
+{% for row in rows %}{% with c=row.contract %}
+<div class="col-12 col-xl-6"><section class="soft-card p-3 p-md-4 h-100">
+  <div class="d-flex justify-content-between flex-wrap gap-2 mb-3"><h2 class="h4 mb-0">Phòng {{ c.room.room_number }}</h2><span class="pill pill-{{ row.tone }}">{{ row.label }}</span></div>
+  <p class="small text-muted">{{ c.display_code }}</p>
+  <div class="info-row"><span>Thời hạn</span><strong>{{ c.start_date|date:'d/m/Y' }} – {{ c.end_date|date:'d/m/Y' }}</strong></div>
+  <div class="info-row"><span>Giá thuê đang áp dụng</span><strong>{{ c.agreed_rent|floatformat:'0g' }} đ/tháng</strong></div>
+  <div class="info-row"><span>Mức cọc thỏa thuận</span><strong>{{ c.agreed_deposit|floatformat:'0g' }} đ</strong></div>
+  {% if row.key == 'sap_het' %}<p class="small text-warning-emphasis mt-3">Còn {{ row.days_left }} ngày đến hạn. Hãy trao đổi kế hoạch tiếp tục thuê hoặc trả phòng.</p>{% elif row.key == 'het_han' %}<p class="small text-danger mt-3">Đã hết hạn – cần trao đổi gia hạn hoặc bàn giao với chủ trọ.</p>{% endif %}
+  <a class="btn btn-outline-brand w-100 mt-3" href="{% url 'my_contract_detail' c.pk %}">Xem chi tiết hợp đồng <i class="bi bi-arrow-right"></i></a>
+</section></div>
+{% endwith %}{% empty %}<div class="col-12"><div class="alert alert-info">Chưa có hợp đồng nào.</div></div>{% endfor %}
 </div>
-{% empty %}
-<div class="alert alert-info">Chưa có hợp đồng nào.</div>
-{% endfor %}
 {% endblock %}

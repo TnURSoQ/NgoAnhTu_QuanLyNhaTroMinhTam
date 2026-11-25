@@ -1,12 +1,17 @@
 from django.urls import path
 
 from . import contract_views as views
+from . import renewal_views
+from accounts.decorators import owner_required
 
 urlpatterns = [
     path('', views.contract_list, name='contract_list'),
     path('them/', views.contract_create, name='contract_create'),
     path('<int:pk>/', views.contract_detail, name='contract_detail'),
-    path('<int:pk>/gia-han/', views.contract_renew, name='contract_renew'),
+    path('<int:pk>/gia-han/', owner_required(renewal_views.renewal_create), name='contract_renew'),
+    path('<int:pk>/gia-han-da-thoa-thuan/', owner_required(renewal_views.renewal_create), name='contract_renew_offline'),
+    path('<int:pk>/dieu-khoan/', renewal_views.contract_terms, name='contract_terms'),
+    path('<int:pk>/tai-lieu/', renewal_views.contract_document_upload, name='contract_document_upload'),
     path('<int:pk>/thu-coc/', views.contract_deposit_receive, name='contract_deposit_receive'),
     path('<int:pk>/hoan-coc/', views.contract_deposit_refund, name='contract_deposit_refund'),
     path('<int:pk>/doi-tru-coc/<int:invoice_pk>/', views.contract_deposit_apply, name='contract_deposit_apply'),

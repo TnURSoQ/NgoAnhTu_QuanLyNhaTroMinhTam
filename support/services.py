@@ -62,7 +62,9 @@ def notification_feed_for(tenant, unread_only=False):
         notification_content=Concat(Value('Giao dịch #'), Cast('pk', CharField()), Value(' · '), F('void_reason'), output_field=TextField()),
         notification_status=Value('', output_field=CharField()), notification_expected=Value(None, output_field=DateField()),
     ).values(*fields)
-    return announcements.union(replies, decisions, corrections, all=True).order_by('-notification_time', '-id', 'notification_kind')
+    from rooms.contract_notifications import feeds
+    due, events = feeds(tenant.user, owner=False, unread_only=unread_only, fields=fields)
+    return announcements.union(replies, decisions, corrections, due, events, all=True).order_by('-notification_time', '-id', 'notification_kind')
 
 
 TRANSITIONS = {
@@ -127,7 +129,9 @@ def owner_notification_feed(user, unread_only=False):
                                     F('submitted_by__full_name'), output_field=TextField()),
         notification_expected=Value(None, output_field=DateField()), target_id=F('pk'),
     ).values(*fields)
-    return repairs.union(appointments, cancellations, transfers, cooccupants, all=True).order_by('-notification_time', '-id', 'notification_kind')
+    from rooms.contract_notifications import feeds
+    due, events = feeds(user, owner=True, unread_only=unread_only, fields=fields)
+    return repairs.union(appointments, cancellations, transfers, cooccupants, due, events, all=True).order_by('-notification_time', '-id', 'notification_kind')
 
 
 def active_contract(tenant):

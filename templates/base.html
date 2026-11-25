@@ -3,6 +3,7 @@
 <head>
   <title>{% block title %}Nhà trọ Minh Tâm{% endblock %}</title>
   {% include '_head.html' %}
+  {% block extra_head %}{% endblock %}
 </head>
 <body>
 <div class="app-shell">
@@ -32,7 +33,7 @@
           <a class="nav-item-link {% if current == 'my_invoices' or current == 'my_invoice_detail' or current == 'report_transfer' %}active{% endif %}" href="{% url 'my_invoices' %}"><i class="bi bi-receipt"></i> Hóa đơn</a>
           <a class="nav-item-link {% if current == 'my_maintenance_requests' or current == 'my_maintenance_detail' or current == 'maintenance_create' or current == 'maintenance_sent' or current == 'maintenance_cancel' %}active{% endif %}" href="{% url 'my_maintenance_requests' %}"><i class="bi bi-tools"></i> Yêu cầu sửa chữa</a>
           <a class="nav-item-link {% if current == 'my_payments' or current == 'my_payment_detail' %}active{% endif %}" href="{% url 'my_payments' %}"><i class="bi bi-wallet2"></i> Thanh toán</a>
-          <a class="nav-item-link {% if current == 'my_contracts' %}active{% endif %}" href="{% url 'my_contracts' %}"><i class="bi bi-file-earmark-text"></i> Hợp đồng</a>
+          <a class="nav-item-link {% if current|slice:':11' == 'my_contract' or current == 'renewal_print' %}active{% endif %}" href="{% url 'my_contracts' %}"><i class="bi bi-file-earmark-text"></i> Hợp đồng</a>
           <a class="nav-item-link {% if current == 'password_change' %}active{% endif %}" href="{% url 'password_change' %}"><i class="bi bi-key"></i> Đổi mật khẩu</a>
         {% endif %}
         {% if user.is_staff and not hide_admin_navigation %}

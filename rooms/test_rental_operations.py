@@ -28,7 +28,7 @@ class RentalOperationsTests(TestCase):
         cls.tenant = Tenant.objects.create(full_name='Người thuê A', id_card_number='010101010101', phone='0901234567')
         cls.wifi = Service.objects.create(name='Wifi', unit_price=100000)
         cls.optional = Service.objects.create(name='Giữ xe ô tô', unit_price=500000)
-        UtilityRate.objects.create(electric_price=3500, water_price=15000, effective_date=cls.today - timedelta(days=365))
+        UtilityRate.objects.create(water_billing_method='metered', electric_price=3500, water_price=15000, effective_date=cls.today - timedelta(days=365))
         cls.contract = services.create_contract(
             cls.room, [cls.tenant], cls.tenant, cls.today - timedelta(days=60), cls.today + timedelta(days=365),
             Decimal('2000000'), monthly_rent=2500000, initial_electric=100, initial_water=10,

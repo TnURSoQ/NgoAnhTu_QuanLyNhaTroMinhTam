@@ -2,12 +2,14 @@ from datetime import timedelta
 from decimal import Decimal
 import csv
 
-from django.db.models import Case, Count, DecimalField, F, Prefetch, Sum, When
-from django.db.models.functions import ExtractMonth, ExtractYear
+from django.db.models import Case, DecimalField, F, Prefetch, Sum, When
 from django.shortcuts import render
 from django.http import HttpResponse
 from django.urls import reverse
 from django.utils import timezone
+
+from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_GET
 
 from accounts.decorators import owner_required
 from billing.models import Invoice, Payment, PaymentNotice
@@ -26,7 +28,7 @@ def overview(request):
 
     # Hóa đơn chưa thu đủ: tổng nợ tháng này và danh sách quá hạn
     unpaid = (
-        Invoice.objects.exclude(status=Invoice.Status.DA_THANH_TOAN)
+        Invoice.objects.all()
         .select_related('contract__room')
         .prefetch_related('payments', 'contract__contract_tenants__tenant')
     )
@@ -155,97 +157,16 @@ def overview(request):
     })
 
 @owner_required
+@never_cache
+@require_GET
 def dashboard(request):
     return render(request, 'reports/dashboard.html', _dashboard_context(request))
 
 
 def _dashboard_context(request):
-    today = timezone.localdate()
-
-    # 1. Tình trạng phòng
-    counts = dict(Room.objects.values_list('status').annotate(n=Count('id')))
-    total_rooms = sum(counts.values())
-    room_stats = {
-        'total': total_rooms,
-        'dang_thue': counts.get(Room.Status.DANG_THUE.value, 0),
-        'trong': counts.get(Room.Status.TRONG.value, 0),
-        'bao_tri': counts.get(Room.Status.BAO_TRI.value, 0),
-    }
-    room_stats['pct_trong'] = round(room_stats['trong'] * 100 / total_rooms, 1) if total_rooms else 0
-
-    # 2. Doanh thu (tiền thực thu) theo tháng của năm được chọn
-    try:
-        year = int(request.GET.get('year', today.year))
-    except ValueError:
-        year = today.year
-    if not 2000 <= year <= 2100:
-        year = today.year
-
-    rows = (
-        Payment.objects.active().filter(paid_date__year=year)
-        .annotate(m=ExtractMonth('paid_date'))
-        .values('m')
-        .annotate(total=Sum('amount'))
-    )
-    by_month = {r['m']: r['total'] for r in rows}
-    months = []
-    year_total = Decimal('0')
-    for m in range(1, 13):
-        total = by_month.get(m) or Decimal('0')
-        year_total += total
-        months.append({'month': m, 'total': total})
-    peak = max(x['total'] for x in months)
-    for x in months:
-        x['pct'] = int(x['total'] * 100 / peak) if peak else 0
-
-    pay_years = (
-        Payment.objects.annotate(y=ExtractYear('paid_date'))
-        .values_list('y', flat=True).distinct()
-    )
-    years = sorted(set(pay_years) | {today.year, year}, reverse=True)
-
-    # 3. Công nợ: hóa đơn chưa thu đủ
-    invoices = (
-        Invoice.objects.exclude(status=Invoice.Status.DA_THANH_TOAN)
-        .select_related('contract__room')
-        .prefetch_related('payments', 'contract__contract_tenants__tenant')
-        .order_by('due_date')
-    )
-    debts = []
-    total_debt = Decimal('0')
-    for inv in invoices:
-        paid = sum((p.amount for p in inv.payments.all() if not p.is_voided), Decimal('0'))
-        remaining = inv.total_amount - paid
-        if remaining <= 0:
-            continue
-        rep = next(
-            (ct.tenant for ct in inv.contract.contract_tenants.all() if ct.is_representative),
-            None,
-        )
-        overdue_days = max((today - inv.due_date).days, 0)
-        debts.append({
-            'invoice': inv, 'tenant': rep, 'paid': paid,
-            'remaining': remaining, 'overdue_days': overdue_days,
-        })
-        total_debt += remaining
-
-    return {
-        'room_stats': room_stats,
-        'year': year,
-        'years': years,
-        'months': months,
-        'year_total': year_total,
-        'debts': debts,
-        'total_debt': total_debt,
-        'overdue_count': sum(1 for d in debts if d['overdue_days'] > 0),
-        'deposit_held': (DepositEntry.objects.filter(kind__in=['receive', 'transfer_in']).aggregate(
-            total=Sum('amount'))['total'] or 0) - (DepositEntry.objects.filter(
-                kind__in=['refund', 'deduct', 'transfer_out', 'pay_invoice']).aggregate(total=Sum('amount'))['total'] or 0),
-        'cash_received': Payment.objects.active().filter(paid_date__year=year).exclude(method=Payment.Method.TU_COC).aggregate(
-            total=Sum('amount'))['total'] or 0,
-        'deposit_applied': Payment.objects.active().filter(paid_date__year=year, method=Payment.Method.TU_COC).aggregate(
-            total=Sum('amount'))['total'] or 0,
-    }
+    from .services import build_report, report_period
+    period, error = report_period(request.GET)
+    return {**build_report(period), 'filter_error': error}
 
 
 def _csv_cell(value):
@@ -254,37 +175,36 @@ def _csv_cell(value):
 
 
 @owner_required
+@never_cache
+@require_GET
 def cashbook_csv(request):
+    from .services import cashbook_rows, report_period
     try:
-        year = int(request.GET.get('year', timezone.localdate().year))
-        if not 2000 <= year <= 2100:
-            raise ValueError
-    except (ValueError, TypeError):
-        return HttpResponse('Năm không hợp lệ.', status=400)
+        period, _ = report_period(request.GET, strict=True)
+    except ValueError as exc:
+        return HttpResponse(str(exc), status=400)
     response = HttpResponse(content_type='text/csv; charset=utf-8')
-    response['Content-Disposition'] = f'attachment; filename="so-thu-coc-{year}.csv"'
+    response['Content-Disposition'] = f'attachment; filename="so-thu-coc-{period.year}-{period.month:02d}.csv"'
+    response['Cache-Control'] = 'private, no-store'
     response.write('\ufeff')
     writer = csv.writer(response)
     writer.writerow(['Ngày', 'Nhóm', 'Nội dung', 'Hợp đồng', 'Phòng', 'Số tiền (đ)',
                      'Thu tiền mới (đ)', 'Chi tiền thực tế (đ)', 'Biến động nội bộ (đ)', 'Hình thức', 'Ghi chú'])
-    for payment in Payment.objects.filter(paid_date__year=year).select_related('invoice__contract__room').order_by('paid_date', 'pk'):
-        if payment.is_voided:
-            writer.writerow([payment.paid_date.isoformat(), 'Khoản thu đã hủy (không cộng tiền)', payment.display_code,
-                payment.invoice.contract.display_code, _csv_cell(payment.invoice.contract.room.room_number),
-                0, 0, 0, 0, payment.get_method_display(), _csv_cell(
-                    f'Số tiền gốc {payment.amount}; hủy lúc {timezone.localtime(payment.voided_at).isoformat()}; lý do: {payment.void_reason}')])
-            continue
-        internal = payment.method == Payment.Method.TU_COC
-        writer.writerow([payment.paid_date.isoformat(), 'Đối trừ cọc vào hóa đơn' if internal else 'Thực thu hóa đơn', f'Phiếu thu #{payment.pk}',
-                         payment.invoice.contract.display_code, _csv_cell(payment.invoice.contract.room.room_number),
-                         int(payment.amount), 0 if internal else int(payment.amount), 0,
-                         int(payment.amount) if internal else 0, payment.get_method_display(), _csv_cell(payment.note)])
-    for entry in DepositEntry.objects.filter(occurred_on__year=year).select_related('contract__room').order_by('occurred_on', 'pk'):
-        writer.writerow([entry.occurred_on.isoformat(), 'Tiền cọc (tách riêng)', entry.get_kind_display(),
-                         entry.contract.display_code, _csv_cell(entry.contract.room.room_number),
-                         int(entry.amount), int(entry.amount) if entry.kind == DepositEntry.Kind.RECEIVE else 0,
-                         int(entry.amount) if entry.kind == DepositEntry.Kind.REFUND else 0,
-                         (int(entry.amount) if entry.kind == DepositEntry.Kind.TRANSFER_IN else -int(entry.amount))
-                         if entry.method == DepositEntry.Method.INTERNAL else 0,
-                         entry.get_method_display(), _csv_cell(entry.note)])
+    for row in cashbook_rows(period):
+        writer.writerow([row['date'].isoformat(), row['group'], _csv_cell(row['code']), row['contract'].display_code,
+            _csv_cell(row['room']), int(row['amount']), int(row['cash_in']), int(row['cash_out']),
+            int(row['internal']), row['method'], _csv_cell(row['note'])])
     return response
+
+
+@owner_required
+@never_cache
+@require_GET
+def dashboard_excel(request):
+    from .exports import report_excel
+    from .services import build_report, report_period
+    try:
+        period, _ = report_period(request.GET, strict=True)
+    except ValueError as exc:
+        return HttpResponse(str(exc), status=400)
+    return report_excel(build_report(period))

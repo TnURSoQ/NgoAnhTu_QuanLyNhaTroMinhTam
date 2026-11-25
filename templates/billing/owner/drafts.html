@@ -9,18 +9,18 @@
 </form>
 {% if month %}
 <section class="soft-card p-3 mb-4 d-flex align-items-center justify-content-between flex-wrap gap-3">
-  <div><strong>{{ rows|length }} phòng đang chờ · {{ ready_count|default:0 }} phòng đủ thông tin</strong><p class="small text-muted mb-0">Bản nháp chưa tính công nợ và chưa hiển thị cho người thuê. Phòng thiếu chỉ số sẽ được giữ lại khi chốt.</p></div>
+  <div><strong>{{ rows|length }} phòng đang chờ · <span id="readyDraftCount">{{ ready_count|default:0 }}</span> phòng đủ thông tin</strong><p class="small text-muted mb-0">Bản nháp chưa tính công nợ và chưa hiển thị cho người thuê. Phòng thiếu thông tin tính tiền sẽ được giữ lại khi chốt.</p></div>
   <form method="post" action="{% url 'invoice_generate_drafts' %}">{% csrf_token %}<input type="hidden" name="month" value="{{ month }}"><input type="hidden" name="year" value="{{ year }}"><button class="btn btn-outline-brand">Tạo nháp cho kỳ {{ month }}/{{ year }}</button></form>
 </section>
 {% endif %}
 {% if missing_rate %}<div class="alert alert-warning">Một số phòng chưa có đơn giá điện nước. <a href="{% url 'billing_settings' %}">Thêm đơn giá</a> rồi tải lại bảng để tiếp tục.</div>{% endif %}
 {% if rows %}
-<p class="small text-muted">Chỉ số cũ lấy từ kỳ trước gần nhất; kỳ đầu vui lòng nhập chỉ số ban đầu. Đơn giá và dịch vụ được giữ theo bản nháp. Tổng dự kiến chỉ hiện khi đủ cả điện và nước.</p>
+<p class="small text-muted">Chỉ số điện cũ lấy từ kỳ trước hoặc lúc nhận phòng. Nước thu đủ tháng theo số người chủ trọ chốt; không chia theo ngày. Kiểm tra số người trước khi phát hành. Đơn giá và dịch vụ được giữ theo bản nháp.</p>
 <form method="post" id="draftsForm" novalidate>{% csrf_token %}
   <input type="hidden" name="month" value="{{ month }}"><input type="hidden" name="year" value="{{ year }}">
   <div class="mb-3"><label class="d-inline-flex align-items-center gap-2"><input type="checkbox" id="selectAllDrafts" class="form-check-input"> Chọn tất cả phòng trong bảng</label></div>
   {% for row in rows %}
-  <section class="soft-card p-3 mb-3 draft-row" data-electric-price="{{ row.draft.electric_unit_price|default_if_none:''|unlocalize }}" data-water-price="{{ row.draft.water_unit_price|default_if_none:''|unlocalize }}" data-services="{{ row.draft.services_total|unlocalize }}">
+  <section class="soft-card p-3 mb-3 draft-row" data-water-method="{{ row.draft.water_billing_method }}" data-current-people="{{ row.draft.current_people_count|unlocalize }}" data-electric-price="{{ row.draft.electric_unit_price|default_if_none:''|unlocalize }}" data-water-price="{{ row.draft.water_unit_price|default_if_none:''|unlocalize }}" data-services="{{ row.draft.services_total|unlocalize }}">
     <input type="hidden" name="draft_ids" value="{{ row.draft.pk }}">{{ row.form.revision }}{{ row.form.preview_token }}
     <div class="d-flex align-items-center justify-content-between gap-3 mb-3 flex-wrap">
       <div class="d-flex align-items-center gap-2 flex-wrap">{{ row.form.selected }}<label class="h5 mb-0" for="{{ row.form.selected.id_for_label }}">P.{{ row.draft.contract.room.room_number }}</label><span class="text-muted">{{ row.tenant.full_name|default:'Chưa có đại diện' }} · {{ row.draft.contract.display_code }}</span>{% if row.draft.contract.status == 'ket_thuc' %}<span class="badge text-bg-warning">Đã bàn giao · chốt phí hợp đồng cũ</span>{% endif %}</div>
@@ -28,14 +28,17 @@
     </div>
     {% for error in row.form.non_field_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}{{ row.form.revision.errors }}{{ row.form.preview_token.errors }}
     <div class="row g-3">
-      <div class="col-12 col-lg-3"><strong class="d-block mb-2">Điện · {{ row.draft.electric_unit_price|default_if_none:'—' }} đ/kWh</strong><div class="row g-2">
+      <div class="col-12 col-lg-3"><strong class="d-block mb-2">Điện · {{ row.draft.electric_unit_price|floatformat:'0g'|default:'—' }} đ/kWh</strong><div class="row g-2">
         <div class="col-6"><label class="form-label small" for="{{ row.form.old_electric.id_for_label }}">Chỉ số cũ</label>{{ row.form.old_electric }}{{ row.form.old_electric.errors }}</div>
         <div class="col-6"><label class="form-label small" for="{{ row.form.new_electric.id_for_label }}">Chỉ số mới</label>{{ row.form.new_electric }}{{ row.form.new_electric.errors }}</div>
       </div><p class="small text-muted mb-0 mt-2 electric-preview" aria-live="polite"></p></div>
-      <div class="col-12 col-lg-3"><strong class="d-block mb-2">Nước · {{ row.draft.water_unit_price|default_if_none:'—' }} đ/m³</strong><div class="row g-2">
+      <div class="col-12 col-lg-3"><strong class="d-block mb-2">Nước · {{ row.draft.water_unit_price|floatformat:'0g'|default:'—' }} {% if row.form.water_per_person %}đ/người/tháng{% else %}đ/m³{% endif %}</strong>{% if row.form.water_per_person %}
+        <label class="form-label small" for="{{ row.form.water_people_count.id_for_label }}">Số người tính tiền nước</label>{{ row.form.water_people_count }}{{ row.form.water_people_count.errors }}
+        <p class="small text-muted mt-2 mb-0">Danh sách đã duyệt hiện có {{ row.draft.current_people_count }} người.</p><p class="small text-warning-emphasis mb-0 people-hint" hidden>Số người tính tiền khác danh sách hiện tại. Kiểm tra người vào hoặc rời phòng trong kỳ.</p>
+      {% else %}<div class="row g-2">
         <div class="col-6"><label class="form-label small" for="{{ row.form.old_water.id_for_label }}">Chỉ số cũ</label>{{ row.form.old_water }}{{ row.form.old_water.errors }}</div>
         <div class="col-6"><label class="form-label small" for="{{ row.form.new_water.id_for_label }}">Chỉ số mới</label>{{ row.form.new_water }}{{ row.form.new_water.errors }}</div>
-      </div><p class="small text-muted mb-0 mt-2 water-preview" aria-live="polite"></p></div>
+      </div>{% endif %}<p class="small text-muted mb-0 mt-2 water-preview" aria-live="polite"></p></div>
       <div class="col-12 col-lg-3"><label class="form-label small" for="{{ row.form.room_fee.id_for_label }}">Tiền phòng (đ)</label>{{ row.form.room_fee }}{{ row.form.room_fee.errors }}<div class="small text-muted mt-2">{% for item in row.draft.service_items %}<div>{{ item.description }} × {{ item.quantity }} · {{ item.unit_price|floatformat:'0g' }} đ</div>{% empty %}Không có dịch vụ{% endfor %}</div></div>
       <div class="col-12 col-lg-3"><label class="form-label small" for="{{ row.form.due_date.id_for_label }}">Hạn thanh toán</label>{{ row.form.due_date }}{{ row.form.due_date.errors }}<p class="small text-muted mt-2 mb-0">{{ row.form.due_date.help_text }}</p></div>
       <div class="col-12 col-lg-9"><label class="form-label small" for="{{ row.form.note.id_for_label }}">Ghi chú</label>{{ row.form.note }}{{ row.form.note.errors }}</div>
@@ -47,4 +50,4 @@
 </form>
 {% else %}<section class="soft-card p-4 text-muted">Không còn phòng chờ nhập trong kỳ này. Bạn có thể tạo nháp cho các phòng đang thuê hoặc xem hóa đơn đã chốt ở danh sách hóa đơn.</section>{% endif %}
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/invoice-drafts.js' %}"></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/invoice-drafts.js' %}?v=20261124-water"></script>{% endblock %}

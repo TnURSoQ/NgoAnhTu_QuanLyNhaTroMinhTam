@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title %}{% if offline %}Ghi nhận gia hạn đã thỏa thuận{% else %}Đề nghị gia hạn hợp đồng{% endif %}{% endblock %}
+{% block content %}
+<a class="back-link" href="{{ contract_detail_url }}"><i class="bi bi-arrow-left"></i> Quay lại hợp đồng</a>
+<div class="page-head"><div><h1>{% if offline %}Ghi nhận gia hạn đã thỏa thuận{% else %}Đề nghị gia hạn{% endif %}</h1><p class="text-muted">{{ contract.display_code }} · Phòng {{ contract.room.room_number }}</p></div></div>
+<div class="row g-4">
+  <div class="col-12 col-lg-5"><section class="soft-card p-3 p-md-4">
+    <h2 class="h5 mb-3">Điều khoản trước gia hạn</h2>
+    <div class="info-row"><span>Hạn hiện tại</span><strong>{{ contract.end_date|date:'d/m/Y' }}</strong></div>
+    <div class="info-row"><span>Tiền phòng tại cuối kỳ</span><strong>{{ next_rent|floatformat:'0g' }} đ/tháng</strong></div>
+    <div class="info-row"><span>Mức cọc tại cuối kỳ</span><strong>{{ next_deposit|floatformat:'0g' }} đ</strong></div>
+    <div class="info-row"><span>Cọc thực giữ</span><strong>{{ contract.deposit_balance|floatformat:'0g' }} đ</strong></div>
+    <p class="small text-muted mt-3 mb-0">Công nợ và cọc thực giữ được tiếp tục theo dõi trên hợp đồng này. Hóa đơn đã phát hành giữ nguyên.</p>
+    {% if owner_view and not offline %}<a class="btn btn-outline-brand mt-3" href="{% url 'contract_renew_offline' contract.pk %}">Hai bên đã ký phụ lục bên ngoài?</a>{% endif %}
+  </section></div>
+  <div class="col-12 col-lg-7"><section class="soft-card p-3 p-md-4">
+    {% if offline %}<div class="alert alert-info">Dùng khi hai bên đã thỏa thuận và ký phụ lục bên ngoài. Đây là ghi nhận của chủ trọ, không phải xác nhận trực tiếp của người thuê trên ứng dụng.</div>
+    {% else %}<div class="alert alert-info">Gửi đề nghị chưa làm thay đổi hợp đồng. Bên còn lại cần đọc và đồng ý; nếu có điều khoản khác, chủ trọ gửi đề nghị mới để người thuê xác nhận.</div>{% endif %}
+    {% if pending_proposal %}<div class="alert alert-warning">Đang có đề nghị {{ pending_proposal.display_code }}. {% if owner_view %}Gửi từ trang này sẽ thay thế đề nghị đang chờ; người thuê cần xác nhận đề nghị mới.{% else %}Hãy phản hồi hoặc rút đề nghị hiện tại trong trang hợp đồng.{% endif %}</div>{% endif %}
+    <form method="post" enctype="multipart/form-data" novalidate>{% csrf_token %}
+      {% if owner_view and pending_proposal %}<input type="hidden" name="replace_id" value="{{ pending_proposal.pk }}">{% endif %}
+      {% include 'rooms/contracts/_fields.html' %}
+      <div class="d-flex flex-wrap gap-2 mt-4"><button class="btn btn-primary" type="submit">{% if offline %}Ghi nhận gia hạn và lưu phụ lục{% else %}Gửi đề nghị gia hạn{% endif %}</button><a class="btn btn-outline-brand" href="{{ contract_detail_url }}">Quay lại</a></div>
+    </form>
+  </section></div>
+</div>
+{% endblock %}

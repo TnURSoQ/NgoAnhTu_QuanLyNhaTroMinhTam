@@ -1,0 +1,24 @@
+{% extends 'print/base.html' %}
+{% block content %}
+<p><strong>{{ proposal.display_code }}</strong> · {{ contract.display_code }} · Phòng {{ contract.room.room_number }}</p>
+<p><strong>Trạng thái:</strong> {{ proposal.get_status_display }} · {{ proposal.get_source_display }}</p>
+<table><tbody>
+<tr><th>Hạn cũ → hạn mới</th><td>{{ proposal.old_end_date|date:'d/m/Y' }} → {{ proposal.new_end_date|date:'d/m/Y' }}</td></tr>
+<tr><th>Giá thuê cũ → mới</th><td>{{ proposal.old_rent|floatformat:'0g' }} → {{ proposal.monthly_rent|floatformat:'0g' }} đ/tháng</td></tr>
+<tr><th>Cọc thỏa thuận cũ → mới</th><td>{{ proposal.old_deposit|floatformat:'0g' }} → {{ proposal.deposit|floatformat:'0g' }} đ</td></tr>
+<tr><th>Ngày áp dụng giá và cọc</th><td>{{ proposal.effective_date|date:'d/m/Y' }}</td></tr>
+<tr><th>Người gửi / thời gian</th><td>{{ proposal.created_by.get_full_name|default:proposal.created_by.username }} · {{ proposal.created_at|date:'d/m/Y H:i' }}</td></tr>
+{% if proposal.responded_at %}<tr><th>{% if proposal.source == 'offline' %}Chủ trọ ghi nhận theo phụ lục đã ký{% else %}Người phản hồi{% endif %}</th><td>{{ proposal.responded_by.get_full_name|default:proposal.responded_by.username }} · {{ proposal.responded_at|date:'d/m/Y H:i' }}</td></tr>{% endif %}
+</tbody></table>
+<h2>Điều khoản ghi nhận tại lúc đề nghị</h2>
+<p><strong>Thanh toán:</strong> {{ proposal.base_terms.payment_terms|default:'Chưa ghi nhận; đối chiếu tài liệu đã ký.'|linebreaksbr }}</p>
+<p><strong>Gia hạn:</strong> {{ proposal.base_terms.renewal_terms|default:'Chưa ghi nhận điều khoản riêng.'|linebreaksbr }}</p>
+<p><strong>Báo trước / trả phòng:</strong> {{ proposal.base_terms.checkout_terms|default:'Chưa ghi nhận; đối chiếu tài liệu đã ký.'|linebreaksbr }}</p>
+{% if proposal.terms %}<h2>Điều khoản bổ sung</h2><p>{{ proposal.terms|linebreaksbr }}</p>{% endif %}
+{% if proposal.note %}<p><strong>Lời nhắn:</strong> {{ proposal.note|linebreaksbr }}</p>{% endif %}
+{% if proposal.response_note %}<p><strong>Phản hồi:</strong> {{ proposal.response_note|linebreaksbr }}</p>{% endif %}
+<h2>Người thuộc hợp đồng</h2><p>{% for person in people %}{{ person.tenant.full_name }}{% if person.is_representative %} (đại diện){% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}</p>
+<p>Cọc thực giữ và công nợ được tiếp tục theo dõi; không tự ghi nhận thu hoặc hoàn cọc. Hóa đơn đã phát hành giữ nguyên.</p>
+<p class="muted">Bản tổng hợp nội dung lưu trên ứng dụng để đối chiếu với hợp đồng và phụ lục đã ký. Đề nghị đang chờ hoặc bị từ chối chưa làm thay đổi hợp đồng. Xác nhận trong ứng dụng không được hiển thị là chữ ký số.</p>
+<div class="signatures"><div><strong>Bên cho thuê</strong><small>(Ký, ghi rõ họ tên)</small></div><div><strong>Người thuê đại diện</strong><small>(Ký, ghi rõ họ tên)</small></div></div>
+{% endblock %}

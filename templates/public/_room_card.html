@@ -3,7 +3,7 @@
   <div class="listing-content"><div class="listing-heading"><h3>Phòng P.{{ r.room_number }}</h3><span class="listing-arrow"><i class="bi bi-arrow-up-right"></i></span></div>
     <div class="listing-facts">{% if r.area %}<span><i class="bi bi-aspect-ratio"></i> {{ r.area|floatformat:"-2" }} m²</span>{% endif %}<span><i class="bi bi-people"></i> Tối đa {{ r.max_occupants }} người</span><span><i class="bi bi-building"></i> Tầng {{ r.floor }}</span></div>
     {% if r.amenity_list %}<div class="listing-amenities">{% for a in r.amenity_list|slice:":3" %}<span>{{ a }}</span>{% endfor %}</div>{% else %}<div class="listing-amenities"><span>Hẹn đến xem trực tiếp</span></div>{% endif %}
-    <p class="listing-utility-prices">{% if utility_rate %}Điện {{ utility_rate.electric_price|floatformat:'0g' }} đ/kWh · Nước {{ utility_rate.water_price|floatformat:'0g' }} đ/m³{% else %}Đơn giá điện nước đang được cập nhật{% endif %}</p>
+    <p class="listing-utility-prices">{% if utility_rate %}Điện {{ utility_rate.electric_price|floatformat:'0g' }} đ/kWh · Nước {{ utility_rate.water_price|floatformat:'0g' }} {{ utility_rate.water_unit_label }}{% else %}Đơn giá điện nước đang được cập nhật{% endif %}</p>
     <div class="listing-bottom"><div class="listing-price">{{ r.price|floatformat:"0g" }} đ<small>/ tháng</small></div><span class="listing-book">Đặt lịch xem <i class="bi bi-arrow-right"></i></span></div>
   </div>
 </a>

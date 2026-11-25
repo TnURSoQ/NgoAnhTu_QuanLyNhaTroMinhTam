@@ -4,7 +4,7 @@ from django.views.decorators.http import require_GET
 from django.views.decorators.cache import never_cache
 
 from accounts.decorators import owner_required
-from billing.models import Payment
+from billing.models import Payment, UtilityRate
 from billing.receipts import payment_records, payment_receipt
 from rooms.display import representative_of
 from rooms.models import CheckoutRecord, Contract, ContractTenant, DepositEntry, Room
@@ -20,7 +20,7 @@ def _contract(pk):
 @require_GET
 def contract_print(request, pk):
     contract = _contract(pk)
-    return render(request, 'print/contract.html', {'contract': contract,
+    return render(request, 'print/contract.html', {'contract': contract, 'utility_rate': UtilityRate.current(),
         'people': contract.contract_tenants.all(), 'document_title': f'Thông tin hợp đồng {contract.display_code}'})
 
 
@@ -75,11 +75,18 @@ def rooms_print(request):
 
 
 @owner_required
+@never_cache
 @require_GET
 def report_print(request):
-    from .views import _dashboard_context
-    context = _dashboard_context(request)
-    context['document_title'] = f'Báo cáo thu tiền và công nợ năm {context["year"]}'
+    from django.http import HttpResponse
+    from .services import build_report, report_period
+    try:
+        period, _ = report_period(request.GET, strict=True)
+    except ValueError as exc:
+        return HttpResponse(str(exc), status=400)
+    context = build_report(period)
+    context['document_title'] = f'Báo cáo quản lý nhà trọ {period.label}'
+    context['landscape'] = True
     return render(request, 'print/report.html', context)
 
 

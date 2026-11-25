@@ -7,7 +7,7 @@ from .services import create_invoice_from_reading
 
 @admin.register(UtilityRate)
 class UtilityRateAdmin(admin.ModelAdmin):
-    list_display = ('effective_date', 'electric_price', 'water_price')
+    list_display = ('effective_date', 'electric_price', 'water_price', 'water_billing_method')
 
 
 @admin.action(description='Lập hóa đơn từ chỉ số đã chọn')

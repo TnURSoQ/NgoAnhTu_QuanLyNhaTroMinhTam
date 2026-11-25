@@ -12,7 +12,7 @@
       <div class="section-head"><h2>Hợp đồng hiện tại</h2></div>
       <div class="info-row"><span>Phòng</span><strong>P.{{ contract.room.room_number }}</strong></div>
       <div class="info-row"><span>Thời hạn</span><strong>{{ contract.start_date|date:"d/m/Y" }} – {{ contract.end_date|date:"d/m/Y" }}</strong></div>
-      <div class="info-row"><span>Tiền đặt cọc</span><strong>{{ contract.deposit|floatformat:"0g" }} đ</strong></div>
+      <div class="info-row"><span>Tiền đặt cọc</span><strong>{{ contract.agreed_deposit|floatformat:"0g" }} đ</strong></div>
       <div class="info-row"><span>Cọc thực tế đang giữ</span><strong>{{ deposit_balance|floatformat:'0g' }} đ</strong></div>
       <div class="info-row"><span>Nợ hóa đơn đã chốt</span><strong>{{ settlement.debt|floatformat:'0g' }} đ</strong></div>
       <div class="info-row"><span>Cọc dư theo sổ hiện tại</span><strong>{% if settlement.pending_count %}Chưa xác định · còn hóa đơn nháp{% else %}{{ settlement.refundable|floatformat:'0g' }} đ{% endif %}</strong></div>

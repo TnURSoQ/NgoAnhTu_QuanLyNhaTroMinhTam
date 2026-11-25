@@ -1,0 +1,18 @@
+<section class="soft-card report-panel">
+  <h2>Thu tiền hóa đơn · {{ period.label }}</h2>
+  <p class="report-note">Theo ngày thu tiền. Đối trừ cọc được tách riêng; giao dịch đã hủy và báo chuyển khoản chờ xác nhận không cộng vào tiền thu.</p>
+  <div class="report-mini-stats"><div><span>Tiền mặt</span><strong>{{ cash_collected|floatformat:'0g' }} đ</strong></div><div><span>Chuyển khoản</span><strong>{{ bank_collected|floatformat:'0g' }} đ</strong></div><div><span>Đối trừ cọc vào hóa đơn</span><strong>{{ deposit_applied|floatformat:'0g' }} đ</strong></div></div>
+  <div class="table-responsive"><table class="table-modern w-100"><thead><tr><th>Tháng</th><th class="number">Tiền mặt</th><th class="number">Chuyển khoản</th><th class="number">Tiền mới nhận</th><th class="number">Đối trừ cọc</th><th class="number">Giá trị thanh toán</th><th aria-label="So sánh tiền mới nhận"></th></tr></thead><tbody>
+  {% for m in months %}<tr><td>{{ m.month }}/{{ year }}</td><td class="number">{{ m.cash|floatformat:'0g' }}</td><td class="number">{{ m.bank|floatformat:'0g' }}</td><td class="number fw-bold">{{ m.cash_received|floatformat:'0g' }}</td><td class="number">{{ m.deposit|floatformat:'0g' }}</td><td class="number">{{ m.total|floatformat:'0g' }}</td><td><progress value="{{ m.pct }}" max="100" aria-label="Tiền mới nhận tháng {{ m.month }} so với tháng cao nhất"></progress></td></tr>{% endfor %}
+  </tbody><tfoot><tr><th>Tổng (đ)</th><td class="number">{{ cash_collected|floatformat:'0g' }}</td><td class="number">{{ bank_collected|floatformat:'0g' }}</td><td class="number">{{ cash_received|floatformat:'0g' }}</td><td class="number">{{ deposit_applied|floatformat:'0g' }}</td><td class="number">{{ year_total|floatformat:'0g' }}</td><td></td></tr></tfoot></table></div>
+  <p class="report-note mt-3 mb-0">Giá trị thanh toán = tiền mới nhận + đối trừ cọc. Không phân bổ khoản thanh toán một phần thành tiền phòng, điện hay nước khi chưa có thông tin phân bổ.</p>
+</section>
+<section class="soft-card report-panel">
+  <h2>Sổ thu và cọc trong kỳ</h2>
+  <div class="report-mini-stats"><div><span>Tổng tiền nhận (hóa đơn + thu cọc)</span><strong>{{ cash_in|floatformat:'0g' }} đ</strong></div><div><span>Tiền thực hoàn cọc</span><strong>{{ cash_out|floatformat:'0g' }} đ</strong></div></div>
+  <p class="report-note">Thu cọc không tính vào tiền thu hóa đơn. Chuyển cọc, khấu trừ và đối trừ là biến động nội bộ. Sổ này chưa có các khoản chi vận hành để xác định lợi nhuận.</p>
+  <div class="table-responsive"><table class="table-modern w-100"><thead><tr><th>Ngày</th><th>Giao dịch</th><th>Phòng / hợp đồng</th><th class="number">Tiền nhận</th><th class="number">Hoàn cọc</th><th>Hình thức</th></tr></thead><tbody>
+  {% for row in cashbook_preview %}<tr><td>{{ row.date|date:'d/m/Y' }}</td><td>{{ row.group }}<small class="d-block text-muted">{{ row.code }}</small>{% if row.internal %}<small class="d-block text-muted">Giá trị nội bộ: {{ row.amount|floatformat:'0g' }} đ</small>{% endif %}</td><td>P.{{ row.room }}<small class="d-block"><a href="{% url 'contract_detail' row.contract.pk %}">{{ row.contract.display_code }}</a></small></td><td class="number">{{ row.cash_in|floatformat:'0g' }}</td><td class="number">{{ row.cash_out|floatformat:'0g' }}</td><td>{{ row.method }}</td></tr>{% empty %}<tr><td colspan="6" class="text-muted py-4">Chưa có giao dịch trong kỳ này.</td></tr>{% endfor %}
+  </tbody></table></div>
+  <p class="report-note mt-3 mb-0">Hiển thị tối đa 50 giao dịch gần nhất. File Excel chứa toàn bộ giao dịch và lý do hủy, điều chỉnh.</p>
+</section>

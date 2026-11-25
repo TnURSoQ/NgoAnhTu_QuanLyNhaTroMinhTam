@@ -14,7 +14,7 @@ from accounts.text import normalize
 from billing.models import Invoice
 from .display import ROOM_STATUS_UI, representative_of, room_status_ui
 from .forms import MAX_ROOM_PHOTOS, RoomForm
-from .models import Contract, Room, RoomPhoto
+from .models import Contract, PropertyInfo, Room, RoomPhoto
 
 
 def _room_items():
@@ -98,7 +98,7 @@ def room_detail(request, pk):
     label, tone = room_status_ui(room)
     return render(request, 'rooms/room_detail.html', {
         'room': room, 'contract': contract, 'people': people, 'invoice_info': invoice_info,
-        'history': history, 'label': label, 'tone': tone,
+        'history': history, 'label': label, 'tone': tone, 'property_info': PropertyInfo.current(),
         'maintenance_requests': room.maintenance_requests.all()[:5],
     })
 

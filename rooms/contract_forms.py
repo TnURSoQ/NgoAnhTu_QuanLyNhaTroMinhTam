@@ -1,4 +1,3 @@
-from datetime import timedelta
 import uuid
 
 from django import forms
@@ -10,6 +9,7 @@ from accounts.forms import BootstrapFormMixin
 from accounts.models import Tenant
 from . import services
 from billing.models import Service
+from billing.services import water_is_metered
 from .models import Contract, DepositEntry, Room
 
 
@@ -51,6 +51,8 @@ class ContractCreateForm(BootstrapFormMixin, forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if not water_is_metered():
+            self.fields.pop('initial_water')
         self.fields['room'].queryset = free_rooms()
         eligible = Tenant.objects.exclude(
             contract_tenants__contract__status=Contract.Status.HIEU_LUC).order_by('full_name')
@@ -69,28 +71,11 @@ class ContractCreateForm(BootstrapFormMixin, forms.Form):
             cleaned.get('start_date'), cleaned.get('end_date'), cleaned.get('deposit'))
         if errors:
             raise ValidationError(errors)
-        if (cleaned.get('initial_electric') is None) != (cleaned.get('initial_water') is None):
+        if water_is_metered() and (cleaned.get('initial_electric') is None) != (cleaned.get('initial_water') is None):
             raise ValidationError('Hãy nhập đủ cả chỉ số điện và nước lúc nhận phòng.')
         if cleaned.get('deposit_paid', 0) and cleaned.get('deposit') is not None and cleaned['deposit_paid'] > cleaned['deposit']:
             self.add_error('deposit_paid', 'Tiền cọc đã thu không được vượt tiền cọc thỏa thuận.')
         return cleaned
-
-
-class ContractRenewForm(BootstrapFormMixin, forms.Form):
-    new_end_date = forms.DateField(label='Ngày kết thúc mới', widget=_date_widget())
-    note = forms.CharField(label='Ghi chú', required=False, max_length=255)
-
-    def __init__(self, contract, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.contract = contract
-        self.fields['new_end_date'].initial = contract.end_date + timedelta(days=365)
-
-    def clean_new_end_date(self):
-        value = self.cleaned_data['new_end_date']
-        errors = services.renew_errors(self.contract, value)
-        if errors:
-            raise ValidationError(errors)
-        return value
 
 
 class ContractCheckoutForm(BootstrapFormMixin, forms.Form):
@@ -136,6 +121,8 @@ class ContractTransferForm(BootstrapFormMixin, forms.Form):
         super().__init__(*args, **kwargs)
         self.contract = contract
         self.fields['new_room'].queryset = free_rooms().exclude(pk=contract.room_id)
+        if not water_is_metered():
+            self.fields.pop('initial_water')
         self.fields['new_room'].label_from_instance = lambda room: f'Phòng {room.room_number} · {services.money(room.price)} đ/tháng'
         self.fields['transfer_date'].initial = timezone.localdate()
         self.fields['new_end_date'].initial = contract.end_date

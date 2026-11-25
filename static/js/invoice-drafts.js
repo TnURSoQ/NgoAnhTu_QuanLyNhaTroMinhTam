@@ -10,6 +10,25 @@
   function preview(row) {
     let total = 0, complete = true, invalid = false;
     for (const utility of ['electric', 'water']) {
+      if (utility === 'water' && row.dataset.waterMethod === 'per_person') {
+        const text = field(row, 'water_people_count').value.trim();
+        const people = /^\d+$/.test(text) ? Number(text) : null;
+        const price = row.dataset.waterPrice === '' ? null : Number(row.dataset.waterPrice);
+        const target = row.querySelector('.water-preview');
+        row.querySelector('.people-hint').hidden = people === null || people === Number(row.dataset.currentPeople);
+        if (people === null || price === null) {
+          complete = false;
+          target.textContent = 'Chờ chốt số người và đơn giá nước';
+        } else if (!Number.isSafeInteger(people) || people < 1 || price <= 0) {
+          invalid = true;
+          target.textContent = 'Số người phải là số nguyên từ 1 trở lên';
+        } else {
+          const fee = people * price;
+          total += fee;
+          target.textContent = people + ' người × ' + money(price) + ' = ' + money(fee) + '/tháng';
+        }
+        continue;
+      }
       const old = number(field(row, 'old_' + utility));
       const next = number(field(row, 'new_' + utility));
       const priceText = row.dataset[utility + 'Price'];
@@ -35,11 +54,13 @@
     total += (roomFee || 0) + Number(row.dataset.services);
     if (total > 99999999) invalid = true;
     row.querySelector('.draft-total').textContent = invalid ? 'Kiểm tra số liệu' :
-      complete ? money(total) : 'Chờ nhập đủ chỉ số';
+      complete ? money(total) : 'Chờ đủ thông tin tính tiền';
     const badge = row.querySelector('.draft-status');
-    badge.textContent = invalid ? 'Cần kiểm tra' : complete ? 'Đủ thông tin' : 'Chờ chỉ số / đơn giá';
+    badge.textContent = invalid ? 'Cần kiểm tra' : complete ? 'Đủ thông tin' : 'Chờ bổ sung thông tin';
     badge.className = 'badge draft-status ' + (invalid ? 'text-bg-danger' :
       complete ? 'text-bg-success' : 'text-bg-secondary');
+    const readyCount = document.getElementById('readyDraftCount');
+    if (readyCount) readyCount.textContent = form.querySelectorAll('.draft-status.text-bg-success').length;
   }
   const rows = [...form.querySelectorAll('.draft-row')];
   const selectAll = document.getElementById('selectAllDrafts');
