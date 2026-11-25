@@ -7,9 +7,10 @@ from django.views.decorators.cache import never_cache
 from accounts.text import normalize
 from billing.models import Service, UtilityRate
 from . import services
-from .models import Room, ViewingAppointment
+from .models import PropertyInfo, Room, ViewingAppointment
 from .public_forms import BookingForm, GuestCancelAppointmentForm
 from .appointment_services import book_appointment, cancel_by_guest
+from .amenities import amenity_tiles
 
 PRICE_RANGES = {
     'duoi2': (None, 2000000, 'Dưới 2 triệu'),
@@ -25,8 +26,9 @@ def free_rooms():
 def landing(request):
     """Trang chủ xem phòng dùng chung trước và sau khi đăng nhập."""
     context = _room_context(request)
-    if not context['has_filters']:
-        context['rooms'] = context['rooms'][:6]
+    # Use all available rooms before filters; the home carousel controls visibility.
+    context['living_room_amenities'] = amenity_tiles(context['amenities'])
+    context['living_shared_amenities'] = amenity_tiles(context['property_info'].amenity_list)
     return render(request, 'public/home.html', context)
 
 
@@ -40,7 +42,7 @@ def _room_context(request):
     starting_price = min((room.price for room in rooms), default=None)
     floors = sorted({r.floor for r in rooms})
     capacities = sorted({1, 2, 3, 4} | {r.max_occupants for r in rooms})
-    amenities = sorted({a for room in rooms for a in room.amenity_list}, key=normalize)
+    amenities = sorted({a for room in rooms for a in room.amenity_list}, key=lambda name: (normalize(name), name))
 
     try:
         floor = int(request.GET.get('floor', ''))
@@ -75,7 +77,7 @@ def _room_context(request):
     if q:
         terms = normalize(q).split()
         rooms = [r for r in rooms if all(term in normalize(
-            f'Phòng P.{r.room_number} {r.description} {r.amenities}') for term in terms)]
+            f'Phòng P.{r.room_number} {r.description} {", ".join(r.amenity_list)}') for term in terms)]
     if sort:
         rooms.sort(key=lambda r: r.price, reverse=(sort == 'gia_giam'))
 
@@ -86,6 +88,7 @@ def _room_context(request):
         'filtered_count': len(rooms), 'starting_price': starting_price,
         'has_filters': bool(q or price or floor is not None or people is not None or amenity or sort),
         'utility_rate': UtilityRate.current(),
+        'property_info': PropertyInfo.current(),
     }
 
 
@@ -107,7 +110,8 @@ def room_detail(request, pk):
                 return redirect('appointment_status', code=appointment.code)
     return render(request, 'public/room_detail.html', {'room': room, 'available': available, 'form': form,
                                                      'utility_rate': UtilityRate.current(),
-                                                     'public_services': Service.objects.order_by('name')})
+                                                     'public_services': Service.objects.order_by('name'),
+                                                     'property_info': PropertyInfo.current()})
 
 
 @never_cache

@@ -115,14 +115,19 @@ class PublicPagesTests(TestCase):
                 self.assertContains(response, f'href="{reverse(page)}#phong-trong"')
                 self.assertContains(response, 'Xóa bộ lọc')
 
-    def test_home_filters_all_rooms_beyond_six_featured_results(self):
+    def test_home_carousel_has_all_available_rooms_and_filters_beyond_first_three(self):
         for n in range(5):
             room(f'30{n}', floor=3)
         last = room('999', floor=9)
         home = self.client.get(reverse('home'))
-        self.assertEqual(len(home.context['rooms']), 6)
+        self.assertEqual(len(home.context['rooms']), 8)
         self.assertEqual(home.context['total_free'], 8)
-        self.assertNotIn(last, home.context['rooms'])
+        self.assertIn(last, home.context['rooms'])
+        self.assertContains(home, 'data-room-showcase')
+        self.assertContains(home, 'data-room-next')
+        catalog = self.client.get(reverse('public_rooms'))
+        self.assertEqual(len(catalog.context['rooms']), 8)
+        self.assertNotContains(catalog, 'data-room-showcase')
         response = self.client.get(reverse('home'), {'floor': 9})
         self.assertEqual(list(response.context['rooms']), [last])
 
@@ -138,6 +143,53 @@ class PublicPagesTests(TestCase):
             'people': '-4', 'floor': 'abc', 'amenity': 'unknown', 'sort': 'unknown', 'price': 'unknown'})
         self.assertFalse(response.context['has_filters'])
         self.assertEqual(response.context['filtered_count'], 2)
+
+
+class HomeLivingAmenitiesTests(TestCase):
+    def setUp(self):
+        from .models import PropertyInfo
+        PropertyInfo.objects.all().delete()
+
+    def test_tiles_use_all_available_rooms_before_filters_and_six_room_limit(self):
+        from .models import PropertyInfo
+        from .amenities import amenity_tiles
+        for number in range(7):
+            room(f'A{number}', amenities='Điều hòa, điều hòa, Wifi', floor=1)
+        room('Z99', amenities='Tủ quần áo, Chỗ để xe', floor=9)
+        room('BUSY', status='dang_thue', amenities='Bể bơi riêng')
+        room('FIX', status='bao_tri', amenities='Rạp phim riêng')
+        PropertyInfo.objects.create(shared_amenities='Chỗ để xe, Máy giặt chung')
+        for params in ({}, {'floor': 1}, {'q': 'không có phòng này'}):
+            page = self.client.get(reverse('home'), params)
+            names = [item['name'] for item in page.context['living_room_amenities']]
+            self.assertEqual(names, ['Điều hòa', 'Tủ quần áo', 'Wifi'])
+            self.assertEqual([item['name'] for item in page.context['living_shared_amenities']],
+                             ['Chỗ để xe', 'Máy giặt chung'])
+            self.assertNotIn('Chỗ để xe', names)
+            self.assertNotContains(page, 'Bể bơi riêng')
+            self.assertNotContains(page, 'Rạp phim riêng')
+            self.assertContains(page, 'Tiện ích trong phòng')
+            self.assertNotContains(page, 'Tùy từng phòng')
+            self.assertNotContains(page, '>Dùng chung<')
+            self.assertContains(page, 'Tiện ích chung của nhà trọ', count=1)
+        self.assertEqual(len(amenity_tiles(['Điều hòa', 'điều hòa'])), 1)
+
+    def test_custom_names_are_escaped_and_unknown_features_are_not_invented(self):
+        room('101', amenities='<script>alert(1)</script>')
+        page = self.client.get(reverse('home'))
+        self.assertEqual(page.context['living_room_amenities'],
+                         [{'name': '<script>alert(1)</script>', 'icon': 'bi-grid'}])
+        self.assertContains(page, '&lt;script&gt;alert(1)&lt;/script&gt;')
+        self.assertNotContains(page, '<script>alert(1)</script>')
+        self.assertEqual(page.context['living_shared_amenities'], [])
+
+    def test_no_data_shows_update_message_without_creating_configuration(self):
+        from .models import PropertyInfo
+        page = self.client.get(reverse('home'))
+        self.assertContains(page, 'Thông tin tiện ích đang được chủ trọ cập nhật.')
+        self.assertFalse(PropertyInfo.objects.exists())
+        self.assertEqual(page.context['living_room_amenities'], [])
+        self.assertEqual(page.context['living_shared_amenities'], [])
 
 
 class BookingTests(TestCase):

@@ -14,11 +14,55 @@
 </section>
 <div class="hero-search-wrap">{% url 'home' as filter_url %}{% include 'public/_room_filters.html' %}</div>
 
-<div class="public-benefits"><span><i class="bi bi-door-open"></i> Xem phòng trước khi quyết định</span><span><i class="bi bi-calendar2-check"></i> Chủ động chọn lịch hẹn</span><span><i class="bi bi-person-check"></i> Đặt lịch không cần tài khoản</span></div>
+<section class="minhtam-values" aria-labelledby="minhtam-values-title">
+  <div class="minhtam-values-heading">
+    <span class="values-kicker"><i class="bi bi-house-heart" aria-hidden="true"></i> NHÀ TRỌ ẤM ÁP</span>
+    <h2 id="minhtam-values-title">An tâm ở trọ <em>cùng Minh Tâm.</em></h2>
+    <p>Chọn phòng phù hợp, hiểu rõ chi phí và chủ động theo dõi việc thuê ngay trên ứng dụng.</p>
+  </div>
+  <ul class="minhtam-values-grid">
+    <li class="minhtam-value-card value-terracotta">
+      <span class="value-icon" aria-hidden="true"><i class="bi bi-door-open"></i></span>
+      <span class="value-number" aria-hidden="true">01</span>
+      <h3>Xem trước, chọn đúng</h3>
+      <p>Xem thông tin phòng, đặt lịch và đến xem trực tiếp trước khi quyết định.</p>
+    </li>
+    <li class="minhtam-value-card value-sage">
+      <span class="value-icon" aria-hidden="true"><i class="bi bi-receipt"></i></span>
+      <span class="value-number" aria-hidden="true">02</span>
+      <h3>Chi phí rõ ràng</h3>
+      <p>Giá thuê, điện nước và các dịch vụ được hiển thị để bạn dễ cân nhắc.</p>
+    </li>
+    <li class="minhtam-value-card value-sand">
+      <span class="value-icon" aria-hidden="true"><i class="bi bi-phone"></i></span>
+      <span class="value-number" aria-hidden="true">03</span>
+      <h3>Việc thuê trong tầm tay</h3>
+      <p>Tra cứu hợp đồng, hóa đơn và lịch sử thanh toán ngay trên ứng dụng.</p>
+    </li>
+    <li class="minhtam-value-card value-blue">
+      <span class="value-icon" aria-hidden="true"><i class="bi bi-chat-square-heart"></i></span>
+      <span class="value-number" aria-hidden="true">04</span>
+      <h3>Kết nối với chủ trọ</h3>
+      <p>Gửi yêu cầu sửa chữa kèm ảnh và theo dõi phản hồi từ chủ trọ.</p>
+    </li>
+  </ul>
+</section>
+
+{% include 'public/_living_amenities.html' %}
 
 <section class="room-section" id="phong-trong" aria-labelledby="rooms-heading">
   <div class="public-section-head"><div><span class="eyebrow">CHỌN MỘT KHÔNG GIAN CHO RIÊNG BẠN</span><h2 id="rooms-heading">{% if has_filters %}Phòng phù hợp với bạn{% else %}Căn phòng tiếp theo của bạn{% endif %}<span class="count-bubble">{{ filtered_count }}</span></h2><p>{% if has_filters %}Tìm thấy {{ filtered_count }} phòng phù hợp với tìm kiếm của bạn.{% else %}Phòng đang cho thuê · Chọn một căn phòng, đến xem và cảm nhận.{% endif %}</p></div><a class="btn btn-outline-brand" href="{% url 'public_rooms' %}">Xem tất cả phòng <i class="bi bi-arrow-up-right"></i></a></div>
-  {% if rooms %}<div class="row g-4">{% for r in rooms %}<div class="col-12 col-md-6 col-lg-4">{% include 'public/_room_card.html' %}</div>{% endfor %}</div>
+  {% if rooms %}
+  <div class="room-showcase" data-room-showcase>
+    <ul class="room-showcase-track" id="homeRoomTrack" tabindex="0" aria-label="Danh sách phòng, dùng mũi tên trái phải để xem thêm">
+      {% for r in rooms %}<li class="room-showcase-slide">{% include 'public/_room_card.html' %}</li>{% endfor %}
+    </ul>
+    <nav class="room-showcase-nav" aria-label="Chuyển phòng trên trang chủ" hidden>
+      <button class="room-showcase-arrow" type="button" data-room-previous aria-label="Xem các phòng trước" aria-controls="homeRoomTrack"><i class="bi bi-arrow-left" aria-hidden="true"></i></button>
+      <span class="room-showcase-range" role="status" aria-live="polite" aria-atomic="true"></span>
+      <button class="room-showcase-arrow" type="button" data-room-next aria-label="Xem các phòng tiếp theo" aria-controls="homeRoomTrack"><i class="bi bi-arrow-right" aria-hidden="true"></i></button>
+    </nav>
+  </div>
   {% else %}{% include 'public/_empty_rooms.html' %}{% endif %}
 </section>
 
@@ -27,3 +71,4 @@
   <div class="guide-steps"><article><span class="guide-number">01</span><div><h3>Chọn phòng bạn thích</h3><p>Xem giá, diện tích và tiện ích để tìm căn phòng phù hợp.</p></div><i class="bi bi-house-door"></i></article><article><span class="guide-number">02</span><div><h3>Hẹn một buổi đến xem</h3><p>Để lại thông tin liên hệ và chọn ngày, buổi thuận tiện cho bạn.</p></div><i class="bi bi-calendar2-heart"></i></article><article><span class="guide-number">03</span><div><h3>Gặp nhau tại Minh Tâm</h3><p>Lưu mã lịch hẹn. Chủ trọ sẽ liên hệ xác nhận và đón bạn.</p></div><i class="bi bi-key"></i></article></div>
 </section>
 {% endblock %}
+{% block scripts %}<script src="{% static 'js/home-rooms.js' %}?v=20261125-2" defer></script>{% endblock %}

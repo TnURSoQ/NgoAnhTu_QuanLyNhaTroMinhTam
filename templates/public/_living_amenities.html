@@ -1,0 +1,30 @@
+<section class="living-amenities" aria-labelledby="living-amenities-title">
+  <div class="living-amenities-heading">
+    <span class="values-kicker">CHĂM CHÚT TỪ NHỮNG ĐIỀU NHỎ</span>
+    <h2 id="living-amenities-title">Không gian sống <em>tiện nghi.</em></h2>
+    <p>Những tiện ích cho sinh hoạt hằng ngày, để bạn tìm được căn phòng phù hợp và thoải mái khi ở lại.</p>
+  </div>
+  {% if living_room_amenities or living_shared_amenities %}
+  <div class="living-amenities-panel">
+    {% if living_room_amenities %}
+    <div class="living-amenities-group">
+      <div class="living-group-heading"><h3>Tiện ích trong phòng</h3></div>
+      <ul class="living-amenities-grid">{% for amenity in living_room_amenities %}
+        <li class="living-amenity"><span class="living-amenity-icon" aria-hidden="true"><i class="bi {{ amenity.icon }}"></i></span><span>{{ amenity.name }}</span></li>
+      {% endfor %}</ul>
+    </div>
+    {% endif %}
+    {% if living_shared_amenities %}
+    <div class="living-amenities-group living-amenities-shared">
+      <div class="living-group-heading"><h3>Tiện ích chung của nhà trọ</h3></div>
+      <ul class="living-amenities-grid">{% for amenity in living_shared_amenities %}
+        <li class="living-amenity"><span class="living-amenity-icon" aria-hidden="true"><i class="bi {{ amenity.icon }}"></i></span><span>{{ amenity.name }}</span></li>
+      {% endfor %}</ul>
+    </div>
+    {% endif %}
+  </div>
+  <p class="living-amenities-note"><i class="bi bi-info-circle" aria-hidden="true"></i> Tiện ích trong phòng có thể khác nhau. Xem chi tiết từng phòng trước khi đặt lịch.</p>
+  {% else %}
+  <p class="living-amenities-empty">Thông tin tiện ích đang được chủ trọ cập nhật. Bạn có thể xem thông tin từng phòng hoặc hẹn đến xem trực tiếp.</p>
+  {% endif %}
+</section>

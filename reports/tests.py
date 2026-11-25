@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.html import strip_tags
 
 from accounts.models import Tenant, User
 from billing.models import Invoice, Payment
@@ -174,7 +175,7 @@ class OverviewTests(TestCase):
         self.assertEqual(ctx['rooms_total'], 5)     # 1, 2, 3, 101, 102
         self.assertEqual(ctx['rooms_empty'], 2)     # 1 và 2; 101 và 102 đã có hợp đồng
         self.assertEqual(ctx['month_unpaid'], Decimal('1500000'))  # chỉ tính tháng này, trừ phần đã thu
-        self.assertContains(r, '1.500.000 đ')
+        self.assertIn('1.500.000 đ', strip_tags(r.content.decode()))
 
     def test_tasks_overdue_invoices_and_expiring_contracts(self):
         past = self.today - timedelta(days=5)
