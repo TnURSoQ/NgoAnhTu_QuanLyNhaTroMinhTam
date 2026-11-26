@@ -63,14 +63,17 @@ class SharedAmenitiesTests(SupportBase):
             self.assertEqual(page.status_code, 302)
             self.assertEqual(PropertyInfo.current().shared_amenities, self.info.shared_amenities)
 
-    def test_common_block_is_separate_on_public_owner_and_tenant_room_pages(self):
+    def test_common_block_shows_on_public_and_tenant_pages_but_not_owner_room_detail(self):
         for route, args in (('home', []), ('public_room_detail', [self.room.pk])):
             page = self.client.get(reverse(route, args=args))
             self.assertContains(page, 'Tiện ích chung của nhà trọ')
             self.assertContains(page, 'Chỗ để xe')
             self.assertContains(page, 'Camera an ninh')
         self.client.force_login(self.owner)
-        self.assertContains(self.client.get(reverse('room_detail', args=[self.room.pk])), 'Tiện ích chung của nhà trọ')
+        page = self.client.get(reverse('room_detail', args=[self.room.pk]))
+        self.assertNotContains(page, 'Tiện ích chung của nhà trọ')
+        self.assertContains(page, 'Tiện ích trong phòng')
+        self.assertContains(page, 'Điều hòa')
         self.client.force_login(self.user)
         self.assertContains(self.client.get(reverse('my_room')), 'Tiện ích chung của nhà trọ')
 

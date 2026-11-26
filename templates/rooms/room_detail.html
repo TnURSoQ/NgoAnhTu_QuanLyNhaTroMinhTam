@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Phòng {{ room.room_number }} · Nhà trọ Minh Tâm{% endblock %}
 {% block content %}
 <a class="back-link" href="{% url 'room_list' %}"><i class="bi bi-arrow-left"></i> Quay lại danh sách phòng</a>
@@ -18,10 +19,7 @@
 
 <div class="row g-4">
   <div class="col-12 col-xl-8">
-    <section class="soft-card p-3 p-md-4 mb-4"><div class="section-head"><h2>Ảnh phòng</h2></div>
-      {% if room.photos.all %}<div class="room-photo-gallery">{% for photo in room.photos.all %}<figure><a href="{{ photo.image.url }}" target="_blank" rel="noopener"><img src="{{ photo.image.url }}" alt="{{ photo.caption|default:'Ảnh phòng' }} {{ room.room_number }}" loading="lazy" width="900" height="600"></a>{% if photo.caption %}<figcaption>{{ photo.caption }}</figcaption>{% endif %}</figure>{% endfor %}</div>
-      {% else %}<div class="room-photo-placeholder"><i class="bi bi-images" aria-hidden="true"></i><p class="mb-2">Phòng này chưa có ảnh.</p><a href="{% url 'room_update' room.pk %}#roomPhotos">Thêm ảnh khi sửa thông tin phòng</a></div>{% endif %}
-    </section>
+    {% include 'rooms/_photo_gallery.html' %}
     <section class="soft-card p-4 mb-4">
       <div class="section-head"><h2>Thông tin cơ bản</h2></div>
       <div class="info-row"><span>Diện tích</span><strong>{% if room.area %}{{ room.area|floatformat:"-2" }} m²{% else %}-{% endif %}</strong></div>
@@ -96,4 +94,7 @@
     </section>
   </div>
 </div>
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'js/owner-room-gallery.js' %}?v=20261126-1" defer></script>
 {% endblock %}

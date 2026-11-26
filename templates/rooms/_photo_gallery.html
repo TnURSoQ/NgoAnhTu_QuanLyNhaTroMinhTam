@@ -1,0 +1,51 @@
+{% with photos=room.photos.all %}
+<section class="soft-card p-3 p-md-4 mb-4 owner-room-gallery" data-owner-room-gallery aria-label="Ảnh phòng {{ room.room_number }}">
+  <div class="section-head"><h2>Ảnh phòng</h2></div>
+  {% if photos %}
+  <div class="owner-gallery-stage">
+    <a class="owner-gallery-main" href="{{ photos.0.image.url }}" target="_blank" rel="noopener" data-photo-open aria-label="Xem lớn ảnh phòng {{ room.room_number }}">
+      <img src="{{ photos.0.image.url }}" alt="{{ photos.0.caption|default:'Ảnh phòng' }} {{ room.room_number }}" width="900" height="600" data-photo-main>
+      <span class="owner-gallery-enlarge"><i class="bi bi-arrows-fullscreen" aria-hidden="true"></i> Xem lớn</span>
+    </a>
+    {% if photos|length > 1 %}
+    <button class="owner-gallery-arrow owner-gallery-prev" type="button" data-photo-prev aria-label="Ảnh trước"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>
+    <button class="owner-gallery-arrow owner-gallery-next" type="button" data-photo-next aria-label="Ảnh tiếp theo"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
+    {% endif %}
+    <span class="owner-gallery-count" data-photo-count aria-live="polite" aria-atomic="true">1 / {{ photos|length }}</span>
+  </div>
+  <p class="owner-gallery-caption small text-muted mt-2 mb-0" data-photo-caption title="{{ photos.0.caption }}"{% if not photos.0.caption %} hidden{% endif %}>{{ photos.0.caption }}</p>
+  {% if photos|length > 1 %}
+  <nav class="owner-gallery-thumbnails" aria-label="Chọn ảnh phòng">
+    {% for photo in photos %}
+    <a class="owner-gallery-thumb" href="{{ photo.image.url }}" target="_blank" rel="noopener" data-photo-thumb data-caption="{{ photo.caption }}" aria-label="Xem ảnh {{ forloop.counter }} / {{ photos|length }}"{% if forloop.first %} aria-current="true"{% endif %}>
+      <img src="{{ photo.image.url }}" alt="{{ photo.caption|default:'Ảnh phòng' }} {{ room.room_number }}" loading="lazy" width="80" height="60">
+    </a>
+    {% endfor %}
+  </nav>
+  {% endif %}
+  <div class="modal fade owner-gallery-modal" id="ownerRoomPhotoModal" tabindex="-1" aria-labelledby="ownerRoomPhotoTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title fs-5" id="ownerRoomPhotoTitle">Ảnh phòng P.{{ room.room_number }}</h2>
+          <span class="text-muted ms-auto me-3" data-photo-count>1 / {{ photos|length }}</span>
+          <button type="button" class="btn-close m-0" data-bs-dismiss="modal" aria-label="Đóng ảnh"></button>
+        </div>
+        <div class="modal-body">
+          <div class="owner-gallery-stage">
+            <img class="owner-gallery-full" src="{{ photos.0.image.url }}" alt="{{ photos.0.caption|default:'Ảnh phòng' }} {{ room.room_number }}" data-photo-full>
+            {% if photos|length > 1 %}
+            <button class="owner-gallery-arrow owner-gallery-prev" type="button" data-photo-prev aria-label="Ảnh trước"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>
+            <button class="owner-gallery-arrow owner-gallery-next" type="button" data-photo-next aria-label="Ảnh tiếp theo"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
+            {% endif %}
+          </div>
+          <p class="small text-muted mt-3 mb-0 text-break" data-photo-caption{% if not photos.0.caption %} hidden{% endif %}>{{ photos.0.caption }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="room-photo-placeholder"><i class="bi bi-images" aria-hidden="true"></i><p class="mb-2">Phòng này chưa có ảnh.</p><a href="{% url 'room_update' room.pk %}#roomPhotos">Thêm ảnh khi sửa thông tin phòng</a></div>
+  {% endif %}
+</section>
+{% endwith %}
