@@ -3,9 +3,15 @@
   if (!form) return;
   const money = value => Math.trunc(value).toLocaleString('vi-VN') + ' đ';
   const field = (row, name) => row.querySelector(`[name$="-${name}"]`);
-  const number = input => {
-    const value = input.value.trim().replace(',', '.');
-    return /^\d+(\.\d{1,2})?$/.test(value) ? Number(value) : null;
+  const number = (input, electric = false) => {
+    let value = input.value.trim();
+    if (electric && value.includes(',')) {
+      if (!/^(?:\d+|\d{1,3}(?:\.\d{3})+),\d$/.test(value)) return null;
+      value = value.replaceAll('.', '');
+    } else if (electric && /^\d{1,3}(?:\.\d{3})+$/.test(value)) value = value.replaceAll('.', '');
+    value = value.replace(',', '.');
+    const pattern = electric ? /^\d+(\.\d)?$/ : /^\d+(\.\d{1,2})?$/;
+    return pattern.test(value) && (!electric || Number(value) <= 99999.9) ? Number(value) : null;
   };
   function preview(row) {
     let total = 0, complete = true, invalid = false;
@@ -29,22 +35,28 @@
         }
         continue;
       }
-      const old = number(field(row, 'old_' + utility));
-      const next = number(field(row, 'new_' + utility));
+      const isElectric = utility === 'electric';
+      const old = number(field(row, 'old_' + utility), isElectric);
+      const next = number(field(row, 'new_' + utility), isElectric);
       const priceText = row.dataset[utility + 'Price'];
       const price = priceText === '' ? null : Number(priceText);
       const target = row.querySelector('.' + utility + '-preview');
-      if (old === null || next === null || price === null) {
+      const invalidElectric = isElectric && ['old_electric', 'new_electric'].some(name => field(row, name).value.trim() && number(field(row, name), true) === null);
+      if (invalidElectric) {
+        invalid = true;
+        target.textContent = 'Điện: 0–99.999,9 kWh, tối đa 1 số lẻ';
+      } else if (old === null || next === null || price === null) {
         complete = false;
         target.textContent = 'Chờ nhập đủ chỉ số và đơn giá';
       } else if (next < old || price <= 0) {
         invalid = true;
         target.textContent = next < old ? 'Chỉ số mới phải ≥ chỉ số cũ' : 'Cần đơn giá lớn hơn 0';
       } else {
-        const hundredths = Math.round(next * 100) - Math.round(old * 100);
-        const fee = Math.trunc(hundredths * price / 100);
+        const scale = isElectric ? 10 : 100;
+        const units = Math.round(next * scale) - Math.round(old * scale);
+        const fee = Math.trunc(units * price / scale);
         total += fee;
-        target.textContent = (hundredths / 100).toLocaleString('vi-VN') +
+        target.textContent = (units / scale).toLocaleString('vi-VN', {maximumFractionDigits: isElectric ? 1 : 2}) +
           (utility === 'electric' ? ' kWh · ' : ' m³ · ') + money(fee);
       }
     }

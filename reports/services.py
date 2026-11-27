@@ -8,16 +8,18 @@ from urllib.parse import urlencode
 from django.db.models import Count, Prefetch, Q
 from django.utils import timezone
 
-from billing.models import Invoice, InvoiceDraft, Payment
+from billing.models import Invoice, InvoiceDraft, Payment, WaterBillingMethod
 from rooms.display import representative_of, room_status_ui
 from rooms.models import Contract, DepositEntry, Room
 from support.models import MaintenanceRequest
+from .charts import report_charts
 
 
 @dataclass(frozen=True)
 class ReportPeriod:
     year: int
     month: int = 0
+    floor: int | None = None
 
     @property
     def first(self):
@@ -34,7 +36,14 @@ class ReportPeriod:
 
     @property
     def query(self):
-        return urlencode({'year': self.year, 'month': self.month})
+        params = {'year': self.year, 'month': self.month}
+        if self.floor is not None:
+            params['floor'] = self.floor
+        return urlencode(params)
+
+    @property
+    def scope_label(self):
+        return 'Tất cả các tầng' if self.floor is None else f'Tầng {self.floor}'
 
 
 def report_period(params, *, strict=False):
@@ -43,20 +52,24 @@ def report_period(params, *, strict=False):
     try:
         year = int(params.get('year', today.year))
         month = int(params.get('month') or 0)
-        if not 2000 <= year <= 2100 or not 0 <= month <= 12:
+        floor = int(params['floor']) if params.get('floor') not in (None, '') else None
+        if not 2000 <= year <= 2100 or not 0 <= month <= 12 or floor is not None and not 0 <= floor <= 32767:
             raise ValueError
     except (ValueError, TypeError):
         if strict:
-            raise ValueError('Kỳ báo cáo không hợp lệ. Chọn năm 2000–2100 và tháng 1–12 hoặc cả năm.')
+            raise ValueError('Kỳ báo cáo không hợp lệ. Kiểm tra lại năm, tháng và tầng đã chọn.')
         year, month = today.year, 0
+        floor = None
         error = 'Kỳ báo cáo không hợp lệ. Đang hiển thị cả năm hiện tại; vui lòng chọn lại.'
-    return ReportPeriod(year, month), error
+    return ReportPeriod(year, month, floor), error
 
 
 def cashbook_rows(period):
     """Cash is counted once; linked offsets retain both sides of the internal ledger."""
     rows = []
     payments = Payment.objects.filter(paid_date__range=(period.first, period.last)).select_related('invoice__contract__room')
+    if period.floor is not None:
+        payments = payments.filter(invoice__contract__room__floor=period.floor)
     for payment in payments:
         contract = payment.invoice.contract
         internal = payment.method == Payment.Method.TU_COC
@@ -72,6 +85,8 @@ def cashbook_rows(period):
                      'cash_out': 0, 'internal': payment.amount if internal and not payment.is_voided else 0,
                      'method': payment.get_method_display(), 'note': note, 'sort': (0, payment.pk)})
     entries = DepositEntry.objects.filter(occurred_on__range=(period.first, period.last)).select_related('contract__room')
+    if period.floor is not None:
+        entries = entries.filter(contract__room__floor=period.floor)
     for entry in entries:
         internal = (entry.amount if entry.kind == DepositEntry.Kind.TRANSFER_IN else -entry.amount
                     if entry.kind in (DepositEntry.Kind.TRANSFER_OUT, DepositEntry.Kind.DEDUCT, DepositEntry.Kind.PAY_INVOICE) else 0)
@@ -87,7 +102,10 @@ def cashbook_rows(period):
 
 def build_report(period):
     today = timezone.localdate()
-    payments = list(Payment.objects.active().filter(paid_date__range=(period.first, period.last)))
+    payment_qs = Payment.objects.active().filter(paid_date__range=(period.first, period.last))
+    if period.floor is not None:
+        payment_qs = payment_qs.filter(invoice__contract__room__floor=period.floor)
+    payments = list(payment_qs)
     months = []
     for month in ([period.month] if period.month else range(1, 13)):
         group = [p for p in payments if p.paid_date.month == month]
@@ -103,9 +121,12 @@ def build_report(period):
     deposit_applied = sum(m['deposit'] for m in months)
 
     # Derive balances from payments, never from cached invoice.status and never by writing on GET.
-    invoices = list(Invoice.objects.select_related('contract__room').prefetch_related(
+    invoice_qs = Invoice.objects.select_related('contract__room', 'utility_reading').prefetch_related(
         Prefetch('payments', queryset=Payment.objects.active(), to_attr='report_payments'),
-        'contract__contract_tenants__tenant').order_by('due_date', 'pk'))
+        'contract__contract_tenants__tenant').order_by('due_date', 'pk')
+    if period.floor is not None:
+        invoice_qs = invoice_qs.filter(contract__room__floor=period.floor)
+    invoices = list(invoice_qs)
     debts, issued = [], []
     contract_debts = defaultdict(int)
     aging = [{'label': 'Chưa quá hạn', 'amount': 0, 'count': 0},
@@ -120,6 +141,10 @@ def build_report(period):
         row = {'invoice': invoice, 'tenant': representative_of(invoice.contract), 'paid': paid,
                'remaining': remaining, 'overdue_days': days,
                'other_fee': invoice.total_amount - invoice.room_fee - invoice.electric_fee - invoice.water_fee}
+        state = (Invoice.Status.DA_THANH_TOAN if not remaining else Invoice.Status.QUA_HAN if days else
+                 Invoice.Status.THU_MOT_PHAN if paid else Invoice.Status.CHUA_THANH_TOAN)
+        row.update(payment_status=state, payment_label=state.label,
+                   payment_tone='mint' if not remaining else 'rose' if days else 'amber')
         if invoice.year == period.year and (not period.month or invoice.month == period.month):
             issued.append(row)
         if remaining:
@@ -131,12 +156,17 @@ def build_report(period):
     issued.sort(key=lambda r: (r['invoice'].year, r['invoice'].month, r['invoice'].contract.room.room_number, r['invoice'].pk))
 
     drafts = InvoiceDraft.objects.filter(invoice__isnull=True)
+    if period.floor is not None:
+        drafts = drafts.filter(contract__room__floor=period.floor)
     draft_counts = dict(drafts.values_list('contract_id').annotate(n=Count('pk')))
     period_drafts = drafts.filter(year=period.year)
     if period.month:
         period_drafts = period_drafts.filter(month=period.month)
 
-    entries = list(DepositEntry.objects.all())
+    entry_qs = DepositEntry.objects.all()
+    if period.floor is not None:
+        entry_qs = entry_qs.filter(contract__room__floor=period.floor)
+    entries = list(entry_qs)
     plus = (DepositEntry.Kind.RECEIVE, DepositEntry.Kind.TRANSFER_IN)
     def balance(items):
         return sum(e.amount if e.kind in plus else -e.amount for e in items)
@@ -147,7 +177,10 @@ def build_report(period):
     balances = defaultdict(int)
     for entry in entries:
         balances[entry.contract_id] += entry.amount if entry.kind in plus else -entry.amount
-    contracts = list(Contract.objects.select_related('room').prefetch_related('contract_tenants__tenant').order_by('room__room_number', 'pk'))
+    contract_qs = Contract.objects.select_related('room').prefetch_related('contract_tenants__tenant').order_by('room__room_number', 'pk')
+    if period.floor is not None:
+        contract_qs = contract_qs.filter(room__floor=period.floor)
+    contracts = list(contract_qs)
     deposit_contracts, expiring = [], []
     for contract in contracts:
         held = balances[contract.pk]
@@ -162,7 +195,10 @@ def build_report(period):
                              'days': (contract.end_date - today).days})
     expiring.sort(key=lambda r: (r['contract'].end_date, r['contract'].pk))
     active_by_room = {c.room_id: c for c in contracts if c.status == Contract.Status.HIEU_LUC}
-    rooms = list(Room.objects.order_by('floor', 'room_number'))
+    room_qs = Room.objects.order_by('floor', 'room_number')
+    if period.floor is not None:
+        room_qs = room_qs.filter(floor=period.floor)
+    rooms = list(room_qs)
     room_stats = {'total': len(rooms), 'dang_thue': 0, 'trong': 0, 'bao_tri': 0}
     room_rows, people = [], set()
     for room in rooms:
@@ -177,10 +213,13 @@ def build_report(period):
     room_stats['pct_trong'] = round(room_stats['trong'] * 100 / len(rooms), 1) if rooms else 0
     room_stats['pct_occupied'] = round(room_stats['dang_thue'] * 100 / len(rooms), 1) if rooms else 0
 
-    repairs = list(MaintenanceRequest.objects.filter(
+    repair_qs = MaintenanceRequest.objects.filter(
         Q(created_at__date__range=(period.first, period.last)) |
         Q(status=MaintenanceRequest.Status.HOAN_THANH, resolved_at__date__range=(period.first, period.last)) |
-        Q(status__in=['da_gui', 'dang_xu_ly'])).select_related('room', 'tenant'))
+        Q(status__in=['da_gui', 'dang_xu_ly'])).select_related('room', 'tenant')
+    if period.floor is not None:
+        repair_qs = repair_qs.filter(room__floor=period.floor)
+    repairs = list(repair_qs)
     created_repairs = []
     completed = pending = 0
     for repair in repairs:
@@ -200,7 +239,8 @@ def build_report(period):
     years.update(DepositEntry.objects.values_list('occurred_on__year', flat=True))
     years.update(MaintenanceRequest.objects.values_list('created_at__year', flat=True))
     years.update(MaintenanceRequest.objects.filter(resolved_at__isnull=False).values_list('resolved_at__year', flat=True))
-    return {'period': period, 'year': period.year, 'years': sorted(years | {today.year, period.year}, reverse=True),
+    report = {'period': period, 'year': period.year, 'years': sorted(years | {today.year, period.year}, reverse=True),
+        'floors': sorted(set(Room.objects.values_list('floor', flat=True)) | ({period.floor} if period.floor is not None else set())),
         'today': today, 'month_choices': range(1, 13), 'months': months, 'year_total': cash_received + deposit_applied,
         'cash_received': cash_received, 'cash_collected': sum(m['cash'] for m in months),
         'bank_collected': sum(m['bank'] for m in months), 'deposit_applied': deposit_applied,
@@ -219,3 +259,25 @@ def build_report(period):
         'repair_stats': repair_stats, 'repairs': repairs, 'cashbook': cashbook,
         'cashbook_preview': list(reversed([r for r in cashbook if not r.get('linked_offset_ledger')][-50:])),
         'cash_in': sum(row['cash_in'] for row in cashbook), 'cash_out': sum(row['cash_out'] for row in cashbook)}
+    report['charts'] = report_charts(report, payments)
+    utility_rows = []
+    for row in issued:
+        invoice = row['invoice']
+        reading = invoice.utility_reading
+        per_person = invoice.water_billing_method == WaterBillingMethod.PER_PERSON
+        utility_rows.append({**row, 'reading': reading, 'per_person': per_person,
+            'electric_usage': reading.electric_usage() if reading else None,
+            'water_usage': reading.water_usage() if reading and not per_person else None,
+            'water_people': invoice.water_people_count if per_person else None,
+            'electric_matches': invoice.electric_calculation_matches,
+            'water_matches': invoice.water_calculation_matches})
+    report['utility_rows'] = utility_rows
+    report['utility_totals'] = {
+        'fees': report['invoice_electric'] + report['invoice_water'],
+        'electric': sum(row['electric_usage'] for row in utility_rows if row['electric_usage'] is not None),
+        'water': sum(row['water_usage'] for row in utility_rows if row['water_usage'] is not None),
+        'people': sum(row['water_people'] for row in utility_rows if row['water_people'] is not None),
+        'missing_electric': sum(row['electric_usage'] is None for row in utility_rows),
+        'missing_water': sum(row['water_people'] is None if row['per_person'] else row['water_usage'] is None for row in utility_rows),
+    }
+    return report

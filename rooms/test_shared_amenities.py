@@ -113,7 +113,8 @@ class SharedAmenitiesMigrationTests(TransactionTestCase):
     def test_existing_shared_tokens_move_without_altering_prices_or_other_room_fields(self):
         executor = MigrationExecutor(connection)
         latest = executor.loader.graph.leaf_nodes()
-        target = [node for node in latest if node[0] != 'rooms'] + [('rooms', '0016_simplify_identity_profile')]
+        target = [node for node in latest if node[0] not in ('billing', 'rooms')] + [
+            ('billing', '0015_water_per_person'), ('rooms', '0016_simplify_identity_profile')]
         try:
             executor.migrate(target)
             apps = executor.loader.project_state(target).apps

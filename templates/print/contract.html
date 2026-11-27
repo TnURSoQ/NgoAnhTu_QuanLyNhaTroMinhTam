@@ -7,7 +7,7 @@
 <tr><th>Cọc thỏa thuận</th><td>{{ contract.agreed_deposit|floatformat:'0g' }} đ</td></tr>
 <tr><th>Cọc thực tế đang giữ</th><td>{{ contract.deposit_balance|floatformat:'0g' }} đ</td></tr>
 <tr><th>Tiền phòng tháng đầu</th><td>{% if contract.prorate_first_month %}Theo ngày ở và số ngày trong tháng{% else %}Trọn tháng theo thỏa thuận{% endif %}</td></tr>
-<tr><th>Chỉ số công tơ lúc nhận phòng</th><td>Điện: {{ contract.initial_electric|default_if_none:'Chưa ghi nhận' }}{% if contract.initial_water != None %} · Nước (chỉ số lưu trước đây): {{ contract.initial_water }}{% endif %}</td></tr>
+<tr><th>Chỉ số công tơ lúc nhận phòng</th><td>Điện: {{ contract.initial_electric|floatformat:'-1g'|default:'Chưa ghi nhận' }}{% if contract.initial_water != None %} · Nước (chỉ số lưu trước đây): {{ contract.initial_water }}{% endif %}</td></tr>
 {% if utility_rate %}<tr><th>Đơn giá nước hiện hành</th><td>{{ utility_rate.water_price|floatformat:'0g' }} {{ utility_rate.water_unit_label }} · Hiệu lực từ {{ utility_rate.effective_date|date:'d/m/Y' }}.{% if utility_rate.water_billing_method == 'per_person' %} Thu đủ tháng theo số người chủ trọ chốt trong kỳ; không chia theo ngày ở. Số người và đơn giá từng kỳ được lưu trên hóa đơn.{% endif %}</td></tr>{% endif %}
 <tr><th>Dịch vụ ghi nhận</th><td>{% if contract.use_default_services %}Theo danh mục chung{% else %}{% for service in contract.services.all %}{{ service.name }}{% if not forloop.last %}, {% endif %}{% empty %}Không đăng ký{% endfor %}{% endif %}</td></tr>
 <tr><th>Trạng thái</th><td>{{ contract.status_label }}{% if contract.checkout_date %} · Trả phòng ngày {{ contract.checkout_date|date:'d/m/Y' }}{% endif %}</td></tr>

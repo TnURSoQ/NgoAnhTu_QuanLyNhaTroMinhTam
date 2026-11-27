@@ -1,0 +1,48 @@
+<div class="reports-page">
+  <header class="report-page-head">
+    <div><p class="report-eyebrow">NHÀ TRỌ MINH TÂM</p><h1>Báo cáo &amp; thống kê</h1><p class="text-muted mb-0">Nắm dòng tiền, theo dõi công nợ và tình hình cho thuê.</p></div>
+    <div class="report-export-actions"><a class="btn btn-outline-brand" href="{% url 'report_excel' %}?{{ period.query }}"><i class="bi bi-file-earmark-excel" aria-hidden="true"></i> Xuất Excel</a><a class="btn btn-primary" href="{% url 'report_print' %}?{{ period.query }}" target="_blank" rel="noopener"><i class="bi bi-download" aria-hidden="true"></i> In / Lưu PDF</a></div>
+  </header>
+  {% if filter_error %}<div class="alert alert-warning">{{ filter_error }}</div>{% endif %}
+  <form method="get" class="soft-card report-filter-bar">
+    <div class="report-filter-intro"><span class="report-filter-icon"><i class="bi bi-sliders2" aria-hidden="true"></i></span><div><strong>Kỳ báo cáo</strong><small>{{ period.first|date:'d/m/Y' }} – {{ period.last|date:'d/m/Y' }}</small></div></div>
+    <div class="report-filter-field"><label for="reportYear">Năm</label><select id="reportYear" name="year" class="form-select">{% for y in years %}<option value="{{ y }}"{% if y == year %} selected{% endif %}>{{ y }}</option>{% endfor %}</select></div>
+    <div class="report-filter-field"><label for="reportMonth">Thời gian</label><select id="reportMonth" name="month" class="form-select"><option value="0">Cả năm</option>{% for m in month_choices %}<option value="{{ m }}"{% if period.month == m %} selected{% endif %}>Tháng {{ m }}</option>{% endfor %}</select></div>
+    <div class="report-filter-field"><label for="reportFloor">Khu vực</label><select id="reportFloor" name="floor" class="form-select"><option value="">Tất cả tầng</option>{% for floor in floors %}<option value="{{ floor }}"{% if period.floor == floor %} selected{% endif %}>Tầng {{ floor }}</option>{% endfor %}</select></div>
+    <button class="btn btn-primary" type="submit">Xem báo cáo</button>
+  </form>
+  <div class="report-scope-line"><span><i class="bi bi-calendar3" aria-hidden="true"></i> {{ period.label|capfirst }} <span aria-hidden="true">·</span> {{ period.scope_label }}</span><span>Công nợ &amp; tình trạng phòng: {{ today|date:'d/m/Y' }}</span></div>
+  <div class="report-kpi-grid">
+    <section class="soft-card report-kpi report-kpi-featured"><div class="report-kpi-label"><span>Tiền thực thu hóa đơn</span><i class="bi bi-wallet2" aria-hidden="true"></i></div><strong class="value">{{ cash_received|floatformat:'0g' }} <small>đ</small></strong><p class="caption">Tiền mặt + chuyển khoản trong kỳ</p><span class="report-kpi-tag">Không gồm tiền cọc, đối trừ cọc</span></section>
+    <section class="soft-card report-kpi"><div class="report-kpi-label"><span>Giá trị hóa đơn trong kỳ</span><i class="bi bi-receipt" aria-hidden="true"></i></div><strong class="value">{{ invoice_total|floatformat:'0g' }} <small>đ</small></strong><p class="caption">Tiền phòng, điện, nước &amp; dịch vụ</p><span class="report-kpi-foot">{{ invoice_count }} hóa đơn · {{ period_draft_count }} nháp chưa tính</span></section>
+    <section class="soft-card report-kpi"><div class="report-kpi-label"><span>Công nợ chưa thu</span><i class="bi bi-clock-history" aria-hidden="true"></i></div><strong class="value report-value-debt">{{ total_debt|floatformat:'0g' }}<small>đ</small></strong><p class="caption">Số dư hiện tại của tất cả các kỳ</p><a class="report-kpi-foot report-debt-link" href="#reportCurrentDebt" data-open-debt>{{ overdue_count }} hóa đơn quá hạn <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a></section>
+    <section class="soft-card report-kpi"><div class="report-kpi-label"><span>Tỷ lệ lấp đầy</span><i class="bi bi-door-open" aria-hidden="true"></i></div><strong class="value">{{ room_stats.pct_occupied|floatformat:'-1' }}<small>%</small></strong><p class="caption">{{ room_stats.dang_thue }}/{{ room_stats.total }} phòng đang thuê</p><span class="report-kpi-foot">{{ room_stats.trong }} phòng trống · {{ room_stats.bao_tri }} đang sửa</span></section>
+  </div>
+  <div class="report-overview-grid">
+    <section class="soft-card report-chart-card">
+      <div class="report-card-heading"><div><h2>{% if period.month %}Dòng tiền trong tháng{% else %}Thu tiền &amp; hóa đơn theo tháng{% endif %}</h2><p>{% if period.month %}Tiền thực thu theo từng ngày trong {{ period.label }}{% else %}Đối chiếu ngày thu tiền và kỳ lập hóa đơn · {{ year }}{% endif %}</p></div><span class="report-unit-chip">Đơn vị: đ</span></div>
+      <div class="report-chart-legend"><span><i class="legend-line" style="--chart-color: #426b58" aria-hidden="true"></i>Tiền thực thu</span>{% if not period.month %}<span><i class="legend-line legend-dashed" style="--chart-color: #b9563a" aria-hidden="true"></i>Giá trị hóa đơn</span>{% endif %}</div>
+      <div class="report-chart report-trend-chart" data-report-chart="collections" aria-label="Biểu đồ tiền thực thu và hóa đơn theo kỳ"><p class="report-note">Số liệu chi tiết nằm trong mục Thu tiền bên dưới.</p></div>
+      <p class="report-chart-hint report-note mb-0"><i class="bi bi-info-circle" aria-hidden="true"></i> Di chuột hoặc chạm để xem chi tiết. Vuốt ngang biểu đồ trên màn hình nhỏ.</p>
+    </section>
+    <section class="soft-card report-chart-card report-occupancy-card"><div class="report-card-heading"><div><h2>Tình trạng phòng</h2><p>Hiện tại · {{ period.scope_label }}</p></div><i class="bi bi-building text-muted" aria-hidden="true"></i></div><div class="report-chart report-room-chart" data-report-chart="rooms" aria-label="Tỷ lệ phòng đang thuê, trống và sửa chữa"><p class="report-note">{{ room_stats.dang_thue }}/{{ room_stats.total }} phòng đang thuê.</p></div></section>
+  </div>
+  <div class="report-detail-heading"><div><h2>Chi tiết báo cáo</h2><p>Theo dõi từng phòng và đối chiếu số liệu theo nghiệp vụ.</p></div><span class="report-period-badge">{{ period.label|capfirst }}</span></div>
+  <div class="nav nav-tabs report-tabs" role="tablist" aria-label="Loại báo cáo">
+    <button class="nav-link active" id="invoices-tab" data-bs-toggle="tab" data-bs-target="#invoices" type="button" role="tab" aria-controls="invoices" aria-selected="true">Hóa đơn &amp; công nợ</button>
+    <button class="nav-link" id="utilities-tab" data-bs-toggle="tab" data-bs-target="#utilities" type="button" role="tab" aria-controls="utilities" aria-selected="false">Điện &amp; nước</button>
+    <button class="nav-link" id="collections-tab" data-bs-toggle="tab" data-bs-target="#collections" type="button" role="tab" aria-controls="collections" aria-selected="false">Thu tiền</button>
+    <button class="nav-link" id="deposits-tab" data-bs-toggle="tab" data-bs-target="#deposits" type="button" role="tab" aria-controls="deposits" aria-selected="false">Tiền cọc</button>
+    <button class="nav-link" id="rooms-tab" data-bs-toggle="tab" data-bs-target="#rooms" type="button" role="tab" aria-controls="rooms" aria-selected="false">Phòng &amp; hợp đồng</button>
+    <button class="nav-link" id="repairs-tab" data-bs-toggle="tab" data-bs-target="#repairs" type="button" role="tab" aria-controls="repairs" aria-selected="false">Sửa chữa</button>
+  </div>
+  <div class="tab-content">
+    <div class="tab-pane fade show active" id="invoices" role="tabpanel" aria-labelledby="invoices-tab" tabindex="0">{% include 'reports/_invoices.html' %}</div>
+    <div class="tab-pane fade" id="utilities" role="tabpanel" aria-labelledby="utilities-tab" tabindex="0">{% include 'reports/_utilities.html' %}</div>
+    <div class="tab-pane fade" id="collections" role="tabpanel" aria-labelledby="collections-tab" tabindex="0">{% include 'reports/_collections.html' %}</div>
+    <div class="tab-pane fade" id="deposits" role="tabpanel" aria-labelledby="deposits-tab" tabindex="0">{% include 'reports/_deposits.html' %}</div>
+    <div class="tab-pane fade" id="rooms" role="tabpanel" aria-labelledby="rooms-tab" tabindex="0">{% include 'reports/_rooms.html' %}</div>
+    <div class="tab-pane fade" id="repairs" role="tabpanel" aria-labelledby="repairs-tab" tabindex="0">{% include 'reports/_repairs.html' %}</div>
+  </div>
+  <p class="report-finance-note"><i class="bi bi-info-circle" aria-hidden="true"></i> Báo cáo theo dõi tiền thu và giá trị hóa đơn. Chi phí vận hành và lợi nhuận ròng cần sổ chi thực tế để đối chiếu.</p>
+</div>

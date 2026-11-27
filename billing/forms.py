@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from accounts.forms import BootstrapFormMixin
 from accounts.form_fields import FlexibleDecimalField, MoneyField, PlainDecimalInput
+from .form_fields import ElectricMeterFormField
 from .models import InvoiceDraft, Payment, Service, UtilityRate, WaterBillingMethod
 from .services import available_rooms, room_contract, utility_baseline, DUE_DAYS, MAX_FEE
 
@@ -18,10 +19,8 @@ class PeriodForm(BootstrapFormMixin, forms.Form):
 
 class InvoiceCreateForm(PeriodForm):
     room = forms.ModelChoiceField(label='Phòng', queryset=None, empty_label='Chọn phòng')
-    old_electric = FlexibleDecimalField(label='Chỉ số điện cũ', min_value=0, max_digits=10,
-                                        decimal_places=2, widget=PlainDecimalInput)
-    new_electric = FlexibleDecimalField(label='Chỉ số điện mới', min_value=0, max_digits=10,
-                                        decimal_places=2, widget=PlainDecimalInput)
+    old_electric = ElectricMeterFormField(label='Chỉ số điện cũ')
+    new_electric = ElectricMeterFormField(label='Chỉ số điện mới')
     old_water = FlexibleDecimalField(label='Chỉ số nước cũ', min_value=0, max_digits=10,
                                      decimal_places=2, widget=PlainDecimalInput)
     new_water = FlexibleDecimalField(label='Chỉ số nước mới', min_value=0, max_digits=10,
@@ -68,10 +67,8 @@ class InvoiceDraftForm(BootstrapFormMixin, forms.ModelForm):
     revision = forms.IntegerField(min_value=0, widget=forms.HiddenInput)
     preview_token = forms.CharField(max_length=150, widget=forms.HiddenInput)
     room_fee = MoneyField(label='Tiền phòng', min_value=0)
-    old_electric = FlexibleDecimalField(label='Điện cũ', min_value=0, max_digits=10,
-                                        decimal_places=2, required=False, widget=PlainDecimalInput)
-    new_electric = FlexibleDecimalField(label='Điện mới', min_value=0, max_digits=10,
-                                        decimal_places=2, required=False, widget=PlainDecimalInput)
+    old_electric = ElectricMeterFormField(label='Điện cũ', required=False)
+    new_electric = ElectricMeterFormField(label='Điện mới', required=False)
     old_water = FlexibleDecimalField(label='Nước cũ', min_value=0, max_digits=10,
                                      decimal_places=2, required=False, widget=PlainDecimalInput)
     new_water = FlexibleDecimalField(label='Nước mới', min_value=0, max_digits=10,

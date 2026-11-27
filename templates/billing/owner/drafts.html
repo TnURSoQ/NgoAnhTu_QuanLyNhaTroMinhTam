@@ -15,6 +15,7 @@
 {% endif %}
 {% if missing_rate %}<div class="alert alert-warning">Một số phòng chưa có đơn giá điện nước. <a href="{% url 'billing_settings' %}">Thêm đơn giá</a> rồi tải lại bảng để tiếp tục.</div>{% endif %}
 {% if rows %}
+<p class="small text-muted">Công tơ điện có 5 số nguyên và 1 số lẻ: nhập tối đa 99.999,9 kWh, ví dụ 1.611 hoặc 1.611,1.</p>
 <p class="small text-muted">Chỉ số điện cũ lấy từ kỳ trước hoặc lúc nhận phòng. Nước thu đủ tháng theo số người chủ trọ chốt; không chia theo ngày. Kiểm tra số người trước khi phát hành. Đơn giá và dịch vụ được giữ theo bản nháp.</p>
 <form method="post" id="draftsForm" novalidate>{% csrf_token %}
   <input type="hidden" name="month" value="{{ month }}"><input type="hidden" name="year" value="{{ year }}">
@@ -50,4 +51,4 @@
 </form>
 {% else %}<section class="soft-card p-4 text-muted">Không còn phòng chờ nhập trong kỳ này. Bạn có thể tạo nháp cho các phòng đang thuê hoặc xem hóa đơn đã chốt ở danh sách hóa đơn.</section>{% endif %}
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/invoice-drafts.js' %}?v=20261124-water"></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/invoice-drafts.js' %}?v=20261127-meter"></script>{% endblock %}

@@ -26,6 +26,8 @@ def report_excel(context):
                     cell.data_type = 's'  # Room numbers, phone numbers and notes must never become formulas.
                 elif isinstance(cell.value, date):
                     cell.number_format = 'dd/mm/yyyy'
+                elif isinstance(cell.value, Decimal) and name == 'Đối soát điện nước' and cell.column in (3, 4, 5):
+                    cell.number_format = '#,##0.0'
                 elif cell.column in money_columns and isinstance(cell.value, (int, Decimal)):
                     cell.number_format = '#,##0;[Red]-#,##0'
                 cell.alignment = Alignment(vertical='top', wrap_text=True)
@@ -47,6 +49,7 @@ def report_excel(context):
     dp = context['deposit_period']
     sheet('Tổng hợp', ['Hạng mục', 'Giá trị', 'Phạm vi / cách hiểu'], [
         ['Kỳ báo cáo', period.label, f'{period.first:%d/%m/%Y} – {period.last:%d/%m/%Y}'],
+        ['Khu vực', period.scope_label, 'Áp dụng cho toàn bộ số liệu trong file'],
         ['Ngày lập báo cáo', context['today'], 'Công nợ, phòng và hợp đồng thể hiện tình trạng hiện tại'],
         ['Tiền mới nhận thanh toán hóa đơn', context['cash_received'], 'Theo ngày thu trong kỳ; không gồm cọc'],
         ['Thu tiền mặt hóa đơn', context['cash_collected'], 'Theo ngày thu trong kỳ'],
@@ -109,6 +112,16 @@ def report_excel(context):
     sheet('Sửa chữa và tồn đọng', ['Mã yêu cầu', 'Phòng', 'Người gửi', 'Nội dung', 'Danh mục', 'Ưu tiên', 'Trạng thái hiện tại', 'Ngày gửi', 'Ngày hoàn thành', 'Phạm vi'],
         [[r.display_code, r.room.room_number, r.tenant.full_name, r.title, r.get_category_display(),
           r.get_priority_display(), r.get_status_display(), timezone_date(r.created_at), timezone_date(r.resolved_at), r.report_scope] for r in context['repairs']])
+    sheet('Đối soát điện nước', ['Phòng', 'Kỳ', 'Điện cũ', 'Điện mới', 'Điện tiêu thụ (kWh)', 'Đơn giá điện (đ/kWh)', 'Tiền điện (đ)',
+        'Cách tính nước', 'Nước cũ', 'Nước mới', 'Nước tiêu thụ (m³)', 'Nước theo người (người-tháng)', 'Đơn giá nước (đ)', 'Tiền nước (đ)', 'Đối soát'],
+        [[r['invoice'].contract.room.room_number, f"{r['invoice'].month}/{r['invoice'].year}",
+          r['reading'].old_electric if r['reading'] else None, r['reading'].new_electric if r['reading'] else None,
+          r['electric_usage'], r['invoice'].electric_unit_price, r['invoice'].electric_fee,
+          'Theo người' if r['per_person'] else 'Theo công tơ',
+          r['reading'].old_water if r['reading'] and not r['per_person'] else None,
+          r['reading'].new_water if r['reading'] and not r['per_person'] else None,
+          r['water_usage'], r['water_people'], r['invoice'].water_unit_price, r['invoice'].water_fee,
+          'Khớp đơn giá' if r['electric_matches'] and r['water_matches'] else 'Cần đối chiếu'] for r in context['utility_rows']], (6, 7, 13, 14))
     workbook.properties.title = f'Báo cáo quản lý nhà trọ {period.label}'
     workbook.properties.creator = settings.SITE_NAME
     data = BytesIO()

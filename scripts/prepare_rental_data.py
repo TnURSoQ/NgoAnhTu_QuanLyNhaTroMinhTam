@@ -298,7 +298,7 @@ def build_database(target, snapshot):
                 due = min(billing_day + timedelta(days=5), period.replace(day=calendar.monthrange(period.year, period.month)[1]))
                 usage = Decimal(68 + (index * 17 + month_index * 13) % 111)
                 if period == contract.start_date.replace(day=1) and contract.start_date.day > 1:
-                    usage = (usage * (billing_day.day - contract.start_date.day + 1) / billing_day.day).quantize(Decimal('0.01'))
+                    usage = (usage * (billing_day.day - contract.start_date.day + 1) / billing_day.day).quantize(Decimal('0.1'))
                 room_fee = whole_dong(default_room_fee(contract, period.month, period.year))
                 if code == '404' and period.month == contract.checkout_date.month:
                     room_fee = whole_dong(contract.agreed_rent * contract.checkout_date.day /

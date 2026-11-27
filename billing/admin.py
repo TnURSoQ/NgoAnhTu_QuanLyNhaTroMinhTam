@@ -1,13 +1,28 @@
 from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
 
-from .models import UtilityRate, UtilityReading, Service, Invoice, InvoiceService, Payment
+from .models import UtilityRate, UtilityReading, Service, Invoice, InvoiceService, Payment, ElectricMeterPrecisionAudit
 from .services import create_invoice_from_reading
 
 
 @admin.register(UtilityRate)
 class UtilityRateAdmin(admin.ModelAdmin):
     list_display = ('effective_date', 'electric_price', 'water_price', 'water_billing_method')
+
+
+@admin.register(ElectricMeterPrecisionAudit)
+class ElectricMeterPrecisionAuditAdmin(admin.ModelAdmin):
+    list_display = ('source_model', 'source_pk', 'created_at')
+    readonly_fields = ('source_model', 'source_pk', 'original_values', 'normalized_values', 'created_at')
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.action(description='Lập hóa đơn từ chỉ số đã chọn')

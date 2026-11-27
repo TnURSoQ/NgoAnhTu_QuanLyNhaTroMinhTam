@@ -35,7 +35,7 @@
       <div class="info-row"><span>Cọc thỏa thuận</span><strong>{{ contract.agreed_deposit|floatformat:"0g" }} đ</strong></div>
       <div class="info-row"><span>Cọc thực tế đang giữ</span><strong>{{ deposit_balance|floatformat:"0g" }} đ</strong></div>
       <div class="info-row"><span>Tháng đầu</span><strong>{% if contract.prorate_first_month %}Theo ngày ở / số ngày trong tháng{% else %}Thu trọn tháng theo thỏa thuận{% endif %}</strong></div>
-      <div class="info-row"><span>Chỉ số nhận phòng</span><strong>Điện {{ contract.initial_electric|default_if_none:'Chưa ghi nhận' }}{% if contract.initial_water != None %} · Nước (chỉ số lưu trước đây): {{ contract.initial_water }}{% endif %}</strong></div>
+      <div class="info-row"><span>Chỉ số nhận phòng</span><strong>Điện {{ contract.initial_electric|floatformat:'-1g'|default:'Chưa ghi nhận' }}{% if contract.initial_water != None %} · Nước (chỉ số lưu trước đây): {{ contract.initial_water }}{% endif %}</strong></div>
       <div class="info-row"><span>Dịch vụ định kỳ</span><strong>{% if contract.use_default_services %}Theo danh mục chung{% else %}{% for service in contract.services.all %}{{ service.name }}{% if not forloop.last %}, {% endif %}{% empty %}Không đăng ký{% endfor %}{% endif %}</strong></div>
       {% if contract.checkout_date %}<div class="info-row"><span>Ngày trả phòng</span><strong>{{ contract.checkout_date|date:"d/m/Y" }}</strong></div>{% endif %}
       {% if contract.previous_contract %}<div class="info-row"><span>Chuyển từ</span><strong><a href="{% url 'contract_detail' contract.previous_contract.pk %}">{{ contract.previous_contract.display_code }} (P.{{ contract.previous_contract.room.room_number }})</a></strong></div>{% endif %}

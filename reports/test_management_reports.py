@@ -9,7 +9,7 @@ from django.utils import timezone
 from openpyxl import load_workbook
 
 from accounts.models import Tenant, User
-from billing.models import Invoice, InvoiceDraft, InvoiceService, Payment, PaymentNotice
+from billing.models import Invoice, InvoiceDraft, InvoiceService, Payment, PaymentNotice, UtilityReading
 from billing.services import void_payment
 from rooms.models import CoOccupantRequest, Contract, ContractTenant, DepositEntry
 from rooms.services import apply_deposit_to_invoice
@@ -90,6 +90,115 @@ class ManagementReportTests(SupportBase):
         self.assertEqual(previous['cash_received'], 200000)
         self.assertEqual(previous['invoice_total'], 1000000)
         self.assertEqual(previous['total_debt'], context['total_debt'])
+
+    def test_chart_series_match_receipts_and_current_balances_for_selected_period(self):
+        context = self.context()
+        charts = context['charts']
+        collections = charts['collections']
+        self.assertTrue(collections['daily'])
+        self.assertEqual(collections['observed_count'], self.today.day)
+        self.assertEqual(collections['labels'][self.today.day - 1], f'{self.today.day}/{self.today.month}')
+        self.assertEqual(collections['cash'][self.today.day - 1], 300000)
+        self.assertEqual(collections['bank'][self.today.day - 1], 300000)
+        # Canceled receipts, deposit receipts, offsets and unconfirmed transfers are excluded.
+        self.assertEqual(sum(collections['cash']) + sum(collections['bank']), context['cash_received'])
+        self.assertEqual(sum(row['value'] for row in charts['debt']), context['total_debt'])
+        self.assertEqual(sum(row['count'] for row in charts['debt']), len(context['debts']))
+        self.assertEqual(sum(row['value'] for row in charts['rooms']), context['room_stats']['total'])
+        yearly = self.context(month=0)
+        yearly_series = yearly['charts']['collections']
+        self.assertFalse(yearly_series['daily'])
+        self.assertEqual(yearly_series['observed_count'], self.today.month)
+        self.assertEqual(len(yearly_series['labels']), 12)
+        self.assertEqual(yearly_series['cash'], [int(row['cash']) for row in yearly['months']])
+        self.assertEqual(yearly_series['bank'], [int(row['bank']) for row in yearly['months']])
+        self.assertEqual(yearly['charts']['debt'], charts['debt'])
+        self.assertEqual(yearly['charts']['rooms'], charts['rooms'])
+
+    def test_chart_empty_period_has_all_days_in_leap_february_and_keeps_current_balances(self):
+        report = build_report(ReportPeriod(2000, 2))
+        series = report['charts']['collections']
+        self.assertEqual(len(series['labels']), 29)
+        self.assertEqual(series['labels'][-1], '29/2')
+        self.assertEqual(series['cash'], [0] * 29)
+        self.assertEqual(series['bank'], [0] * 29)
+        self.assertGreater(sum(row['value'] for row in report['charts']['debt']), 0)
+        self.assertGreater(sum(row['value'] for row in report['charts']['rooms']), 0)
+
+    def test_floor_filter_scopes_receipts_invoices_balances_rooms_and_exports(self):
+        self.room.floor = 0
+        self.room.save(update_fields=['floor'])
+        self.other_room.floor = 2
+        self.other_room.save(update_fields=['floor'])
+        other_invoice = Invoice.objects.create(contract=self.other_contract, month=self.today.month, year=self.today.year,
+            room_fee=500000, total_amount=500000, due_date=self.today)
+        Payment.objects.create(invoice=other_invoice, amount=100000, paid_date=self.today)
+        self.make_request(title='Sửa phòng tầng 0')
+        context = self.context(floor=0)
+        self.assertEqual(context['cash_received'], 600000)
+        self.assertEqual(context['invoice_total'], 2875000)
+        self.assertEqual(context['total_debt'], 2925000)
+        self.assertEqual(context['deposit_held'], 1000000)
+        self.assertEqual(context['period_draft_count'], 0)
+        self.assertEqual(context['room_stats']['total'], 1)
+        self.assertEqual(context['repair_stats']['total'], 1)
+        self.assertEqual({row['contract'].room.floor for row in context['cashbook']}, {0})
+        self.assertEqual(context['period'].scope_label, 'Tầng 0')
+        self.assertIn('floor=0', context['period'].query)
+        params = {'year': self.today.year, 'month': self.today.month, 'floor': 0}
+        exported = load_workbook(BytesIO(self.client.get(reverse('report_excel'), params).content))
+        self.assertEqual(exported['Hóa đơn trong kỳ'].max_row, 2)
+        self.assertEqual(exported['Phòng và hợp đồng'].max_row, 2)
+        self.assertEqual(exported['Đối soát điện nước'].max_row, 2)
+        self.assertContains(self.client.get(reverse('report_print'), params), 'Tầng 0')
+        csv_rows = list(csv.reader(StringIO(self.client.get(reverse('cashbook_csv'), params).content.decode('utf-8-sig'))))
+        self.assertEqual({row[4] for row in csv_rows[1:]}, {self.room.room_number})
+
+    def test_utility_report_keeps_metered_and_per_person_water_separate_and_missing_values_unknown(self):
+        reading = UtilityReading.objects.create(room=self.room, contract=self.contract, month=self.today.month, year=self.today.year,
+            old_electric='100.2', new_electric='150.2')
+        self.invoice.utility_reading = reading
+        self.invoice.electric_unit_price = 3500
+        self.invoice.save(update_fields=['utility_reading', 'electric_unit_price'])
+        context = self.context()
+        self.assertEqual(context['utility_totals']['electric'], 50)
+        self.assertEqual(context['utility_totals']['people'], 2)
+        self.assertEqual(context['utility_totals']['water'], 0)
+        row = context['utility_rows'][0]
+        self.assertTrue(row['electric_matches'])
+        self.assertTrue(row['water_matches'])
+        self.assertIsNone(row['water_usage'])
+        previous_reading = UtilityReading.objects.create(room=self.room, contract=self.contract,
+            month=self.previous.month, year=self.previous.year, old_electric=10, new_electric=10, old_water='3.5', new_water='5.5')
+        Invoice.objects.filter(pk=self.old_invoice.pk).update(utility_reading=previous_reading, water_unit_price=15000, water_fee=30000)
+        previous = self.context(year=self.previous.year, month=self.previous.month)
+        self.assertEqual(previous['utility_totals']['electric'], 0)
+        self.assertEqual(previous['utility_totals']['missing_electric'], 0)
+        self.assertEqual(previous['utility_totals']['water'], 2)
+        self.assertEqual(previous['utility_totals']['people'], 0)
+        reading.delete()
+        missing = self.context()
+        self.assertIsNone(missing['utility_rows'][0]['electric_usage'])
+        self.assertEqual(missing['utility_totals']['missing_electric'], 1)
+        params = {'year': self.today.year, 'month': self.today.month}
+        book = load_workbook(BytesIO(self.client.get(reverse('report_excel'), params).content))
+        exported = next(book['Đối soát điện nước'].iter_rows(min_row=2, values_only=True))
+        self.assertIsNone(exported[4])
+        self.assertIsNone(exported[10])
+        self.assertEqual(exported[11], 2)
+        self.assertEqual(exported[13], 100000)
+
+    def test_empty_floor_has_zero_figures_and_payment_labels_use_actual_balances(self):
+        empty = self.context(floor=32767)
+        self.assertEqual(empty['cash_received'], 0)
+        self.assertEqual(empty['invoice_total'], 0)
+        self.assertEqual(empty['total_debt'], 0)
+        self.assertEqual(empty['room_stats']['total'], 0)
+        self.assertEqual(empty['utility_rows'], [])
+        Invoice.objects.filter(pk=self.invoice.pk).update(status=Invoice.Status.DA_THANH_TOAN)
+        row = self.context()['issued'][0]
+        self.assertEqual(row['payment_status'], Invoice.Status.THU_MOT_PHAN)
+        self.assertEqual(row['payment_label'], 'Thu một phần')
 
     def test_deposit_opening_movements_and_closing_reconcile(self):
         context = self.context()
@@ -205,7 +314,7 @@ class ManagementReportTests(SupportBase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('no-store', response['Cache-Control'])
         book = load_workbook(BytesIO(response.content), data_only=False)
-        self.assertEqual(len(book.worksheets), 8)
+        self.assertEqual(len(book.worksheets), 9)
         summary = {r[0]: r[1] for r in book['Tổng hợp'].iter_rows(min_row=2, values_only=True)}
         self.assertEqual(summary['Tiền mới nhận thanh toán hóa đơn'], 600000)
         self.assertEqual(summary['Cọc cuối kỳ'], 1200000)
@@ -241,7 +350,8 @@ class ManagementReportTests(SupportBase):
         self.assertIn('no-store', printed['Cache-Control'])
 
     def test_invalid_period_is_visible_on_screen_and_rejected_for_exports(self):
-        for params in ({'month': '13'}, {'month': '-1'}, {'month': 'abc'}, {'year': 'abc'}, {'year': '1999'}):
+        for params in ({'month': '13'}, {'month': '-1'}, {'month': 'abc'}, {'year': 'abc'}, {'year': '1999'},
+                       {'floor': '-1'}, {'floor': 'abc'}, {'floor': '32768'}):
             with self.subTest(params=params):
                 response = self.client.get(reverse('report_dashboard'), params)
                 self.assertContains(response, 'Kỳ báo cáo không hợp lệ')

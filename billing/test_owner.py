@@ -403,7 +403,7 @@ class OwnerBillingViewTests(BillingBase):
         UtilityReading.objects.create(room=self.room, month=12, year=self.today.year - 1,
                                         old_electric=1, new_electric=123, old_water=1, new_water=12)
         r = self.client.get(reverse('invoice_create'), {'room': self.room.pk})
-        self.assertEqual(r.context['form'].initial['old_electric'], '123.00')
+        self.assertEqual(r.context['form'].initial['old_electric'], '123.0')
         self.assertEqual(r.context['form'].initial['old_water'], '12.00')
         self.assertTrue(r.context['form'].fields['old_electric'].disabled)
         self.assertTrue(r.context['form'].fields['old_water'].disabled)
@@ -434,7 +434,7 @@ class OwnerBillingViewTests(BillingBase):
         data.update(old_electric='0', old_water='0', new_electric='120')
         response = self.client.post(reverse('invoice_create'), data)
         self.assertContains(response, 'Chỉ số điện mới không được nhỏ hơn chỉ số cũ.')
-        self.assertEqual(response.context['form']['old_electric'].value(), '125.00')
+        self.assertEqual(response.context['form']['old_electric'].value(), '125.0')
         self.assertFalse(Invoice.objects.exists())
 
     def test_settings_appends_rates_and_keeps_history(self):

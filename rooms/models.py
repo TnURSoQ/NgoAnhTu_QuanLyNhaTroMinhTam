@@ -3,6 +3,7 @@ from accounts.identity_profile import IdentityProfile
 from django.utils import timezone
 from accounts.models import Tenant
 from accounts.model_fields import DongField
+from billing.model_fields import ElectricMeterReadingField
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.core.validators import RegexValidator
@@ -84,8 +85,7 @@ class Contract(models.Model):
     end_date = models.DateField()
     deposit = DongField(default=0)
     monthly_rent = DongField(null=True, blank=True)
-    initial_electric = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                           validators=[MinValueValidator(0)])
+    initial_electric = ElectricMeterReadingField(null=True, blank=True)
     initial_water = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
                                         validators=[MinValueValidator(0)])
     prorate_first_month = models.BooleanField(default=False)

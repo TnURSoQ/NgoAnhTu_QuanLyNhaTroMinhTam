@@ -8,6 +8,8 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.utils import timezone
 from django.utils.formats import number_format
+from .model_fields import ElectricMeterReadingField
+from .meters import electric_reading
 
 class WaterBillingMethod(models.TextChoices):
     PER_PERSON = 'per_person', 'Theo người / tháng'
@@ -44,8 +46,8 @@ class UtilityReading(models.Model):
                                   related_name='utility_readings')
     month = models.PositiveSmallIntegerField()
     year = models.PositiveSmallIntegerField()
-    old_electric = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
-    new_electric = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
+    old_electric = ElectricMeterReadingField()
+    new_electric = ElectricMeterReadingField()
     old_water = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(0)])
     new_water = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(0)])
 
@@ -204,10 +206,8 @@ class InvoiceDraft(models.Model):
     water_billing_method = models.CharField(max_length=12, choices=WaterBillingMethod.choices,
                                            default=WaterBillingMethod.PER_PERSON)
     water_people_count = models.PositiveIntegerField(null=True, blank=True, validators=[MinValueValidator(1)])
-    old_electric = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                       validators=[MinValueValidator(0)])
-    new_electric = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                       validators=[MinValueValidator(0)])
+    old_electric = ElectricMeterReadingField(null=True, blank=True)
+    new_electric = ElectricMeterReadingField(null=True, blank=True)
     old_water = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
                                     validators=[MinValueValidator(0)])
     new_water = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
@@ -246,6 +246,11 @@ class InvoiceDraft(models.Model):
 
     @property
     def is_ready(self):
+        try:
+            electric_reading(self.old_electric)
+            electric_reading(self.new_electric)
+        except ValidationError:
+            return False
         present = all(getattr(self, name) is not None for name in (
             'old_electric', 'new_electric', 'electric_unit_price', 'water_unit_price'))
         water_ready = (self.water_people_count is not None and self.water_people_count > 0
@@ -272,6 +277,20 @@ class InvoiceDraft(models.Model):
 
     def __str__(self):
         return f'Nháp T{self.month}/{self.year} - {self.contract}'
+
+
+class ElectricMeterPrecisionAudit(models.Model):
+    source_model = models.CharField(max_length=40)
+    source_pk = models.PositiveBigIntegerField()
+    original_values = models.JSONField()
+    normalized_values = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['source_model', 'source_pk'], name='unique_electric_precision_source')]
+
+    def __str__(self):
+        return f'{self.source_model} #{self.source_pk}'
 
 
 class PaymentQuerySet(models.QuerySet):

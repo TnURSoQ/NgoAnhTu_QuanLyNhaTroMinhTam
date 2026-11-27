@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from accounts.form_fields import FlexibleDecimalField, MoneyField, PlainDecimalInput
 from accounts.forms import BootstrapFormMixin
+from billing.form_fields import ElectricMeterFormField
 from accounts.models import Tenant
 from . import services
 from billing.models import Service
@@ -34,8 +35,7 @@ class ContractCreateForm(BootstrapFormMixin, forms.Form):
     deposit = MoneyField(label='Tiền đặt cọc (đ)', max_digits=8, decimal_places=0, min_value=0)
     monthly_rent = MoneyField(label='Giá thuê thỏa thuận (đ/tháng)', min_value=1, required=False,
                               help_text='Để trống: lấy giá niêm yết hiện tại. Giá này được giữ riêng cho hợp đồng.')
-    initial_electric = FlexibleDecimalField(label='Chỉ số điện lúc nhận phòng', min_value=0, max_digits=10,
-                                            decimal_places=2, required=False, widget=PlainDecimalInput)
+    initial_electric = ElectricMeterFormField(label='Chỉ số điện lúc nhận phòng', required=False)
     initial_water = FlexibleDecimalField(label='Chỉ số nước lúc nhận phòng', min_value=0, max_digits=10,
                                          decimal_places=2, required=False, widget=PlainDecimalInput)
     prorate_first_month = forms.BooleanField(label='Tính tiền phòng tháng đầu theo ngày ở thực tế',
@@ -107,8 +107,7 @@ class ContractTransferForm(BootstrapFormMixin, forms.Form):
                                       empty_label='— Chọn phòng —')
     transfer_date = forms.DateField(label='Ngày chuyển', widget=_date_widget())
     new_end_date = forms.DateField(label='Ngày kết thúc hợp đồng mới', widget=_date_widget())
-    initial_electric = FlexibleDecimalField(label='Chỉ số điện khi nhận phòng mới', min_value=0, max_digits=10,
-                                            decimal_places=2, required=False, widget=PlainDecimalInput)
+    initial_electric = ElectricMeterFormField(label='Chỉ số điện khi nhận phòng mới', required=False)
     initial_water = FlexibleDecimalField(label='Chỉ số nước khi nhận phòng mới', min_value=0, max_digits=10,
                                          decimal_places=2, required=False, widget=PlainDecimalInput)
     accept_outstanding = forms.BooleanField(required=False,

@@ -269,7 +269,7 @@ class RentalOperationsTests(TestCase):
         self.room.save()
         response = self.client.get(reverse('invoice_create'), {'room': self.room.pk})
         self.assertEqual(response.context['form'].initial['room_fee'], '2500000')
-        self.assertEqual(response.context['form'].initial['old_electric'], '100.00')
+        self.assertEqual(response.context['form'].initial['old_electric'], '100.0')
         self.assertTrue(response.context['form'].fields['old_electric'].disabled)
         self.assertEqual(len(response.context['lines'].forms), 1)
         self.assertEqual(response.context['lines'].forms[0].initial['service'], self.wifi.pk)

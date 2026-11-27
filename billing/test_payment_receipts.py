@@ -213,7 +213,8 @@ class PaymentRecordingMigrationTests(TransactionTestCase):
     def test_existing_payments_keep_unknown_time_and_new_payments_capture_time(self):
         executor = MigrationExecutor(connection)
         latest = executor.loader.graph.leaf_nodes()
-        old = [node for node in latest if node[0] != 'billing'] + [('billing', '0012_checkout_settlement')]
+        old = [node for node in latest if node[0] not in ('billing', 'rooms')] + [
+            ('billing', '0012_checkout_settlement'), ('rooms', '0018_contract_checkout_terms_contract_payment_terms_and_more')]
         try:
             executor.migrate(old)
             apps = executor.loader.project_state(old).apps

@@ -159,9 +159,9 @@ class MonthlyDraftServiceTests(DraftBase):
 
     def test_fractional_usage_truncates_to_whole_dong(self):
         draft = self.generate()
-        self.save(self.row(draft, old_electric=0, new_electric=Decimal('0.01'),
+        self.save(self.row(draft, old_electric=0, new_electric=Decimal('0.1'),
                            old_water=0, new_water=Decimal('0.01')), publish=True)
-        self.assertEqual(Invoice.objects.get().electric_fee, 35)
+        self.assertEqual(Invoice.objects.get().electric_fee, 350)
         self.assertEqual(Invoice.objects.get().water_fee, 150)
 
     def test_other_period_and_duplicate_rows_rejected(self):

@@ -10,7 +10,8 @@ class WaterPolicyMigrationTests(TransactionTestCase):
     def test_upgrade_preserves_issued_metered_bills_and_converts_only_unissued_drafts(self):
         executor = MigrationExecutor(connection)
         latest = executor.loader.graph.leaf_nodes()
-        target = [node for node in latest if node[0] != 'billing'] + [('billing', '0014_payment_correction_audit')]
+        target = [node for node in latest if node[0] not in ('billing', 'rooms')] + [
+            ('billing', '0014_payment_correction_audit'), ('rooms', '0018_contract_checkout_terms_contract_payment_terms_and_more')]
         try:
             executor.migrate(target)
             apps = executor.loader.project_state(target).apps
