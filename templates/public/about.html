@@ -1,0 +1,54 @@
+{% extends 'base_public.html' %}{% load static %}
+{% block title %}Về chúng tôi · {{ SITE_NAME }}{% endblock %}
+{% block meta_description %}Tìm hiểu Nhà trọ Minh Tâm — một chỗ ở ấm áp, thông tin thuê phòng rõ ràng và kết nối thuận tiện giữa người thuê với chủ trọ.{% endblock %}
+{% block extra_head %}<link href="{% static 'css/about.css' %}?v=20261128-1" rel="stylesheet">{% endblock %}
+{% block content %}
+<article class="about-page">
+  <header class="about-hero">
+    <div class="about-hero-copy">
+      <span class="about-kicker">VỀ CHÚNG TÔI</span>
+      <h1>Một căn phòng nhỏ.<br><em>Một cuộc sống ấm áp.</em></h1>
+      <p>Chúng tôi là Nhà trọ Minh Tâm. Một nơi để bạn nghỉ ngơi sau ngày học tập, làm việc và bắt đầu những dự định của riêng mình.</p>
+      <p>Từ việc chọn phòng đến những ngày sinh hoạt thường nhật, Minh Tâm mong mang lại trải nghiệm ở trọ rõ ràng, thuận tiện và gần gũi.</p>
+      <a class="btn btn-primary" href="{% url 'public_rooms' %}">Tìm căn phòng phù hợp</a>
+    </div>
+    <figure class="about-hero-photo">
+      <img src="{% static 'images/minhtam-hero.webp' %}" alt="Không gian phòng ở sáng, có góc làm việc và cây xanh, dùng để minh họa." width="1659" height="948" fetchpriority="high">
+      <figcaption>Ảnh minh họa không gian sống</figcaption>
+      <div class="about-photo-note" aria-hidden="true"><i class="bi bi-house-heart"></i><span>Minh Tâm<small>Nhà trọ ấm áp</small></span></div>
+    </figure>
+  </header>
+
+  <section class="about-story" aria-labelledby="aboutStoryTitle">
+    <div><span class="about-kicker">ĐIỀU CHÚNG TÔI HƯỚNG ĐẾN</span><h2 id="aboutStoryTitle">Ở trọ cũng là<br><em>một phần của cuộc sống.</em></h2></div>
+    <div class="about-story-copy">
+      <p>Một chỗ ở phù hợp không chỉ nằm ở diện tích hay giá thuê. Đó còn là cảm giác dễ chịu khi trở về, sự riêng tư để nghỉ ngơi và những trao đổi rõ ràng trong suốt thời gian thuê.</p>
+      <p>Vì vậy, chúng tôi bắt đầu từ những điều thiết thực: cung cấp thông tin phòng để bạn cân nhắc, tạo điều kiện đặt lịch xem trực tiếp và giúp việc theo dõi hợp đồng, hóa đơn trở nên thuận tiện hơn. Bạn có thể tìm hiểu trước, hỏi điều mình quan tâm và quyết định khi thấy phù hợp.</p>
+      <blockquote>“Nhà tốt, người vui”<span>Lời nhắc giản dị trong cách Minh Tâm chăm chút việc ở trọ.</span></blockquote>
+    </div>
+  </section>
+
+  <section class="about-values" aria-labelledby="aboutValuesTitle">
+    <div class="about-section-intro"><span class="about-kicker">NHỮNG ĐIỀU MINH TÂM COI TRỌNG</span><h2 id="aboutValuesTitle">An tâm từ những điều rõ ràng.</h2></div>
+    <div class="about-values-grid">
+      <section class="about-value"><span class="about-value-icon"><i class="bi bi-receipt" aria-hidden="true"></i></span><h3>Thông tin dễ hiểu</h3><p>Giá thuê, diện tích, tiện ích và các khoản điện nước, dịch vụ được trình bày để bạn dễ đối chiếu. Những thỏa thuận cụ thể được trao đổi trước khi ký hợp đồng.</p></section>
+      <section class="about-value"><span class="about-value-icon"><i class="bi bi-house-heart" aria-hidden="true"></i></span><h3>Tôn trọng và sẻ chia</h3><p>Mỗi người có một nếp sống riêng. Chúng tôi trân trọng sự riêng tư, tinh thần giữ gìn vệ sinh và ý thức tôn trọng không gian chung để việc ở trọ dễ chịu hơn cho mọi người.</p></section>
+      <section class="about-value"><span class="about-value-icon"><i class="bi bi-chat-square-heart" aria-hidden="true"></i></span><h3>Trao đổi thuận tiện</h3><p>Khi có vấn đề trong quá trình ở, bạn có thể liên hệ chủ trọ hoặc gửi yêu cầu sửa chữa trên ứng dụng, kèm hình ảnh và nội dung cụ thể để hai bên cùng theo dõi, xử lý.</p></section>
+    </div>
+  </section>
+
+  <section class="about-everyday" aria-labelledby="aboutEverydayTitle">
+    <div class="about-everyday-copy"><span class="about-kicker">ĐỒNG HÀNH TRONG THỜI GIAN THUÊ</span><h2 id="aboutEverydayTitle">Việc ở trọ,<br><em>chủ động hơn mỗi ngày.</em></h2><p>Website Minh Tâm giúp kết nối người đang tìm phòng với chủ trọ, đồng thời hỗ trợ người thuê theo dõi những thông tin cần thiết trong quá trình sinh sống.</p><p>Bạn có thể xem phòng và đặt lịch trước khi thuê. Khi đã nhận phòng và được cấp tài khoản, những thông tin về chỗ ở, hợp đồng và thanh toán được tập hợp để bạn dễ tra cứu khi cần.</p></div>
+    <ul class="about-everyday-list">
+      <li><i class="bi bi-file-earmark-text" aria-hidden="true"></i><div><h3>Nắm rõ thỏa thuận thuê</h3><p>Xem thông tin phòng và hợp đồng của mình ngay trên ứng dụng.</p></div></li>
+      <li><i class="bi bi-wallet2" aria-hidden="true"></i><div><h3>Theo dõi các khoản thanh toán</h3><p>Tra cứu chi tiết hóa đơn, số tiền còn phải trả và lịch sử thanh toán đã ghi nhận.</p></div></li>
+      <li><i class="bi bi-tools" aria-hidden="true"></i><div><h3>Kết nối khi cần hỗ trợ</h3><p>Nhận thông báo từ chủ trọ, gửi yêu cầu sửa chữa và xem tiến độ xử lý.</p></div></li>
+    </ul>
+  </section>
+
+  <section class="about-visit" aria-labelledby="aboutVisitTitle">
+    <div><span class="about-kicker">HẸN GẶP BẠN TẠI MINH TÂM</span><h2 id="aboutVisitTitle">Đến xem, rồi hãy quyết định.</h2><p>Mỗi người sẽ cảm nhận một không gian theo cách riêng. Mời bạn xem các phòng đang trống, chọn căn phòng mình quan tâm và đặt một buổi hẹn để đến tìm hiểu trực tiếp.</p>{% if SITE_ADDRESS or SITE_PHONE %}<div class="about-contact">{% if SITE_ADDRESS %}<span><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ SITE_ADDRESS }}</span>{% endif %}{% if SITE_PHONE %}<a href="tel:{{ SITE_PHONE }}"><i class="bi bi-telephone" aria-hidden="true"></i> {{ SITE_PHONE }}</a>{% endif %}</div>{% endif %}</div>
+    <div class="about-visit-actions"><a class="btn btn-primary" href="{% url 'public_rooms' %}">Xem phòng &amp; đặt lịch</a><a class="about-lookup" href="{% url 'appointment_lookup' %}">Bạn đã có lịch hẹn? Tra cứu tại đây</a></div>
+  </section>
+</article>
+{% endblock %}

@@ -36,6 +36,10 @@ def room_list(request):
     return render(request, 'public/room_list.html', _room_context(request))
 
 
+def about(request):
+    return render(request, 'public/about.html')
+
+
 def _room_context(request):
     rooms = list(free_rooms())
     total_free = len(rooms)

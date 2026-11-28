@@ -3,8 +3,9 @@
 <head>
   <title>{% block title %}{{ SITE_NAME }}{% endblock %}</title>
   {% include '_head.html' %}
-  <meta name="description" content="Tìm phòng trọ tại Minh Tâm. Xem giá, tiện ích và chọn lịch đến xem phòng trực tiếp.">
-  <link href="{% static 'css/public.css' %}?v=20261125-6" rel="stylesheet">
+  <meta name="description" content="{% block meta_description %}Tìm phòng trọ tại Minh Tâm. Xem giá, tiện ích và chọn lịch đến xem phòng trực tiếp.{% endblock %}">
+  <link href="{% static 'css/public.css' %}?v=20261128-1" rel="stylesheet">
+  {% block extra_head %}{% endblock %}
 </head>
 <body class="pub-body">
 <header class="pub-nav">
@@ -15,6 +16,7 @@
     </a>
     <nav class="pub-links" aria-label="Điều hướng chính">
       <a class="{% if request.resolver_match.url_name == 'home' %}active{% endif %}" href="{% url 'home' %}">Trang chủ</a>
+      <a class="{% if request.resolver_match.url_name == 'public_about' %}active{% endif %}" href="{% url 'public_about' %}"{% if request.resolver_match.url_name == 'public_about' %} aria-current="page"{% endif %}>Về chúng tôi</a>
       <a class="{% if request.resolver_match.url_name == 'public_rooms' or request.resolver_match.url_name == 'public_room_detail' %}active{% endif %}" href="{% url 'public_rooms' %}">Xem phòng</a>
       <a class="{% if request.resolver_match.url_name == 'appointment_lookup' or request.resolver_match.url_name == 'appointment_status' %}active{% endif %}" href="{% url 'appointment_lookup' %}">Tra cứu lịch hẹn</a>
     </nav>
@@ -38,7 +40,7 @@
 <footer class="pub-footer">
   <div class="pub-container footer-layout">
     <div><a class="footer-brand" href="{% url 'home' %}">Minh Tâm<span class="brand-dot">.</span></a><p>Một căn phòng nhỏ. Một cuộc sống ấm áp.</p></div>
-    <div class="footer-links"><a href="{% url 'public_rooms' %}">Tìm phòng trống</a><a href="{% url 'appointment_lookup' %}">Tra cứu lịch hẹn</a><span>{% if SITE_ADDRESS %}<i class="bi bi-geo-alt"></i> {{ SITE_ADDRESS }}{% endif %}{% if SITE_PHONE %} · <a href="tel:{{ SITE_PHONE }}">{{ SITE_PHONE }}</a>{% endif %}</span></div>
+    <div class="footer-links"><a href="{% url 'public_about' %}">Về chúng tôi</a><a href="{% url 'public_rooms' %}">Tìm phòng trống</a><a href="{% url 'appointment_lookup' %}">Tra cứu lịch hẹn</a><span>{% if SITE_ADDRESS %}<i class="bi bi-geo-alt"></i> {{ SITE_ADDRESS }}{% endif %}{% if SITE_PHONE %} · <a href="tel:{{ SITE_PHONE }}">{{ SITE_PHONE }}</a>{% endif %}</span></div>
   </div>
 </footer>
 {% if not user.is_authenticated %}{% include 'accounts/_login_modal.html' %}{% endif %}

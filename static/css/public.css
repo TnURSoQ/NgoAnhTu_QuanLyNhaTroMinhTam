@@ -6,7 +6,7 @@
 .pub-nav .brand-name { font-size: 1.4rem; letter-spacing: -.7px; }
 .pub-nav .brand-tag { font-size: .66rem; letter-spacing: .65px; margin-top: 5px; }
 .pub-nav .logo { width: 39px; height: 39px; }
-.pub-links { gap: 34px; font-size: .83rem; font-weight: 500; }
+.pub-links { gap: 34px; font-size: .875rem; font-weight: 500; }
 .pub-links a { position: relative; padding: 8px 0; color: #667169; }
 .pub-links a.active { color: var(--brand); font-weight: 600; }
 .pub-links a.active::after { content: ''; position: absolute; height: 3px; width: 18px; border-radius: 9px; bottom: -3px; left: calc(50% - 9px); background: var(--brand); }
@@ -186,7 +186,7 @@
 .footer-brand { font-size: 1.35rem; color: #394635; font-weight: 600; letter-spacing: -.9px; text-decoration: none; }
 .brand-dot { color: var(--brand); }
 .footer-layout p { margin: 7px 0 0; font-size: .67rem; color: #8b9283; font-weight: 400; }
-.footer-links { display: flex; flex-wrap: wrap; gap: 25px; align-items: center; font-size: .69rem; font-weight: 400; }
+.footer-links { display: flex; flex-wrap: wrap; gap: 25px; align-items: center; font-size: .875rem; font-weight: 400; }
 .footer-links a { color: #6e7864; text-decoration: none; }
 .catalog-heading { padding: 20px 0 34px; }
 .catalog-heading h1 { font-size: 2.6rem; font-weight: 500; line-height: 1.25; letter-spacing: -1.4px; margin: 17px 0; }
@@ -230,11 +230,14 @@
   .hero-availability { right: 25px; bottom: 120px; }
   .booking-guide { gap: 36px; padding: 38px; }
 }
+@media (min-width: 768px) and (max-width: 991.98px) {
+  .pub-nav .pub-links { order: 3; flex-basis: 100%; justify-content: center; }
+}
 @media (max-width: 767.98px) {
   .pub-container { padding-inline: 18px; }
   .pub-nav { padding: 15px 0 11px; }
   .pub-nav > .pub-container { gap: 15px !important; }
-  .pub-nav .pub-links { order: 3; flex-basis: 100%; justify-content: center; gap: 26px; font-size: .73rem; padding-top: 8px; border-top: 1px solid #efefe6; }
+  .pub-nav .pub-links { display: grid; grid-template-columns: repeat(2, max-content); order: 3; flex-basis: 100%; justify-content: center; gap: 2px 30px; font-size: .875rem; padding-top: 8px; border-top: 1px solid #efefe6; }
   .pub-nav .user-chip { font-size: .75rem; }
   .pub-nav .public-login { padding: 8px 12px; font-size: .7rem; }
   .pub-main { padding-top: 18px; padding-bottom: 40px; }
@@ -268,7 +271,7 @@
   .guide-intro h2 { font-size: 1.7rem; }
   .guide-intro > p { max-width: none; }
   .footer-layout { align-items: start; flex-direction: column; }
-  .footer-links { gap: 17px; font-size: .63rem; }
+  .footer-links { gap: 17px; font-size: .875rem; }
   .catalog-heading { padding-top: 15px; }
   .catalog-heading h1 { font-size: 2.1rem; }
 }
